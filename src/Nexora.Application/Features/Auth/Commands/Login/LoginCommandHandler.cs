@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
-using Nexora.Domain.Entities;
+using DomainEntities = Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Auth.Commands.Login;
@@ -41,7 +41,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         var accessToken = _jwtProvider.GenerateAccessToken(user, roles);
         var refreshTokenValue = _jwtProvider.GenerateRefreshToken();
 
-        var refreshToken = new RefreshToken
+        var refreshToken = new DomainEntities.RefreshToken
         {
             UserId = user.Id,
             Token = refreshTokenValue,
