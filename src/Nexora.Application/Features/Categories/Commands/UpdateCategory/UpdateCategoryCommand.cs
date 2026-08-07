@@ -1,0 +1,11 @@
+using MediatR;
+using Nexora.Application.Common;
+
+namespace Nexora.Application.Features.Categories.Commands.UpdateCategory;
+
+public sealed record UpdateCategoryCommand(
+    Guid Id,
+    string Name,
+    string? Description,
+    Guid? ParentCategoryId,
+    bool IsActive) : IRequest<Result<string>>;
