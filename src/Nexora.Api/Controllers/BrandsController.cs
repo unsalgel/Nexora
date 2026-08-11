@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
-using Nexora.Application.Features.Brands;
+using Nexora.Application.Features.Brands.Dtos;
 using Nexora.Application.Features.Brands.Commands.CreateBrand;
 using Nexora.Application.Features.Brands.Commands.DeleteBrand;
 using Nexora.Application.Features.Brands.Commands.UpdateBrand;

@@ -1,4 +1,4 @@
-namespace Nexora.Application.Features.Brands;
+namespace Nexora.Application.Features.Brands.Dtos;
 
 public sealed record BrandDto(
     Guid Id,

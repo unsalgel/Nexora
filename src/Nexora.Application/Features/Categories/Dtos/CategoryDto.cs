@@ -1,4 +1,4 @@
-namespace Nexora.Application.Features.Categories;
+namespace Nexora.Application.Features.Categories.Dtos;
 
 public sealed record CategoryDto(
     Guid Id,

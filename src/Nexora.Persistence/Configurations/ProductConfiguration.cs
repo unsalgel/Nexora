@@ -49,10 +49,5 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .WithMany()
             .HasForeignKey(p => p.BrandId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasMany(p => p.Images)
-            .WithOne(i => i.Product)
-            .HasForeignKey(i => i.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -53,9 +53,10 @@ public sealed class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, 
                 p.StockQuantity,
                 p.Category.Name,
                 p.Brand.Name,
-                p.Images.FirstOrDefault(i => i.IsMain) != null
-                    ? p.Images.FirstOrDefault(i => i.IsMain)!.ImageUrl
-                    : p.Images.FirstOrDefault() != null ? p.Images.FirstOrDefault()!.ImageUrl : null,
+                p.Images
+                    .OrderByDescending(i => i.IsMain)
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault(),
                 p.IsActive))
             .ToListAsync(cancellationToken);
 

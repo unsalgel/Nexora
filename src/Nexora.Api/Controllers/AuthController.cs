@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
-using Nexora.Application.Features.Auth;
+using Nexora.Application.Features.Auth.Dtos;
 using Nexora.Application.Features.Auth.Commands.Login;
 using Nexora.Application.Features.Auth.Commands.RefreshToken;
 using Nexora.Application.Features.Auth.Commands.Register;
@@ -28,7 +28,7 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(command, cancellationToken);
-        return Ok(result);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpPost("login")]

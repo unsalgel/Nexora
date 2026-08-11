@@ -1,4 +1,4 @@
-namespace Nexora.Application.Features.Auth;
+namespace Nexora.Application.Features.Auth.Dtos;
 
 public sealed record AuthTokenDto(
     string AccessToken,

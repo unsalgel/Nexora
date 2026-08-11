@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
+using Nexora.Application.Features.Brands.Dtos;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Brands.Queries.GetBrandById;

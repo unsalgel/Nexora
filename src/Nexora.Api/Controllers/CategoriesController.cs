@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
-using Nexora.Application.Features.Categories;
+using Nexora.Application.Features.Categories.Dtos;
 using Nexora.Application.Features.Categories.Commands.CreateCategory;
 using Nexora.Application.Features.Categories.Commands.DeleteCategory;
 using Nexora.Application.Features.Categories.Commands.UpdateCategory;

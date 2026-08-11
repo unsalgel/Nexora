@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
+using Nexora.Application.Features.Auth.Dtos;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Auth.Commands.RefreshToken;
