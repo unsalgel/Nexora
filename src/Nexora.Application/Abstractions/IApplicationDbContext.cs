@@ -13,6 +13,10 @@ public interface IApplicationDbContext
     DbSet<Brand> Brands { get; }
     DbSet<Product> Products { get; }
     DbSet<ProductImage> ProductImages { get; }
+    DbSet<ProductAttribute> ProductAttributes { get; }
+    DbSet<ProductAttributeValue> ProductAttributeValues { get; }
+    DbSet<ProductVariant> ProductVariants { get; }
+    DbSet<ProductVariantAttributeValue> ProductVariantAttributeValues { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
