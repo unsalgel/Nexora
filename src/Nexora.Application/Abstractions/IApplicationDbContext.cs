@@ -11,6 +11,8 @@ public interface IApplicationDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Category> Categories { get; }
     DbSet<Brand> Brands { get; }
+    DbSet<Product> Products { get; }
+    DbSet<ProductImage> ProductImages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
