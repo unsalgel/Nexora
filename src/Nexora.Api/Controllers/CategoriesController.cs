@@ -11,23 +11,14 @@ using Nexora.Application.Features.Categories.Queries.GetCategoryById;
 
 namespace Nexora.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public sealed class CategoriesController : ControllerBase
+public sealed class CategoriesController : ApiControllerBase
 {
-    private readonly ISender _sender;
-
-    public CategoriesController(ISender sender)
-    {
-        _sender = sender;
-    }
-
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<CategoryDto>>>> GetCategories(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetCategoriesQuery(), cancellationToken);
+        var result = await Sender.Send(new GetCategoriesQuery(), cancellationToken);
         return Ok(result);
     }
 
@@ -35,9 +26,9 @@ public sealed class CategoriesController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<CategoryDto>>> GetCategoryById(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetCategoryByIdQuery(id), cancellationToken);
+        var result = await Sender.Send(new GetCategoryByIdQuery(id), cancellationToken);
         return Ok(result);
     }
 
@@ -45,9 +36,9 @@ public sealed class CategoriesController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<Guid>>> CreateCategory(
         CreateCategoryCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCategoryById), new { id = result.Data }, result);
     }
 
@@ -56,10 +47,10 @@ public sealed class CategoriesController : ControllerBase
     public async Task<ActionResult<Result<string>>> UpdateCategory(
         Guid id,
         UpdateCategoryCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { Id = id };
-        var result = await _sender.Send(safeCommand, cancellationToken);
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
@@ -67,9 +58,9 @@ public sealed class CategoriesController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteCategory(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new DeleteCategoryCommand(id), cancellationToken);
+        var result = await Sender.Send(new DeleteCategoryCommand(id), cancellationToken);
         return Ok(result);
     }
 }

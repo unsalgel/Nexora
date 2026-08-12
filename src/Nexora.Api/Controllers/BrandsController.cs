@@ -11,23 +11,14 @@ using Nexora.Application.Features.Brands.Queries.GetBrands;
 
 namespace Nexora.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public sealed class BrandsController : ControllerBase
+public sealed class BrandsController : ApiControllerBase
 {
-    private readonly ISender _sender;
-
-    public BrandsController(ISender sender)
-    {
-        _sender = sender;
-    }
-
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<BrandDto>>>> GetBrands(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetBrandsQuery(), cancellationToken);
+        var result = await Sender.Send(new GetBrandsQuery(), cancellationToken);
         return Ok(result);
     }
 
@@ -35,9 +26,9 @@ public sealed class BrandsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<BrandDto>>> GetBrandById(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetBrandByIdQuery(id), cancellationToken);
+        var result = await Sender.Send(new GetBrandByIdQuery(id), cancellationToken);
         return Ok(result);
     }
 
@@ -45,9 +36,9 @@ public sealed class BrandsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<Guid>>> CreateBrand(
         CreateBrandCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetBrandById), new { id = result.Data }, result);
     }
 
@@ -56,10 +47,10 @@ public sealed class BrandsController : ControllerBase
     public async Task<ActionResult<Result<string>>> UpdateBrand(
         Guid id,
         UpdateBrandCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { Id = id };
-        var result = await _sender.Send(safeCommand, cancellationToken);
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
@@ -67,9 +58,9 @@ public sealed class BrandsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteBrand(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new DeleteBrandCommand(id), cancellationToken);
+        var result = await Sender.Send(new DeleteBrandCommand(id), cancellationToken);
         return Ok(result);
     }
 }

@@ -10,24 +10,15 @@ using Nexora.Application.Features.Auth.Commands.RevokeToken;
 
 namespace Nexora.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public sealed class AuthController : ControllerBase
+public sealed class AuthController : ApiControllerBase
 {
-    private readonly ISender _sender;
-
-    public AuthController(ISender sender)
-    {
-        _sender = sender;
-    }
-
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<Result<string>>> Register(
         RegisterCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -35,9 +26,9 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<AuthTokenDto>>> Login(
         LoginCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -45,9 +36,9 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<AuthTokenDto>>> RefreshToken(
         RefreshTokenCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -55,9 +46,9 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<Result<string>>> RevokeToken(
         RevokeTokenCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 }

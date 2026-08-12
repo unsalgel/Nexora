@@ -13,24 +13,15 @@ using Nexora.Application.Features.Products.Queries.GetProducts;
 
 namespace Nexora.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public sealed class ProductsController : ControllerBase
+public sealed class ProductsController : ApiControllerBase
 {
-    private readonly ISender _sender;
-
-    public ProductsController(ISender sender)
-    {
-        _sender = sender;
-    }
-
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<PagedResult<ProductListDto>>>> GetProducts(
         [FromQuery] GetProductsQuery query,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(query, cancellationToken);
+        var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -38,9 +29,9 @@ public sealed class ProductsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<ProductDto>>> GetProductById(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetProductByIdQuery(id), cancellationToken);
+        var result = await Sender.Send(new GetProductByIdQuery(id), cancellationToken);
         return Ok(result);
     }
 
@@ -48,9 +39,9 @@ public sealed class ProductsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<Guid>>> CreateProduct(
         CreateProductCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(command, cancellationToken);
+        var result = await Sender.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetProductById), new { id = result.Data }, result);
     }
 
@@ -59,10 +50,10 @@ public sealed class ProductsController : ControllerBase
     public async Task<ActionResult<Result<string>>> UpdateProduct(
         Guid id,
         UpdateProductCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { Id = id };
-        var result = await _sender.Send(safeCommand, cancellationToken);
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
@@ -70,9 +61,9 @@ public sealed class ProductsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteProduct(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new DeleteProductCommand(id), cancellationToken);
+        var result = await Sender.Send(new DeleteProductCommand(id), cancellationToken);
         return Ok(result);
     }
 
@@ -81,11 +72,11 @@ public sealed class ProductsController : ControllerBase
     public async Task<ActionResult<Result<Guid>>> AddProductImage(
         Guid id,
         AddProductImageCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { ProductId = id };
-        var result = await _sender.Send(safeCommand, cancellationToken);
-        return Ok(result);
+        var result = await Sender.Send(safeCommand, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpDelete("{id:guid}/images/{imageId:guid}")]
@@ -93,9 +84,9 @@ public sealed class ProductsController : ControllerBase
     public async Task<ActionResult<Result<string>>> DeleteProductImage(
         Guid id,
         Guid imageId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new DeleteProductImageCommand(id, imageId), cancellationToken);
+        var result = await Sender.Send(new DeleteProductImageCommand(id, imageId), cancellationToken);
         return Ok(result);
     }
 }

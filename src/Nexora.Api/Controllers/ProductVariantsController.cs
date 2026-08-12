@@ -10,24 +10,16 @@ using Nexora.Application.Features.ProductVariants.Queries.GetProductVariantsByPr
 
 namespace Nexora.Api.Controllers;
 
-[ApiController]
 [Route("api")]
-public sealed class ProductVariantsController : ControllerBase
+public sealed class ProductVariantsController : ApiControllerBase
 {
-    private readonly ISender _sender;
-
-    public ProductVariantsController(ISender sender)
-    {
-        _sender = sender;
-    }
-
     [HttpGet("products/{productId:guid}/variants")]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<ProductVariantDto>>>> GetVariantsByProductId(
         Guid productId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new GetProductVariantsByProductIdQuery(productId), cancellationToken);
+        var result = await Sender.Send(new GetProductVariantsByProductIdQuery(productId), cancellationToken);
         return Ok(result);
     }
 
@@ -36,10 +28,10 @@ public sealed class ProductVariantsController : ControllerBase
     public async Task<ActionResult<Result<Guid>>> CreateVariant(
         Guid productId,
         CreateProductVariantCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { ProductId = productId };
-        var result = await _sender.Send(safeCommand, cancellationToken);
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -48,10 +40,10 @@ public sealed class ProductVariantsController : ControllerBase
     public async Task<ActionResult<Result<string>>> UpdateVariant(
         Guid id,
         UpdateProductVariantCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var safeCommand = command with { Id = id };
-        var result = await _sender.Send(safeCommand, cancellationToken);
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
@@ -59,9 +51,9 @@ public sealed class ProductVariantsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteVariant(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var result = await _sender.Send(new DeleteProductVariantCommand(id), cancellationToken);
+        var result = await Sender.Send(new DeleteProductVariantCommand(id), cancellationToken);
         return Ok(result);
     }
 }
