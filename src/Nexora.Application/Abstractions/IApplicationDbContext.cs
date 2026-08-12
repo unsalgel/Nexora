@@ -17,6 +17,7 @@ public interface IApplicationDbContext
     DbSet<ProductAttributeValue> ProductAttributeValues { get; }
     DbSet<ProductVariant> ProductVariants { get; }
     DbSet<ProductVariantAttributeValue> ProductVariantAttributeValues { get; }
+    DbSet<Favorite> Favorites { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

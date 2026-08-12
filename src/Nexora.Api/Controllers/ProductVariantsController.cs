@@ -42,7 +42,7 @@ public sealed class ProductVariantsController : ControllerBase
             return BadRequest(Result<Guid>.Failure("URL'deki ürün ID'si ile istek gövdesindeki ürün ID'si uyuşmuyor."));
 
         var result = await _sender.Send(command, cancellationToken);
-        return Ok(result);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpPut("product-variants/{id:guid}")]

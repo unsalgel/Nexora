@@ -18,10 +18,5 @@ public sealed class ProductAttributeConfiguration : IEntityTypeConfiguration<Pro
 
         builder.HasIndex(pa => pa.Name)
             .IsUnique();
-
-        builder.HasMany(pa => pa.Values)
-            .WithOne(pav => pav.ProductAttribute)
-            .HasForeignKey(pav => pav.ProductAttributeId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }
