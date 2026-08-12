@@ -61,10 +61,8 @@ public sealed class ProductsController : ControllerBase
         UpdateProductCommand command,
         CancellationToken cancellationToken)
     {
-        if (id != command.Id)
-            return BadRequest(Result<string>.Failure("URL'deki ID ile istek gövdesindeki ID uyuşmuyor."));
-
-        var result = await _sender.Send(command, cancellationToken);
+        var safeCommand = command with { Id = id };
+        var result = await _sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
@@ -85,10 +83,8 @@ public sealed class ProductsController : ControllerBase
         AddProductImageCommand command,
         CancellationToken cancellationToken)
     {
-        if (id != command.ProductId)
-            return BadRequest(Result<Guid>.Failure("URL'deki ürün ID'si ile istek gövdesindeki ürün ID'si uyuşmuyor."));
-
-        var result = await _sender.Send(command, cancellationToken);
+        var safeCommand = command with { ProductId = id };
+        var result = await _sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 

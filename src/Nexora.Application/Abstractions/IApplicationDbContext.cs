@@ -18,6 +18,8 @@ public interface IApplicationDbContext
     DbSet<ProductVariant> ProductVariants { get; }
     DbSet<ProductVariantAttributeValue> ProductVariantAttributeValues { get; }
     DbSet<Favorite> Favorites { get; }
+    DbSet<Cart> Carts { get; }
+    DbSet<CartItem> CartItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

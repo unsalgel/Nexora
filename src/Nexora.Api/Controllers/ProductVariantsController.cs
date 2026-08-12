@@ -38,10 +38,8 @@ public sealed class ProductVariantsController : ControllerBase
         CreateProductVariantCommand command,
         CancellationToken cancellationToken)
     {
-        if (productId != command.ProductId)
-            return BadRequest(Result<Guid>.Failure("URL'deki ürün ID'si ile istek gövdesindeki ürün ID'si uyuşmuyor."));
-
-        var result = await _sender.Send(command, cancellationToken);
+        var safeCommand = command with { ProductId = productId };
+        var result = await _sender.Send(safeCommand, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -52,10 +50,8 @@ public sealed class ProductVariantsController : ControllerBase
         UpdateProductVariantCommand command,
         CancellationToken cancellationToken)
     {
-        if (id != command.Id)
-            return BadRequest(Result<string>.Failure("URL'deki ID ile istek gövdesindeki ID uyuşmuyor."));
-
-        var result = await _sender.Send(command, cancellationToken);
+        var safeCommand = command with { Id = id };
+        var result = await _sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 

@@ -58,10 +58,8 @@ public sealed class CategoriesController : ControllerBase
         UpdateCategoryCommand command,
         CancellationToken cancellationToken)
     {
-        if (id != command.Id)
-            return BadRequest(Result<string>.Failure("URL'deki ID ile istek gövdesindeki ID uyuşmuyor."));
-
-        var result = await _sender.Send(command, cancellationToken);
+        var safeCommand = command with { Id = id };
+        var result = await _sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 
