@@ -20,6 +20,8 @@ public interface IApplicationDbContext
     DbSet<Favorite> Favorites { get; }
     DbSet<Cart> Carts { get; }
     DbSet<CartItem> CartItems { get; }
+    DbSet<Order> Orders { get; }
+    DbSet<OrderItem> OrderItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
