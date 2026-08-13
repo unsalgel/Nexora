@@ -1,4 +1,6 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useFavorites } from '../context/FavoritesContext';
 import { 
   Package, 
   Heart, 
@@ -12,7 +14,18 @@ import {
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>('orders');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'orders' | 'favorites' | 'addresses' | 'account') || 'orders';
+  const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(initialTab);
+
+  const { favorites, toggleFavorite } = useFavorites();
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'favorites' || tabParam === 'orders' || tabParam === 'addresses' || tabParam === 'account') {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const orders = [
     {
@@ -54,27 +67,6 @@ export const ProfilePage: React.FC = () => {
       ]
     }
   ];
-
-  const [favorites, setFavorites] = useState([
-    {
-      id: '4',
-      title: 'Ortopedik Koşu ve Yürüyüş Spor Ayakkabısı',
-      price: 1249.50,
-      oldPrice: 1699.00,
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=80'
-    },
-    {
-      id: '6',
-      title: 'Organik Yüz Bakım Serumu Cilt Yenileyici 50ml',
-      price: 389.90,
-      oldPrice: 499.00,
-      image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&q=80'
-    }
-  ]);
-
-  const removeFavorite = (id: string) => {
-    setFavorites(prev => prev.filter(f => f.id !== id));
-  };
 
   return (
     <div className="space-y-8 pb-16">
@@ -174,7 +166,6 @@ export const ProfilePage: React.FC = () => {
               
               {orders.map((order) => (
                 <div key={order.id} className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-4">
-                  
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 text-xs">
                     <div>
                       <span className="text-slate-400 font-medium block text-[11px]">Sipariş Numarası</span>
@@ -216,7 +207,6 @@ export const ProfilePage: React.FC = () => {
                       Kargom Nerede?
                     </button>
                   </div>
-
                 </div>
               ))}
             </div>
@@ -236,8 +226,8 @@ export const ProfilePage: React.FC = () => {
                   {favorites.map((item) => (
                     <div key={item.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3 flex flex-col justify-between relative">
                       <button
-                        onClick={() => removeFavorite(item.id)}
-                        className="absolute top-3 right-3 text-slate-400 hover:text-rose-600 transition-colors p-1"
+                        onClick={() => toggleFavorite(item)}
+                        className="absolute top-3 right-3 text-rose-500 hover:text-rose-700 transition-colors p-1"
                         title="Favoriden Çıkar"
                       >
                         <Trash2 className="w-4 h-4" />

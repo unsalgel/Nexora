@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import { useFavorites } from '../context/FavoritesContext';
 import { Link, useParams } from 'react-router-dom';
 import { 
   Star, 
@@ -50,7 +51,8 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'reviews'>('desc');
   const [isAddedToCart, setIsAddedToCart] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { toggleFavorite, isFavorite: checkIsFavorite } = useFavorites();
+  const isFav = checkIsFavorite(product.id);
 
   const handleAddToCart = () => {
     setIsAddedToCart(true);
@@ -88,10 +90,11 @@ export const ProductDetailPage: React.FC = () => {
             {/* Favori & Paylaş */}
             <div className="absolute top-4 right-4 flex flex-col gap-2">
               <button 
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={() => toggleFavorite({ id: product.id, title: product.title, price: product.price, oldPrice: product.oldPrice, image: product.images[0] })}
                 className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm border border-slate-200 transition-all active:scale-95"
+                title="Favorilere Ekle"
               >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
+                <Heart className={`w-5 h-5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
               </button>
               <button className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200 transition-all active:scale-95">
                 <Share2 className="w-4 h-4" />

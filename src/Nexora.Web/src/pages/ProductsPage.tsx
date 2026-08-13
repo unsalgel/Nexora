@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+﻿import { useFavorites } from '../context/FavoritesContext';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Filter, 
@@ -9,18 +10,36 @@ import {
   Search, 
   SlidersHorizontal, 
   X, 
-
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 
 export const ProductsPage: React.FC = () => {
+  const { toggleFavorite: toggleFavStore, isFavorite: checkIsFav } = useFavorites();
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('featured');
   const [brandSearch, setBrandSearch] = useState<string>('');
+  
+
+  const [addedCartItems, setAddedCartItems] = useState<{ [key: string]: boolean }>({});
+
+  const toggleFavorite = (productId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const product = mockProducts.find(p => p.id === productId); if (product) toggleFavStore({ id: product.id, title: product.title, price: product.price, oldPrice: product.oldPrice, image: product.imageUrl });
+  };
+
+  const handleAddToCart = (productId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAddedCartItems(prev => ({ ...prev, [productId]: true }));
+    setTimeout(() => {
+      setAddedCartItems(prev => ({ ...prev, [productId]: false }));
+    }, 2000);
+  };
 
   const mockProducts = [
     {
@@ -117,21 +136,18 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       
-      {/* Üst Ekran Yolu (Breadcrumb) */}
       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
         <Link to="/" className="hover:text-orange-600 transition-colors">Ana Sayfa</Link>
-        <span>/</span>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
         <span className="text-slate-900 font-bold">Ürün Kataloğu</span>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         
-        {/* SOL FİLTRELEME PANELİ (Desktop & Mobile Drawer) */}
         <aside className={`
           lg:w-64 shrink-0 
           ${isMobileFilterOpen ? 'fixed inset-0 z-50 bg-white p-6 overflow-y-auto block' : 'hidden lg:block'}
         `}>
-          {/* Mobil Başlık & Kapat Butonu */}
           <div className="flex items-center justify-between lg:hidden border-b border-slate-200 pb-4 mb-4">
             <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
               <Filter className="w-5 h-5 text-orange-500" />
@@ -143,8 +159,6 @@ export const ProductsPage: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            
-            {/* Kategori Filtresi */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Kategoriler</h4>
               <div className="space-y-1.5">
@@ -167,7 +181,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Fiyat Aralığı Filtresi */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Fiyat Aralığı (TL)</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -193,7 +206,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Markalar Filtresi */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Markalar</h4>
               <div className="relative">
@@ -218,7 +230,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Müşteri Puanı Filtresi */}
             <div className="space-y-2">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Müşteri Puanı</h4>
               {[4, 3, 2].map((star) => (
@@ -232,7 +243,6 @@ export const ProductsPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Filtreleri Temizle */}
             <button
               onClick={() => { setSelectedCategory('all'); setMinPrice(''); setMaxPrice(''); }}
               className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
@@ -242,10 +252,8 @@ export const ProductsPage: React.FC = () => {
           </div>
         </aside>
 
-        {/* SAĞ ÜRÜN LİSTESİ & SIRALAMA ALANI */}
         <main className="flex-1 space-y-6">
           
-          {/* Başlık & Sıralama Barı */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight">Ürün Kataloğu</h1>
@@ -253,7 +261,6 @@ export const ProductsPage: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between sm:justify-end gap-3">
-              {/* Mobil Filtre Butonu */}
               <button
                 onClick={() => setIsMobileFilterOpen(true)}
                 className="lg:hidden px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center gap-2"
@@ -262,7 +269,6 @@ export const ProductsPage: React.FC = () => {
                 <span>Filtrele</span>
               </button>
 
-              {/* Sıralama Dropdown */}
               <div className="relative">
                 <select
                   value={sortBy}
@@ -280,26 +286,29 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Ürün Izgarası (Product Grid) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {mockProducts.map((product) => (
-              <div
+              <a
                 key={product.id}
+                href={`/products/${product.id}`}
                 className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden card-shadow flex flex-col justify-between relative group"
               >
-                {/* Favori Butonu */}
-                <button className="absolute top-3 right-3 z-10 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm transition-colors border border-slate-100">
-                  <Heart className="w-5 h-5" />
+                {/* İNTERAKTİF FAVORİ KALBİ */}
+                <button
+                  onClick={(e) => toggleFavorite(product.id, e)}
+                  className="absolute top-3 right-3 z-10 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm transition-all border border-slate-100 active:scale-90"
+                  title="Favorilere Ekle"
+                >
+                  <Heart className={`w-4 h-4 transition-colors ${checkIsFav(product.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
                 </button>
 
-                {/* Ürün Görseli */}
                 <div className="relative h-56 overflow-hidden bg-slate-50 flex items-center justify-center p-4">
                   <img
                     src={product.imageUrl}
                     alt={product.title}
                     className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
-                  <span className="absolute bottom-3 left-3 bg-rose-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                  <span className="absolute bottom-3 left-3 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
                     {product.discount}
                   </span>
                   <span className="absolute top-3 left-3 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
@@ -307,44 +316,50 @@ export const ProductsPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Ürün Detayları */}
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{product.category}</span>
-                    <h4 className="text-sm font-semibold text-slate-800 line-clamp-2 hover:text-orange-600 cursor-pointer transition-colors leading-snug">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.category}</span>
+                    <h3 className="text-xs font-semibold text-slate-800 line-clamp-2 group-hover:text-orange-600 transition-colors leading-snug">
                       {product.title}
-                    </h4>
+                    </h3>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
                     <div className="flex items-center text-amber-400">
                       <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <span className="font-bold text-slate-800 ml-1 text-xs">{product.rating}</span>
+                      <span className="font-semibold text-slate-800 ml-1 text-xs">{product.rating}</span>
                     </div>
-                    <span>({product.reviews} değerlendirme)</span>
+                    <span>({product.reviews})</span>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-slate-400 line-through block font-medium">
+                      <span className="text-[11px] text-slate-400 line-through block">
                         {product.oldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                       </span>
-                      <span className="text-lg font-black text-slate-900">
+                      <span className="text-base font-bold text-slate-900">
                         {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-xs font-bold">TL</span>
                       </span>
                     </div>
 
-                    <button className="px-3.5 py-2 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>Ekle</span>
+                    {/* İNTERAKTİF SEPETE EKLE BUTONU */}
+                    <button
+                      onClick={(e) => handleAddToCart(product.id, e)}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-sm ${
+                        addedCartItems[product.id]
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white'
+                      }`}
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>{addedCartItems[product.id] ? 'Eklendi!' : 'Ekle'}</span>
                     </button>
                   </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
 
-          {/* SAYFALAMA (Pagination) BAR */}
           <div className="flex items-center justify-center gap-2 pt-6">
             <button className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 disabled:opacity-40" disabled>
               <ChevronLeft className="w-5 h-5" />
@@ -359,7 +374,6 @@ export const ProductsPage: React.FC = () => {
               3
             </button>
             <button className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600">
-              ChevronRight
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
