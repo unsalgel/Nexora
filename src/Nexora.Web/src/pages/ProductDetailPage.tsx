@@ -9,7 +9,12 @@ import {
   RotateCcw, 
   Plus, 
   Minus, 
-  Check
+  Check,
+  ChevronRight,
+
+  TrendingUp,
+  Share2,
+  Tag
 } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
@@ -23,22 +28,25 @@ export const ProductDetailPage: React.FC = () => {
     price: 1499.90,
     oldPrice: 1999.00,
     discount: '%25 İndirim',
+    savings: 499.10,
     rating: 4.8,
     reviewsCount: 342,
     stock: 14,
-    sku: 'NXR-TECH-BLU-001',
     images: [
       'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
       'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80',
       'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80'
     ],
-    colors: ['Siyah', 'Gümüş Gri', 'Gece Mavisi'],
-    sizes: ['Standart'],
+    colors: [
+      { name: 'Uzay Siyahı', hex: '#1e293b' },
+      { name: 'Gümüş Gri', hex: '#94a3b8' },
+      { name: 'Gece Mavisi', hex: '#1e3a8a' }
+    ],
     description: 'Nexora Pro Wireless Kulaklık, 40dB gelişmiş aktif gürültü engelleme (ANC) teknolojisi, 30 saat kesintisiz pil ömrü ve kristal netliğinde HD ses sürücüleri ile üst düzey müzik ve çağrı deneyimi sunar.'
   };
 
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]);
+  const [selectedColor, setSelectedColor] = useState(product.colors[0].name);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'reviews'>('desc');
   const [isAddedToCart, setIsAddedToCart] = useState(false);
@@ -50,45 +58,57 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-8 pb-16">
       
+      {/* Üst Yol (Breadcrumb) */}
       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
         <Link to="/" className="hover:text-orange-600 transition-colors">Ana Sayfa</Link>
-        <span>/</span>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
         <Link to="/products" className="hover:text-orange-600 transition-colors">{product.category}</Link>
-        <span>/</span>
-        <span className="text-slate-900 font-bold truncate max-w-xs">{product.title}</span>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-slate-800 font-semibold truncate max-w-xs">{product.title}</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
+        {/* SOL RESİM GALERİSİ */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="relative h-80 sm:h-96 bg-white rounded-3xl border border-slate-200/90 overflow-hidden card-shadow p-6 flex items-center justify-center">
+          <div className="relative h-80 sm:h-[400px] bg-white rounded-3xl border border-slate-200/80 overflow-hidden p-6 flex items-center justify-center shadow-sm group">
             <img
               src={product.images[selectedImage]}
               alt={product.title}
-              className="max-h-full object-contain transition-all duration-300"
+              className="max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
             />
-            <span className="absolute top-4 left-4 bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-sm">
+            
+            {/* Trendyol/Hepsiburada Tarzı Temiz & Şık İndirim Rozeti */}
+            <div className="absolute top-4 left-4 bg-orange-500 text-white text-[11px] font-bold tracking-wider px-3 py-1.5 rounded-lg shadow-md shadow-orange-500/25 uppercase">
               {product.discount}
-            </span>
-            <button 
-              onClick={() => setIsFavorite(!isFavorite)}
-              className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm border border-slate-100 transition-colors"
-            >
-              <Heart className={`w-5 h-5 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
-            </button>
+            </div>
+
+            {/* Favori & Paylaş */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+              <button 
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm border border-slate-200 transition-all active:scale-95"
+              >
+                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
+              </button>
+              <button className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200 transition-all active:scale-95">
+                <Share2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
+          {/* Thumbnail Önizlemeler */}
           <div className="flex gap-3">
             {product.images.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`w-20 h-20 rounded-2xl bg-white border p-2 flex items-center justify-center overflow-hidden transition-all ${
+                className={`w-16 h-16 rounded-2xl bg-white border p-1.5 flex items-center justify-center overflow-hidden transition-all ${
                   selectedImage === idx
-                    ? 'border-orange-500 ring-2 ring-orange-500/20 shadow-md'
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-orange-500 ring-2 ring-orange-500/20 shadow-sm'
+                    : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
                 }`}
               >
                 <img src={img} alt="" className="max-h-full object-contain" />
@@ -97,129 +117,153 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-7 space-y-6">
+        {/* SAĞ ÜRÜN KART ALANI */}
+        <div className="lg:col-span-7 space-y-5">
           
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50 px-2.5 py-1 rounded-md border border-orange-100">
-              {product.brand}
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-orange-600 tracking-wider uppercase bg-orange-50 px-2.5 py-1 rounded-lg border border-orange-100">
+                {product.brand}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60">
+                <TrendingUp className="w-3.5 h-3.5" /> Çok Satan #1
+              </span>
+            </div>
+
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-snug">
               {product.title}
             </h1>
             
-            <div className="flex items-center gap-3 pt-1">
+            {/* Yıldız ve Değerlendirmeler */}
+            <div className="flex items-center gap-3 pt-0.5">
               <div className="flex items-center text-amber-400">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-amber-400" />
+                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
                 ))}
-                <span className="font-bold text-slate-800 ml-1.5 text-xs">{product.rating}</span>
+                <span className="font-semibold text-slate-700 ml-1.5 text-xs">{product.rating}</span>
               </div>
               <span className="text-slate-300">|</span>
-              <a href="#reviews" className="text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors">
+              <a href="#reviews" className="text-xs font-medium text-slate-500 hover:text-orange-600 transition-colors">
                 {product.reviewsCount} Değerlendirme
               </a>
               <span className="text-slate-300">|</span>
               <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Stokta Var ({product.stock} adet)
+                <Check className="w-3.5 h-3.5" /> Stokta Var
               </span>
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-400 line-through block font-medium">
-                {product.oldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-              </span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-slate-900">
+          {/* İNCE & ZARİF FİYAT / KAZANÇ KARTI */}
+          <div className="bg-slate-50/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 line-through font-medium">
+                  {product.oldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                </span>
+                <span className="text-[10px] font-bold text-orange-600 bg-orange-100/60 px-2 py-0.5 rounded-md">
+                  {product.discount}
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
                   {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-sm font-bold text-slate-700">TL</span>
+                <span className="text-xs font-bold text-slate-600 ml-1">TL</span>
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-[11px] font-bold text-slate-500 block">Kazancınız:</span>
-              <span className="text-sm font-extrabold text-emerald-600">
-                {(product.oldPrice - product.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-              </span>
+            {/* İnce Şık Kazanç Etiketi (Tag İkonlu) */}
+            <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3.5 py-2 rounded-xl shrink-0">
+              <Tag className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <span className="text-[10px] font-semibold text-emerald-700 block leading-tight">Bu Üründe Toplam Kazancınız</span>
+                <span className="text-xs font-bold text-emerald-700">{product.savings.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL İndirim</span>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold text-slate-700 block">
-              Renk Seçeneği: <span className="text-orange-600 font-extrabold">{selectedColor}</span>
+          {/* Renk Seçimi */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-700 block">
+              Renk: <span className="text-orange-600 font-bold">{selectedColor}</span>
             </label>
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex items-center gap-2.5">
               {product.colors.map((color) => (
                 <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                    selectedColor === color
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  key={color.name}
+                  onClick={() => setSelectedColor(color.name)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                    selectedColor === color.name
+                      ? 'bg-white border-orange-500 ring-2 ring-orange-500/15 shadow-sm text-slate-900'
+                      : 'bg-white border-slate-200 hover:border-slate-300 text-slate-600'
                   }`}
                 >
-                  {color}
+                  <span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: color.hex }} />
+                  <span>{color.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-4">
+          {/* SATIN ALMA BUTONLARI */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-3">
               
-              <div className="flex items-center border border-slate-200 rounded-xl bg-white p-1 shadow-sm">
+              {/* Adet Seçici */}
+              <div className="flex items-center border border-slate-200/90 rounded-xl bg-white p-0.5">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 font-bold transition-colors"
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-700 font-semibold transition-colors"
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3.5 h-3.5" />
                 </button>
-                <span className="w-10 text-center font-bold text-sm text-slate-900">{quantity}</span>
+                <span className="w-8 text-center font-bold text-xs text-slate-900">{quantity}</span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 font-bold transition-colors"
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-700 font-semibold transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
 
+              {/* Sepete Ekle */}
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
               >
                 {isAddedToCart ? (
                   <>
-                    <Check className="w-5 h-5 text-white" />
+                    <Check className="w-4 h-4 text-white" />
                     <span>Sepete Eklendi!</span>
                   </>
                 ) : (
                   <>
-                    <ShoppingBag className="w-5 h-5" />
+                    <ShoppingBag className="w-4 h-4" />
                     <span>Sepete Ekle</span>
                   </>
                 )}
               </button>
             </div>
 
-            <button className="w-full py-3.5 bg-slate-900 hover:bg-black text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95">
+            {/* Hemen Al */}
+            <button className="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95">
               Hemen Satın Al
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-200">
-            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700">
-              <Truck className="w-4 h-4 text-orange-500 shrink-0" />
-              <span>Yarın Kargoda</span>
+          {/* Rozetler */}
+          <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-200/80 text-[11px] font-semibold text-slate-600">
+            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl">
+              <Truck className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+              <span>Ücretsiz Kargo</span>
             </div>
-            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700">
-              <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span>2 Yıl Garanti</span>
             </div>
-            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700">
-              <RotateCcw className="w-4 h-4 text-blue-500 shrink-0" />
+            <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl">
+              <RotateCcw className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <span>14 Gün İade</span>
             </div>
           </div>
@@ -227,13 +271,13 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-        
-        <div className="flex border-b border-slate-200 bg-slate-50/50">
+      {/* Alt Sekmeler */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div className="flex border-b border-slate-200 bg-slate-50/50 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('desc')}
-            className={`px-6 py-4 font-bold text-sm transition-all relative ${
-              activeTab === 'desc' ? 'text-orange-600 bg-white' : 'text-slate-500 hover:text-slate-900'
+            className={`px-5 py-3.5 transition-all relative ${
+              activeTab === 'desc' ? 'text-orange-600 bg-white font-bold' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Ürün Açıklaması
@@ -242,8 +286,8 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('specs')}
-            className={`px-6 py-4 font-bold text-sm transition-all relative ${
-              activeTab === 'specs' ? 'text-orange-600 bg-white' : 'text-slate-500 hover:text-slate-900'
+            className={`px-5 py-3.5 transition-all relative ${
+              activeTab === 'specs' ? 'text-orange-600 bg-white font-bold' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Teknik Özellikler
@@ -252,8 +296,8 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('reviews')}
-            className={`px-6 py-4 font-bold text-sm transition-all relative ${
-              activeTab === 'reviews' ? 'text-orange-600 bg-white' : 'text-slate-500 hover:text-slate-900'
+            className={`px-5 py-3.5 transition-all relative ${
+              activeTab === 'reviews' ? 'text-orange-600 bg-white font-bold' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Müşteri Yorumları ({product.reviewsCount})
@@ -261,67 +305,43 @@ export const ProductDetailPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-6 sm:p-8">
+        <div className="p-6 text-xs text-slate-600 leading-relaxed">
           {activeTab === 'desc' && (
-            <div className="space-y-4 text-sm text-slate-600 leading-relaxed animate-in fade-in-50">
+            <div className="space-y-3 animate-in fade-in-50">
               <p>{product.description}</p>
-              <h4 className="font-bold text-slate-900 text-base pt-2">Öne Çıkan Avantajlar:</h4>
-              <ul className="list-disc pl-5 space-y-1.5">
+              <h4 className="font-bold text-slate-900 text-sm pt-1">Öne Çıkan Avantajlar:</h4>
+              <ul className="list-disc pl-5 space-y-1">
                 <li>40dB Aktif Gürültü Engelleme (ANC) Teknolojisi</li>
                 <li>30 Saate Kadar Kesintisiz Oynatma Süresi</li>
                 <li>Bluetooth 5.3 ile Düşük Gecikme Süresi</li>
-                <li>Hızlı Şarj: 10 Dakika Şarj ile 3 Saat Kullanım</li>
               </ul>
             </div>
           )}
 
           {activeTab === 'specs' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs animate-in fade-in-50">
-              <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in-50">
+              <div className="p-2.5 bg-slate-50 rounded-lg flex justify-between">
                 <span className="text-slate-500 font-medium">Bağlantı Tipi</span>
-                <span className="font-bold text-slate-900">Bluetooth 5.3</span>
+                <span className="font-semibold text-slate-900">Bluetooth 5.3</span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
-                <span className="text-slate-500 font-medium">Kulaklık Tipi</span>
-                <span className="font-bold text-slate-900">Kulak Üstü (Over-Ear)</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
-                <span className="text-slate-500 font-medium">Şarj Süresi</span>
-                <span className="font-bold text-slate-900">1.5 Saat</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
+              <div className="p-2.5 bg-slate-50 rounded-lg flex justify-between">
                 <span className="text-slate-500 font-medium">Gürültü Önleme</span>
-                <span className="font-bold text-slate-900">Aktif ANC (40dB)</span>
+                <span className="font-semibold text-slate-900">Aktif ANC (40dB)</span>
               </div>
             </div>
           )}
 
           {activeTab === 'reviews' && (
-            <div className="space-y-6 animate-in fade-in-50">
-              <div className="flex items-center gap-4 p-4 bg-orange-50 border border-orange-100 rounded-2xl">
-                <div className="text-3xl font-black text-slate-900">4.8</div>
+            <div className="space-y-4 animate-in fade-in-50">
+              <div className="flex items-center gap-3 p-3 bg-orange-50/60 border border-orange-100 rounded-xl">
+                <div className="text-2xl font-bold text-slate-900">4.8</div>
                 <div>
-                  <div className="flex text-amber-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-xs text-slate-500 font-medium">342 Değerlendirme Ortalaması</span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-2xl space-y-2 border border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-slate-900">Mehmet K.</span>
-                    <span className="text-[10px] text-slate-400">2 gün önce</span>
-                  </div>
                   <div className="flex text-amber-400">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
                     ))}
                   </div>
-                  <p className="text-xs text-slate-600">Ses kalitesi ve dip ses olmaması muazzam. Şarjı günlerce gidiyor, tavsiye ederim.</p>
+                  <span className="text-[11px] text-slate-500 font-medium">342 Değerlendirme Ortalaması</span>
                 </div>
               </div>
             </div>
