@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
+using DomainEntities = Nexora.Domain.Entities;
 using Nexora.Domain.Enums;
 using Nexora.Domain.Exceptions;
 
@@ -46,6 +47,16 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
                 }
             }
         }
+
+        // Otomatik Sipariş Durumu Bildirimi
+        _context.Notifications.Add(new DomainEntities.Notification
+        {
+            UserId = order.UserId,
+            Title = "Sipariş Durumunuz Güncellendi",
+            Message = $"{order.OrderNumber} numaralı siparişinizin durumu '{request.NewStatus}' olarak güncellenmiştir.",
+            Type = NotificationType.OrderStatusUpdated,
+            IsRead = false
+        });
 
         await _context.SaveChangesAsync(cancellationToken);
 

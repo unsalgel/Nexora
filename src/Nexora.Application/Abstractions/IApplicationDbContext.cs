@@ -22,6 +22,7 @@ public interface IApplicationDbContext
     DbSet<CartItem> CartItems { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
+    DbSet<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

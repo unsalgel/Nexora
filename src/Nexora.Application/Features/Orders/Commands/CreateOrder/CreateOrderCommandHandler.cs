@@ -88,6 +88,17 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             };
 
             _context.Orders.Add(failedOrder);
+
+            // Ödeme Başarısız Bildirimi
+            _context.Notifications.Add(new DomainEntities.Notification
+            {
+                UserId = request.UserId,
+                Title = "Ödeme Başarısız",
+                Message = $"{orderNumber} numaralı siparişinizin ödemesi alınamadı. Lütfen kart bilgilerinizi kontrol ediniz.",
+                Type = NotificationType.PaymentFailed,
+                IsRead = false
+            });
+
             await _context.SaveChangesAsync(cancellationToken);
 
             throw new ValidationException("Ödeme işlemi başarısız oldu. Kart bilgilerinizi veya bakiyenizi kontrol ediniz.");
@@ -121,6 +132,16 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         }
 
         _context.CartItems.RemoveRange(cart.Items);
+
+        // Başarılı Sipariş Bildirimi
+        _context.Notifications.Add(new DomainEntities.Notification
+        {
+            UserId = request.UserId,
+            Title = "Siparişiniz Alındı",
+            Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu ve ödemesi onaylandı.",
+            Type = NotificationType.OrderCreated,
+            IsRead = false
+        });
 
         await _context.SaveChangesAsync(cancellationToken);
 
