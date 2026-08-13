@@ -1,8 +1,8 @@
-namespace Nexora.Application.Features.Orders.Dtos;
+﻿namespace Nexora.Application.Features.Orders.Dtos;
 
 public sealed record OrderItemDto(
     Guid Id,
-    Guid ProductId,
+    Guid? ProductId,
     string ProductName,
     Guid? ProductVariantId,
     string? VariantSKU,

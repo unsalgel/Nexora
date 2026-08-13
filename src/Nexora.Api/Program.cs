@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -7,8 +7,40 @@ using Nexora.Application;
 using Nexora.Infrastructure;
 using Nexora.Infrastructure.Authentication;
 using Nexora.Persistence;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog Yapılandırması (PostgreSQL DB + Günlük Dosya + Konsol)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+
+var columnWriters = new Dictionary<string, ColumnWriterBase>
+{
+    { "message", new RenderedMessageColumnWriter() },
+    { "message_template", new MessageTemplateColumnWriter() },
+    { "level", new LevelColumnWriter(true, NpgsqlTypes.NpgsqlDbType.Varchar) },
+    { "timestamp_utc", new TimestampColumnWriter(NpgsqlTypes.NpgsqlDbType.TimestampTz) },
+    { "exception", new ExceptionColumnWriter() },
+    { "properties", new LogEventSerializedColumnWriter() }
+};
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/nexora-.log", rollingInterval: RollingInterval.Day)
+    .WriteTo.PostgreSQL(
+        connectionString: connectionString,
+        tableName: "Logs",
+        columnOptions: columnWriters,
+        needAutoCreateTable: true)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Katman Servislerinin Tanıtılması (Composition Root)
 builder.Services.AddApplication();
@@ -87,4 +119,16 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    Log.Information("Nexora API Başlatılıyor...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Nexora API Başlatılırken Kritik Hata Oluştu!");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
