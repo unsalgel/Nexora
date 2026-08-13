@@ -56,12 +56,11 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-2 sm:gap-6">
           
-          {/* Logo */}
-          <Link to="/" className="flex flex-col shrink-0 group">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-none">
-              nexora<span className="text-orange-500">.com</span>
+          {/* Özel Plus Jakarta Sans Fontlu Prestij Logo */}
+          <Link to="/" className="flex items-center shrink-0 group py-1">
+            <span className="logo-font text-2xl sm:text-[32px] text-slate-900 group-hover:opacity-90 transition-opacity leading-none">
+              nexora<span className="text-orange-500 font-black">.com</span>
             </span>
-            <span className="text-[8px] sm:text-[9px] font-extrabold text-orange-600 tracking-wider uppercase mt-0.5">TÜRKİYE'NİN ALIŞVERİŞ MERKEZİ</span>
           </Link>
 
           {/* Masaüstü Arama Motoru */}
