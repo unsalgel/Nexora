@@ -13,6 +13,17 @@ using Serilog.Sinks.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS Politikası (Frontend Erişimi İçin)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Serilog Yapılandırması (PostgreSQL DB + Günlük Dosya + Konsol)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
 
@@ -111,6 +122,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("AllowAll");
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
