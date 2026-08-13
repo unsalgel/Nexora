@@ -26,14 +26,20 @@ export const RegisterPage: React.FC = () => {
     <div className="min-h-[75vh] flex items-center justify-center py-10 px-4">
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 sm:p-10 space-y-6">
         
-        <div className="text-center space-y-2">
-          <Link to="/" className="inline-block">
-            <span className="text-3xl font-black tracking-tight text-slate-900 leading-none">
+        <div className="text-center space-y-3">
+          <Link to="/" className="inline-flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform">
+              N
+            </div>
+            <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
               nexora<span className="text-orange-500">.com</span>
             </span>
           </Link>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight pt-2">Aramıza Katılın!</h2>
-          <p className="text-xs text-slate-500 font-medium">Sadece 1 dakikada üye olup özel indirimlerden yararlanın.</p>
+
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Aramıza Katılın!</h2>
+            <p className="text-xs text-slate-500 font-medium mt-1">Sadece 1 dakikada üye olup özel indirimlerden yararlanın.</p>
+          </div>
         </div>
 
         {isSubmitted && (
