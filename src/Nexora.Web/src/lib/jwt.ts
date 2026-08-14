@@ -9,6 +9,7 @@
 export function decodeJwt(token: string): UserClaims | null {
   try {
     const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = decodeURIComponent(
       window
@@ -20,14 +21,36 @@ export function decodeJwt(token: string): UserClaims | null {
     
     const parsed = JSON.parse(jsonPayload);
     
-    // Claim tip adlarını eşleştiriyoruz
-    const id = parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '';
-    const email = parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] || '';
-    const firstName = parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] || '';
-    const lastName = parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'] || '';
+    const id = 
+      parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || 
+      parsed['nameid'] || 
+      parsed['sub'] || 
+      '';
+
+    const email = 
+      parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] || 
+      parsed['email'] || 
+      '';
+
+    const firstName = 
+      parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] || 
+      parsed['given_name'] || 
+      parsed['givenname'] || 
+      parsed['firstName'] || 
+      '';
+
+    const lastName = 
+      parsed['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'] || 
+      parsed['family_name'] || 
+      parsed['surname'] || 
+      parsed['lastName'] || 
+      '';
     
-    // Roller dizi veya tekil olabilir
-    const rolesClaim = parsed['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || [];
+    const rolesClaim = 
+      parsed['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 
+      parsed['role'] || 
+      parsed['roles'] || 
+      [];
     const roles = Array.isArray(rolesClaim) ? rolesClaim : [rolesClaim];
 
     return { id, email, firstName, lastName, roles };

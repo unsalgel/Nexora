@@ -57,7 +57,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setFavorites(items);
       }
     } catch (error) {
-      console.error('Favoriler yüklenirken hata oluştu:', error);
+      console.error(error);
     }
   };
 
@@ -75,20 +75,24 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       if (exists) {
-
         const response = await apiClient.delete<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => prev.filter(item => item.id !== product.id));
         }
       } else {
-
         const response = await apiClient.post<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => [...prev, product]);
         }
       }
-    } catch (error) {
-      console.error('Favori güncellenirken hata oluştu:', error);
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        if (!exists) {
+          setFavorites(prev => [...prev, product]);
+        }
+      } else {
+        console.error(error);
+      }
     }
   };
 

@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -19,9 +19,9 @@ public sealed class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, 
     {
         var query = _context.Products
             .AsNoTracking()
-            .Include(p => p.Category)
-            .Include(p => p.Brand)
-            .Include(p => p.Images)
+            
+            
+            
             .Where(p => p.IsActive && !p.IsDeleted);
 
         if (request.CategoryId.HasValue)

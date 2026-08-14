@@ -14,6 +14,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useFavorites } from '../context/FavoritesContext';
+import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 
@@ -55,6 +56,7 @@ export const ProductsPage: React.FC = () => {
   const [page, setPage] = useState<number>(1);
 
   const { toggleFavorite: toggleFavStore, isFavorite: checkIsFav } = useFavorites();
+  const { addToCart } = useCart();
   const [addedCartItems, setAddedCartItems] = useState<{ [key: string]: boolean }>({});
 
   // 1. API'den Kategorileri Çek
@@ -134,13 +136,16 @@ export const ProductsPage: React.FC = () => {
     setPage(1);
   };
 
-  const handleAddToCart = (productId: string, e: React.MouseEvent) => {
+  const handleAddToCart = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setAddedCartItems(prev => ({ ...prev, [productId]: true }));
-    setTimeout(() => {
-      setAddedCartItems(prev => ({ ...prev, [productId]: false }));
-    }, 2000);
+    const success = await addToCart(productId, 1);
+    if (success) {
+      setAddedCartItems(prev => ({ ...prev, [productId]: true }));
+      setTimeout(() => {
+        setAddedCartItems(prev => ({ ...prev, [productId]: false }));
+      }, 2000);
+    }
   };
 
   return (
@@ -420,14 +425,14 @@ export const ProductsPage: React.FC = () => {
 
                       <button
                         onClick={(e) => handleAddToCart(product.id, e)}
-                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-sm ${
+                        className={`p-2 rounded-xl transition-all active:scale-95 shadow-sm ${
                           addedCartItems[product.id]
                             ? 'bg-emerald-600 text-white'
-                            : 'bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white'
+                            : 'bg-slate-100 hover:bg-orange-500 text-slate-700 hover:text-white'
                         }`}
+                        title="Sepete Ekle"
                       >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>{addedCartItems[product.id] ? 'Eklendi!' : 'Ekle'}</span>
+                        <ShoppingBag className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

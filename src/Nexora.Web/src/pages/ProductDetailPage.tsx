@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Star, 
   Heart, 
@@ -12,11 +12,13 @@ import {
   Minus, 
   ChevronRight,
   Share2,
-  Tag
+  Tag,
+  MessageSquare
 } from 'lucide-react';
 import { useFavorites } from '../context/FavoritesContext';
+import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
-import type { ApiResponse } from '../lib/apiClient';
+import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 
 interface ProductImageDto {
   id: string;
@@ -40,16 +42,33 @@ interface ProductDto {
   images: ProductImageDto[];
 }
 
+interface ReviewDto {
+  id: string;
+  productId: string;
+  userId: string;
+  userFullName: string;
+  rating: number;
+  comment?: string;
+  createdAtUtc: string;
+}
+
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { toggleFavorite, isFavorite: checkIsFavorite } = useFavorites();
+  const { addToCart } = useCart();
 
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'reviews'>('desc');
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
-  // API'den Ürün Detayını Çek
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const isLoggedIn = !!localStorage.getItem('accessToken');
+
   const { data: productData, isLoading, error } = useQuery<ApiResponse<ProductDto>>({
     queryKey: ['product', id],
     queryFn: async () => {
@@ -59,12 +78,55 @@ export const ProductDetailPage: React.FC = () => {
     enabled: !!id
   });
 
+  const { data: reviewsData, refetch: refetchReviews } = useQuery<ApiResponse<PagedResponse<ReviewDto>>>({
+    queryKey: ['product-reviews', id],
+    queryFn: async () => {
+      const response = await apiClient.get<ApiResponse<PagedResponse<ReviewDto>>>(`/reviews/product/${id}`, {
+        params: { page: 1, pageSize: 50 }
+      });
+      return response.data;
+    },
+    enabled: !!id
+  });
+
+  const addReviewMutation = useMutation({
+    mutationFn: async (payload: { rating: number; comment: string }) => {
+      const response = await apiClient.post<ApiResponse<string>>('/reviews', {
+        productId: id,
+        rating: payload.rating,
+        comment: payload.comment
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      setNewComment('');
+      setNewRating(5);
+      refetchReviews();
+      queryClient.invalidateQueries({ queryKey: ['product', id] });
+    },
+    onError: (err: any) => {
+      setReviewError(err.response?.data?.message || 'Yorum eklenirken hata oluştu.');
+    }
+  });
+
   const product = productData?.data;
+  const reviews = reviewsData?.data?.items || [];
   const isFav = product ? checkIsFavorite(product.id) : false;
 
-  const handleAddToCart = () => {
-    setIsAddedToCart(true);
-    setTimeout(() => setIsAddedToCart(false), 2500);
+  const handleAddToCart = async () => {
+    if (product) {
+      const success = await addToCart(product.id, quantity);
+      if (success) {
+        setIsAddedToCart(true);
+        setTimeout(() => setIsAddedToCart(false), 2500);
+      }
+    }
+  };
+
+  const handleReviewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewError(null);
+    addReviewMutation.mutate({ rating: newRating, comment: newComment });
   };
 
   if (isLoading) {
@@ -94,10 +156,13 @@ export const ProductDetailPage: React.FC = () => {
     ? product.images.map(img => img.imageUrl) 
     : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80'];
 
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : '5.0';
+
   return (
     <div className="space-y-8 pb-16">
       
-      {/* Üst Yol (Breadcrumb) */}
       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
         <Link to="/" className="hover:text-orange-600 transition-colors">Ana Sayfa</Link>
         <ChevronRight className="w-3 h-3 text-slate-400" />
@@ -141,7 +206,6 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Küçük Resimler (Thumbnails) */}
           {imageUrls.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {imageUrls.map((img, idx) => (
@@ -176,16 +240,18 @@ export const ProductDetailPage: React.FC = () => {
               {product.name}
             </h1>
 
-            {/* Değerlendirme */}
             <div className="flex items-center gap-2 text-xs sm:text-sm">
               <div className="flex items-center text-amber-400">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 fill-amber-400" />
+                  <Star 
+                    key={s} 
+                    className={`w-4 h-4 ${s <= Math.round(Number(averageRating)) ? 'fill-amber-400' : 'text-slate-200'}`} 
+                  />
                 ))}
               </div>
-              <span className="font-bold text-slate-800">4.8</span>
+              <span className="font-bold text-slate-800">{averageRating}</span>
               <span className="text-slate-400">•</span>
-              <span className="text-slate-500 font-medium">342 Değerlendirme</span>
+              <span className="text-slate-500 font-medium">{reviews.length} Değerlendirme</span>
             </div>
           </div>
 
@@ -239,16 +305,12 @@ export const ProductDetailPage: React.FC = () => {
                 <ShoppingBag className="w-4 h-4" />
                 <span>{isAddedToCart ? 'Sepete Eklendi!' : 'Sepete Ekle'}</span>
               </button>
-
-              <button className="flex-1 py-3.5 bg-slate-900 hover:bg-black text-white rounded-2xl font-bold text-xs shadow-md transition-all active:scale-95">
-                Hemen Al
-              </button>
             </div>
           </div>
 
           <div className="border-t border-slate-200/80" />
 
-          {/* Detay Bilgileri & Teslimat Rozetleri */}
+          {/* Detay Bilgileri */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
               <Truck className="w-5 h-5 text-orange-500 shrink-0" />
@@ -298,7 +360,7 @@ export const ProductDetailPage: React.FC = () => {
                   activeTab === 'reviews' ? 'border-orange-500 text-orange-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                Değerlendirmeler (342)
+                Değerlendirmeler ({reviews.length})
               </button>
             </div>
 
@@ -323,20 +385,94 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               )}
               {activeTab === 'reviews' && (
-                <div className="space-y-4">
-                  <div className="border-b pb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-slate-800">Ünsal Gel</span>
-                      <span className="text-slate-400 text-[10px]">14 Ağustos 2026</span>
+                <div className="space-y-6">
+                  {/* Yorum Ekleme Formu */}
+                  {isLoggedIn ? (
+                    <form onSubmit={handleReviewSubmit} className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
+                      <h3 className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                        <MessageSquare className="w-4 h-4 text-orange-500" />
+                        Ürünü Değerlendir
+                      </h3>
+                      
+                      {reviewError && (
+                        <div className="p-2.5 bg-rose-50 border border-rose-150 text-rose-700 rounded-xl text-[10px] font-bold">
+                          {reviewError}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700">Puanınız:</span>
+                        <div className="flex items-center text-amber-400">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              type="button"
+                              key={s}
+                              onClick={() => setNewRating(s)}
+                              className="p-0.5 hover:scale-110 transition-transform"
+                            >
+                              <Star className={`w-5 h-5 ${s <= newRating ? 'fill-amber-400' : 'text-slate-200'}`} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <textarea
+                          required
+                          rows={3}
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Ürün hakkındaki yorumlarınızı buraya yazın..."
+                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:border-orange-500 font-medium"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={addReviewMutation.isPending}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md shadow-orange-500/10 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {addReviewMutation.isPending ? 'Gönderiliyor...' : 'Yorumu Gönder'}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center">
+                      <p className="text-[11px] text-slate-500 font-bold mb-2">Yorum yapabilmek için giriş yapmalısınız.</p>
+                      <Link to="/login" className="inline-block px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-[11px]">Giriş Yap</Link>
                     </div>
-                    <div className="flex items-center text-amber-400 mb-2">
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                      <Star className="w-3.5 h-3.5 fill-amber-400" />
-                    </div>
-                    <p className="text-slate-500 font-semibold">Gayet başarılı, malzeme kalitesi ve ses muazzam.</p>
+                  )}
+
+                  {/* Yorum Listesi */}
+                  <div className="space-y-4">
+                    {reviews.length === 0 ? (
+                      <p className="text-slate-400 text-center font-bold py-4">Bu ürüne henüz yorum yapılmamış. İlk yorumu sen yap!</p>
+                    ) : (
+                      reviews.map((r) => {
+                        const date = new Date(r.createdAtUtc).toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        });
+
+                        return (
+                          <div key={r.id} className="border-b pb-4 last:border-0 last:pb-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-slate-800">{r.userFullName}</span>
+                              <span className="text-slate-400 text-[10px]">{date}</span>
+                            </div>
+                            <div className="flex items-center text-amber-400 mb-2">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star 
+                                  key={s} 
+                                  className={`w-3.5 h-3.5 ${s <= r.rating ? 'fill-amber-400' : 'text-slate-200'}`} 
+                                />
+                              ))}
+                            </div>
+                            <p className="text-slate-600 font-semibold">{r.comment}</p>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               )}

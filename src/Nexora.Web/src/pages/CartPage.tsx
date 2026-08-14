@@ -70,16 +70,18 @@ export const CartPage: React.FC = () => {
             <div key={item.id} className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
               
               <div className="flex items-center gap-4 w-full sm:w-auto">
-                <div className="w-20 h-20 rounded-xl bg-slate-50 border p-2 shrink-0 flex items-center justify-center">
+                <Link to={`/products/${item.productId}`} className="w-20 h-20 rounded-xl bg-slate-50 border p-2 shrink-0 flex items-center justify-center hover:opacity-85 transition-opacity">
                   <img 
                     src={item.productImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'} 
                     alt={item.productName} 
                     className="max-h-full object-contain" 
                   />
-                </div>
+                </Link>
 
                 <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{item.productName}</h3>
+                  <Link to={`/products/${item.productId}`} className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug hover:text-orange-600 transition-colors">
+                    {item.productName}
+                  </Link>
                   <span className="text-[10px] text-emerald-600 font-bold block">Kargo Bedava</span>
                 </div>
               </div>

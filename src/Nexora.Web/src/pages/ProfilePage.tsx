@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
+import { useCart } from '../context/CartContext';
 import { decodeJwt } from '../lib/jwt';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
@@ -44,10 +45,18 @@ interface OrderDto {
 export const ProfilePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const initialTab = (searchParams.get('tab') as 'orders' | 'favorites' | 'addresses' | 'account') || 'orders';
-  const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(initialTab);
-  
+  const location = useLocation();
+
+  const getInitialTab = (): 'orders' | 'favorites' | 'addresses' | 'account' => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'favorites' || tabParam === 'orders' || tabParam === 'addresses' || tabParam === 'account') return tabParam;
+    if (location.pathname === '/favorites') return 'favorites';
+    if (location.pathname === '/orders') return 'orders';
+    return 'orders';
+  };
+  const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(getInitialTab);
   const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
+  const { addToCart } = useCart();
   const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
 
   const [orders, setOrders] = useState<OrderDto[]>([]);
@@ -57,8 +66,12 @@ export const ProfilePage: React.FC = () => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'favorites' || tabParam === 'orders' || tabParam === 'addresses' || tabParam === 'account') {
       setActiveTab(tabParam);
+    } else if (location.pathname === '/favorites') {
+      setActiveTab('favorites');
+    } else if (location.pathname === '/orders') {
+      setActiveTab('orders');
     }
-  }, [searchParams]);
+  }, [searchParams, location.pathname]);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -94,7 +107,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (localStorage.getItem('accessToken')) {
+    if (activeTab === 'orders' && localStorage.getItem('accessToken')) {
       fetchOrders();
     }
   }, [activeTab]);
@@ -326,7 +339,10 @@ export const ProfilePage: React.FC = () => {
                         </div>
                       </div>
 
-                      <button className="w-full py-2 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
+                      <button 
+                        onClick={() => addToCart(item.id, 1)}
+                        className="w-full py-2 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                      >
                         <ShoppingBag className="w-3.5 h-3.5" />
                         <span>Sepete Ekle</span>
                       </button>
