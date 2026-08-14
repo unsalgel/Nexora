@@ -1,0 +1,30 @@
+﻿version: '3.8'
+
+services:
+  nexora-db:
+    image: postgres:16-alpine
+    container_name: nexora-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: nexora_password123
+      POSTGRES_DB: NexoraDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexora-db-data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: nexora-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@nexora.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password123
+    ports:
+      - "5050:80"
+    depends_on:
+      - nexora-db
+
+volumes:
+  nexora-db-data:
