@@ -67,10 +67,10 @@ export const CartPage: React.FC = () => {
         {/* SOL: Ürün Listesi */}
         <div className="lg:col-span-8 space-y-4">
           {cartItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div key={item.id} className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex items-center justify-between gap-4">
               
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                <Link to={`/products/${item.productId}`} className="w-20 h-20 rounded-xl bg-slate-50 border p-2 shrink-0 flex items-center justify-center hover:opacity-85 transition-opacity">
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+                <Link to={`/products/${item.productId}`} className="w-20 h-20 rounded-xl bg-slate-50 border border-slate-100 p-2 shrink-0 flex items-center justify-center hover:opacity-85 transition-opacity">
                   <img 
                     src={item.productImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'} 
                     alt={item.productName} 
@@ -78,43 +78,42 @@ export const CartPage: React.FC = () => {
                   />
                 </Link>
 
-                <div className="space-y-1">
-                  <Link to={`/products/${item.productId}`} className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug hover:text-orange-600 transition-colors">
+                <div className="space-y-2 flex-1 min-w-0">
+                  <Link to={`/products/${item.productId}`} className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug hover:text-orange-600 transition-colors block">
                     {item.productName}
                   </Link>
                   <span className="text-[10px] text-emerald-600 font-bold block">Kargo Bedava</span>
+
+                  {/* Adet Seçici */}
+                  <div className="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
+                    <button
+                      type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity - 1); }}
+                      className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="w-8 text-center font-bold text-xs text-slate-900 tabular-nums">{item.quantity}</span>
+                    <button
+                      type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity + 1); }}
+                      className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">
-                {/* Adet Seçici */}
-                <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
-                  <button
-                    type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity - 1); }}
-                    className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="w-8 text-center font-bold text-xs text-slate-900">{item.quantity}</span>
-                  <button
-                    type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity + 1); }}
-                    className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Fiyat */}
+              {/* SAĞ: Fiyat ve Sil Butonu */}
+              <div className="flex items-center gap-4 shrink-0">
                 <div className="text-right">
-                  <span className="text-base font-black text-slate-900 block">
+                  <span className="text-base sm:text-lg font-black text-slate-900 block tabular-nums">
                     {item.totalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                   </span>
                 </div>
 
-                {/* Sil Butonu */}
                 <button
                   type="button" onClick={(e) => { e.preventDefault(); removeFromCart(item.id); }}
-                  className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                   title="Ürünü Sil"
                 >
                   <Trash2 className="w-4 h-4" />
