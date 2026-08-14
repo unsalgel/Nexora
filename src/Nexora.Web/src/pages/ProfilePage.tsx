@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
+import { decodeJwt } from '../lib/jwt';
 import { 
   Package, 
   Heart, 
@@ -10,15 +11,18 @@ import {
   Trash2, 
   Edit2, 
   Plus, 
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialTab = (searchParams.get('tab') as 'orders' | 'favorites' | 'addresses' | 'account') || 'orders';
   const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(initialTab);
-
-  const { favorites, toggleFavorite } = useFavorites();
+  
+  const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
+  const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -26,6 +30,30 @@ export const ProfilePage: React.FC = () => {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      const claims = decodeJwt(token);
+      if (claims) {
+        setUserProfile({
+          firstName: claims.firstName,
+          lastName: claims.lastName,
+          email: claims.email
+        });
+      }
+    } else {
+      // Token yoksa giriş ekranına yönlendir
+      navigate('/login');
+    }
+    refreshFavorites();
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    navigate('/login');
+  };
 
   const orders = [
     {
@@ -49,140 +77,122 @@ export const ProfilePage: React.FC = () => {
           image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=80'
         }
       ]
-    },
-    {
-      id: 'NXR-2026-5120',
-      date: '28 Temmuz 2026',
-      status: 'Teslim Edildi',
-      statusColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      total: 599.00,
-      cargoTrackNo: 'TR-412398512',
-      items: [
-        {
-          title: 'Erkek Premium Slim Fit Pamuklu Kumaş Gömlek',
-          quantity: 1,
-          price: 599.00,
-          image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=200&q=80'
-        }
-      ]
     }
   ];
 
   return (
     <div className="space-y-8 pb-16">
       
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-4 text-center sm:text-left">
-          <div className="w-16 h-16 rounded-2xl bg-orange-500 text-white font-bold text-2xl flex items-center justify-center shadow-md shadow-orange-500/25">
-            ÜG
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Ünsal Gel</h1>
-            <p className="text-xs text-slate-500 font-medium">unsal@example.com • Müşteri ID: #8942</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-orange-50 border border-orange-100 rounded-xl text-center">
-            <span className="text-[10px] font-bold text-slate-400 block uppercase">Toplam Sipariş</span>
-            <span className="text-sm font-bold text-orange-600">2 Sipariş</span>
-          </div>
-          <div className="px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-center">
-            <span className="text-[10px] font-bold text-slate-400 block uppercase">Hesap Durumu</span>
-            <span className="text-sm font-bold text-emerald-600">Doğrulanmış</span>
-          </div>
-        </div>
+      {/* Üst Yol */}
+      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+        <span className="hover:text-orange-600 cursor-pointer" onClick={() => navigate('/')}>Ana Sayfa</span>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-slate-800 font-semibold">Hesabım</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        <aside className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 p-3 shadow-sm space-y-1">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-semibold transition-all ${
-              activeTab === 'orders'
-                ? 'bg-orange-50 text-orange-600 font-bold border border-orange-100'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Package className="w-4 h-4 text-orange-500" />
+        {/* SOL MENÜ (Yan Panel) */}
+        <aside className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
+            <div className="w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-bold text-lg shadow-md shadow-orange-500/25">
+              {userProfile?.firstName ? userProfile.firstName[0].toUpperCase() : 'U'}
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-slate-900 truncate">
+                {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Yükleniyor...'}
+              </h2>
+              <span className="text-[11px] text-slate-400 font-medium truncate block">{userProfile?.email}</span>
+            </div>
+          </div>
+
+          <nav className="flex flex-col gap-1.5">
+            <button
+              onClick={() => { setActiveTab('orders'); navigate('/profile?tab=orders'); }}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'orders' 
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Package className="w-4 h-4" />
               <span>Siparişlerim</span>
-            </div>
-            <span className="text-[10px] bg-white border px-2 py-0.5 rounded-full font-bold text-slate-500">2</span>
-          </button>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('favorites')}
-            className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-semibold transition-all ${
-              activeTab === 'favorites'
-                ? 'bg-orange-50 text-orange-600 font-bold border border-orange-100'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Heart className="w-4 h-4 text-rose-500" />
-              <span>Favorilerim</span>
-            </div>
-            <span className="text-[10px] bg-white border px-2 py-0.5 rounded-full font-bold text-slate-500">{favorites.length}</span>
-          </button>
+            <button
+              onClick={() => { setActiveTab('favorites'); navigate('/profile?tab=favorites'); }}
+              className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'favorites' 
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Heart className="w-4 h-4" />
+                <span>Favorilerim</span>
+              </div>
+              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{favorites.length}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('addresses')}
-            className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-semibold transition-all ${
-              activeTab === 'addresses'
-                ? 'bg-orange-50 text-orange-600 font-bold border border-orange-100'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <MapPin className="w-4 h-4 text-blue-500" />
-              <span>Adres Bilgilerim</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
-          </button>
+            <button
+              onClick={() => { setActiveTab('addresses'); navigate('/profile?tab=addresses'); }}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'addresses' 
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <MapPin className="w-4 h-4" />
+              <span>Adreslerim</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('account')}
-            className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-semibold transition-all ${
-              activeTab === 'account'
-                ? 'bg-orange-50 text-orange-600 font-bold border border-orange-100'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <User className="w-4 h-4 text-slate-600" />
-              <span>Hesap Ayarları</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
-          </button>
+            <button
+              onClick={() => { setActiveTab('account'); navigate('/profile?tab=account'); }}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'account' 
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80' 
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>Kişisel Bilgilerim</span>
+            </button>
+
+            <div className="border-t border-slate-100 my-1" />
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors w-full text-left"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Çıkış Yap</span>
+            </button>
+          </nav>
         </aside>
 
-        <main className="lg:col-span-8">
+        {/* SAĞ İÇERİK PANELSİ */}
+        <main className="lg:col-span-9 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm min-h-[50vh]">
           
           {activeTab === 'orders' && (
             <div className="space-y-4 animate-in fade-in-50">
-              <h2 className="text-base font-bold text-slate-900">Sipariş Geçmişim</h2>
+              <h2 className="text-base font-bold text-slate-900">Siparişlerim</h2>
               
               {orders.map((order) => (
-                <div key={order.id} className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 text-xs">
+                <div key={order.id} className="border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <div>
                       <span className="text-slate-400 font-medium block text-[11px]">Sipariş Numarası</span>
-                      <span className="font-bold text-slate-900">{order.id}</span>
+                      <span className="font-bold text-slate-800 text-xs">{order.id}</span>
                     </div>
-
                     <div>
-                      <span className="text-slate-400 font-medium block text-[11px]">Tarih</span>
-                      <span className="font-semibold text-slate-700">{order.date}</span>
+                      <span className="text-slate-400 font-medium block text-[11px]">Sipariş Tarihi</span>
+                      <span className="font-bold text-slate-700 text-xs">{order.date}</span>
                     </div>
-
                     <div>
                       <span className="text-slate-400 font-medium block text-[11px]">Toplam Tutar</span>
-                      <span className="font-bold text-orange-600">{order.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                      <span className="font-bold text-orange-600 text-xs">{order.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
                     </div>
-
-                    <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${order.statusColor}`}>
+                    <span className={`px-3 py-1 rounded-xl text-[10px] font-bold border self-start sm:self-auto ${order.statusColor}`}>
                       {order.status}
                     </span>
                   </div>
@@ -203,7 +213,7 @@ export const ProfilePage: React.FC = () => {
 
                   <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-medium">Kargo Takip No: <span className="font-bold text-slate-700">{order.cargoTrackNo}</span></span>
-                    <button className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition-colors">
+                    <button className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition-colors text-[11px]">
                       Kargom Nerede?
                     </button>
                   </div>
@@ -282,7 +292,9 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-xs text-slate-600 space-y-1 font-medium">
-                  <p className="font-bold text-slate-900">Ünsal Gel • 0555 123 45 67</p>
+                  <p className="font-bold text-slate-900">
+                    {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Yükleniyor...'}
+                  </p>
                   <p>Cemal Gürsel Cad. No:45 Kat:3 Daire:8</p>
                   <p>Karşıyaka / İzmir</p>
                 </div>
@@ -300,34 +312,21 @@ export const ProfilePage: React.FC = () => {
                     <label className="font-bold text-slate-700 block mb-1">Ad Soyad</label>
                     <input
                       type="text"
-                      defaultValue="Ünsal Gel"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-900"
+                      readOnly
+                      value={userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : ''}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-900 outline-none"
                     />
                   </div>
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">E-Posta Adresi</label>
                     <input
                       type="email"
-                      defaultValue="unsal@example.com"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Telefon Numarası</label>
-                    <input
-                      type="text"
-                      defaultValue="0555 123 45 67"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-900"
+                      readOnly
+                      value={userProfile?.email || ''}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-900 outline-none"
                     />
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-                >
-                  Bilgileri Güncelle
-                </button>
               </form>
             </div>
           )}
