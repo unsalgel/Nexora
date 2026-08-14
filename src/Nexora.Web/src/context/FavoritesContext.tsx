@@ -75,13 +75,13 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       if (exists) {
-        // Favorilerden çıkar
+
         const response = await apiClient.delete<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => prev.filter(item => item.id !== product.id));
         }
       } else {
-        // Favorilere ekle
+
         const response = await apiClient.post<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => [...prev, product]);

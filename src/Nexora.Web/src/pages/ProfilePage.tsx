@@ -2,6 +2,8 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { decodeJwt } from '../lib/jwt';
+import { apiClient } from '../lib/apiClient';
+import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { 
   Package, 
   Heart, 
@@ -12,8 +14,32 @@ import {
   Edit2, 
   Plus, 
   ChevronRight,
-  LogOut
+  LogOut,
+  Clock
 } from 'lucide-react';
+
+interface OrderItemDto {
+  id: string;
+  productId?: string;
+  productName: string;
+  productVariantId?: string;
+  variantSKU?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+}
+
+interface OrderDto {
+  id: string;
+  orderNumber: string;
+  userId: string;
+  shippingAddress: string;
+  totalAmount: number;
+  status: string;
+  paymentStatus: string;
+  createdAtUtc: string;
+  items: OrderItemDto[];
+}
 
 export const ProfilePage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -23,6 +49,9 @@ export const ProfilePage: React.FC = () => {
   
   const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
   const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+
+  const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -43,11 +72,32 @@ export const ProfilePage: React.FC = () => {
         });
       }
     } else {
-      // Token yoksa giriş ekranına yönlendir
       navigate('/login');
     }
     refreshFavorites();
   }, [navigate]);
+
+  const fetchOrders = async () => {
+    setIsOrdersLoading(true);
+    try {
+      const response = await apiClient.get<ApiResponse<PagedResponse<OrderDto>>>('/orders', {
+        params: { page: 1, pageSize: 20 }
+      });
+      if (response.data?.isSuccess && response.data.data?.items) {
+        setOrders(response.data.data.items);
+      }
+    } catch (error) {
+      console.error('Siparişler çekilirken hata oluştu:', error);
+    } finally {
+      setIsOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem('accessToken')) {
+      fetchOrders();
+    }
+  }, [activeTab]);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -55,30 +105,22 @@ export const ProfilePage: React.FC = () => {
     navigate('/login');
   };
 
-  const orders = [
-    {
-      id: 'NXR-2026-8942',
-      date: '12 Ağustos 2026',
-      status: 'Kargoda',
-      statusColor: 'bg-amber-50 text-amber-700 border-amber-200',
-      total: 3798.90,
-      cargoTrackNo: 'TR-982341234',
-      items: [
-        {
-          title: 'Nexora Pro Wireless Bluetooth Kulaklık Çevre Gürültü Engelleyici ANC',
-          quantity: 1,
-          price: 1499.90,
-          image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80'
-        },
-        {
-          title: 'Akıllı Saat GPS + Nabız Ölçer Su Geçirmez Spor Kordonlu',
-          quantity: 1,
-          price: 2299.00,
-          image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=80'
-        }
-      ]
+  const getStatusDetails = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return { label: 'Hazırlanıyor', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      case 'Preparing':
+        return { label: 'Hazırlanıyor', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      case 'Shipped':
+        return { label: 'Kargoda', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+      case 'Delivered':
+        return { label: 'Teslim Edildi', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      case 'Cancelled':
+        return { label: 'İptal Edildi', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+      default:
+        return { label: 'Hazırlanıyor', color: 'bg-slate-50 text-slate-700 border-slate-200' };
     }
-  ];
+  };
 
   return (
     <div className="space-y-8 pb-16">
@@ -92,7 +134,7 @@ export const ProfilePage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* SOL MENÜ (Yan Panel) */}
+        {/* SOL MENÜ */}
         <aside className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
             <div className="w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-bold text-lg shadow-md shadow-orange-500/25">
@@ -177,48 +219,73 @@ export const ProfilePage: React.FC = () => {
             <div className="space-y-4 animate-in fade-in-50">
               <h2 className="text-base font-bold text-slate-900">Siparişlerim</h2>
               
-              {orders.map((order) => (
-                <div key={order.id} className="border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                    <div>
-                      <span className="text-slate-400 font-medium block text-[11px]">Sipariş Numarası</span>
-                      <span className="font-bold text-slate-800 text-xs">{order.id}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-medium block text-[11px]">Sipariş Tarihi</span>
-                      <span className="font-bold text-slate-700 text-xs">{order.date}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-medium block text-[11px]">Toplam Tutar</span>
-                      <span className="font-bold text-orange-600 text-xs">{order.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
-                    </div>
-                    <span className={`px-3 py-1 rounded-xl text-[10px] font-bold border self-start sm:self-auto ${order.statusColor}`}>
-                      {order.status}
-                    </span>
-                  </div>
+              {isOrdersLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-3">
+                  <Package className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-xs text-slate-500 font-medium">Henüz bir siparişiniz bulunmuyor.</p>
+                </div>
+              ) : (
+                orders.map((order) => {
+                  const statusInfo = getStatusDetails(order.status);
+                  const orderDate = new Date(order.createdAtUtc).toLocaleDateString('tr-TR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  });
 
-                  <div className="space-y-3">
-                    {order.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-xl bg-slate-50 border p-1.5 shrink-0 flex items-center justify-center">
-                          <img src={item.image} alt={item.title} className="max-h-full object-contain" />
+                  return (
+                    <div key={order.id} className="border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div>
+                          <span className="text-slate-400 font-medium block text-[11px]">Sipariş Numarası</span>
+                          <span className="font-bold text-slate-800 text-xs">#{order.orderNumber}</span>
                         </div>
-                        <div className="flex-1 text-xs">
-                          <h4 className="font-semibold text-slate-800 line-clamp-1">{item.title}</h4>
-                          <span className="text-slate-400 font-medium">{item.quantity} Adet • {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                        <div>
+                          <span className="text-slate-400 font-medium block text-[11px]">Sipariş Tarihi</span>
+                          <span className="font-bold text-slate-700 text-xs">{orderDate}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block text-[11px]">Toplam Tutar</span>
+                          <span className="font-bold text-orange-600 text-xs">{order.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                        </div>
+                        <span className={`px-3 py-1 rounded-xl text-[10px] font-bold border self-start sm:self-auto ${statusInfo.color}`}>
+                          {statusInfo.label}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-xl bg-slate-50 border p-1.5 shrink-0 flex items-center justify-center">
+                              <img 
+                                src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&q=80" 
+                                alt={item.productName} 
+                                className="max-h-full object-contain" 
+                              />
+                            </div>
+                            <div className="flex-1 text-xs">
+                              <h4 className="font-semibold text-slate-800 line-clamp-1">{item.productName}</h4>
+                              <span className="text-slate-400 font-medium">{item.quantity} Adet • {item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Sipariş Durumu: <span className="font-bold text-slate-700">{statusInfo.label}</span></span>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Tahmini Teslimat: 3 İş Günü</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-medium">Kargo Takip No: <span className="font-bold text-slate-700">{order.cargoTrackNo}</span></span>
-                    <button className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition-colors text-[11px]">
-                      Kargom Nerede?
-                    </button>
-                  </div>
-                </div>
-              ))}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 

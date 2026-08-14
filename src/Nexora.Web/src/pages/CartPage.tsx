@@ -22,9 +22,9 @@ export const CartPage: React.FC = () => {
   };
 
   const cartItems = cart?.items || [];
-  const subTotal = cart?.grandTotal || 0;
-  const shippingFee = subTotal > 500 || subTotal === 0 ? 0 : 39.90;
-  const grandTotal = Math.max(0, subTotal + shippingFee - appliedDiscount);
+  const cartGrandTotal = cart?.grandTotal || 0;
+  const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
+  const payableTotal = Math.max(0, cartGrandTotal + shippingFee - appliedDiscount);
 
   if (isLoading) {
     return (
@@ -163,7 +163,7 @@ export const CartPage: React.FC = () => {
             <div className="space-y-2.5 text-xs text-slate-600 font-medium">
               <div className="flex justify-between">
                 <span>Ürünlerin Toplamı</span>
-                <span className="font-bold text-slate-900">{subTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                <span className="font-bold text-slate-900">{cartGrandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
               </div>
               
               <div className="flex justify-between">
@@ -183,7 +183,7 @@ export const CartPage: React.FC = () => {
               <span className="text-xs font-black text-slate-900 uppercase">Ödenecek Tutar</span>
               <div className="text-right">
                 <span className="text-2xl font-black text-orange-600">
-                  {grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                  {payableTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                 </span>
                 <span className="text-xs font-bold text-orange-600 ml-1">TL</span>
               </div>
