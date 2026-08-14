@@ -106,7 +106,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 export const useFavorites = () => {
   const context = useContext(FavoritesContext);
   if (!context) {
-    throw new Error('useFavorites must be used within a FavoritesProvider');
+    throw new Error('useFavorites, bir FavoritesProvider içerisinde kullanılmalıdır.');
   }
   return context;
 };

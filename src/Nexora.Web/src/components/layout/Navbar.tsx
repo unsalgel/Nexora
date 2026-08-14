@@ -1,5 +1,7 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+import { decodeJwt } from '../../lib/jwt';
 import { 
   ShoppingBag, 
   Heart, 
@@ -10,11 +12,15 @@ import {
   PhoneCall, 
   Truck, 
   Layers,
-  Sparkles
+  Sparkles,
+
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { cartCount } = useCart();
+  const [userName, setUserName] = useState<string | null>(null);
 
   const categories = [
     'Elektronik',
@@ -26,6 +32,22 @@ export const Navbar: React.FC = () => {
     'Süpermarket',
     'Kitap & Kırtasiye'
   ];
+
+  const isLoggedIn = !!localStorage.getItem('accessToken');
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        const claims = decodeJwt(token);
+        if (claims) {
+          setUserName(`${claims.firstName} ${claims.lastName}`);
+        }
+      }
+    } else {
+      setUserName(null);
+    }
+  }, [isLoggedIn]);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm w-full overflow-hidden">
@@ -56,7 +78,7 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-2 sm:gap-6">
           
-          {/* Özel Plus Jakarta Sans Fontlu Prestij Logo */}
+          {/* Logo */}
           <Link to="/" className="flex items-center shrink-0 group py-1">
             <span className="logo-font text-2xl sm:text-[32px] text-slate-900 group-hover:opacity-90 transition-opacity leading-none">
               nexora<span className="text-orange-500 font-black">.com</span>
@@ -83,15 +105,24 @@ export const Navbar: React.FC = () => {
           {/* Sağ Eylem Butonları */}
           <div className="flex items-center gap-1 sm:gap-3">
             
-            {/* Giriş Yap */}
+            {/* Giriş Yap / Profilim */}
             <Link
-              to="/login"
+              to={isLoggedIn ? "/profile" : "/login"}
               className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5"
             >
               <User className="w-5 h-5 text-slate-600" />
               <div className="hidden lg:flex flex-col text-left leading-tight">
-                <span className="text-[11px] text-slate-400 font-normal">Giriş Yap</span>
-                <span className="text-xs font-bold text-slate-800">veya Üye Ol</span>
+                {isLoggedIn ? (
+                  <>
+                    <span className="text-[11px] text-slate-400 font-normal">Hesabım</span>
+                    <span className="text-xs font-bold text-slate-800 truncate max-w-[100px]">{userName || 'Kullanıcı'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] text-slate-400 font-normal">Giriş Yap</span>
+                    <span className="text-xs font-bold text-slate-800">veya Üye Ol</span>
+                  </>
+                )}
               </div>
             </Link>
 
@@ -112,7 +143,7 @@ export const Navbar: React.FC = () => {
               <div className="relative">
                 <ShoppingBag className="w-5 h-5" />
                 <span className="absolute -top-2 -right-2 bg-slate-900 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
-                  0
+                  {cartCount}
                 </span>
               </div>
               <span className="hidden sm:inline">Sepetim</span>
@@ -128,7 +159,7 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobil Arama Motoru (Sınırlandırılmış) */}
+        {/* Mobil Arama Motoru */}
         <div className="mt-2 sm:mt-3 md:hidden w-full">
           <div className="relative flex items-center w-full">
             <input

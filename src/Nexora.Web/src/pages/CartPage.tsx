@@ -1,50 +1,15 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Ticket, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
-
-  const [cartItems, setCartItems] = useState([
-    {
-      id: '1',
-      title: 'Nexora Pro Wireless Bluetooth Kulaklık Çevre Gürültü Engelleyici ANC',
-      color: 'Siyah',
-      price: 1499.90,
-      oldPrice: 1999.00,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'
-    },
-    {
-      id: '3',
-      title: 'Akıllı Saat GPS + Nabız Ölçer Su Geçirmez Spor Kordonlu',
-      color: 'Siyah',
-      price: 2299.00,
-      oldPrice: 2899.00,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&q=80'
-    }
-  ]);
+  const { cart, isLoading, updateQuantity, removeFromCart } = useCart();
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [couponSuccess, setCouponSuccess] = useState('');
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCartItems(prev =>
-      prev.map(item => {
-        if (item.id === id) {
-          const newQty = item.quantity + delta;
-          return newQty > 0 ? { ...item, quantity: newQty } : item;
-        }
-        return item;
-      })
-    );
-  };
-
-  const removeItem = (id: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
-  };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,9 +21,18 @@ export const CartPage: React.FC = () => {
     }
   };
 
-  const subTotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const shippingFee = subTotal > 500 ? 0 : 39.90;
+  const cartItems = cart?.items || [];
+  const subTotal = cart?.grandTotal || 0;
+  const shippingFee = subTotal > 500 || subTotal === 0 ? 0 : 39.90;
   const grandTotal = Math.max(0, subTotal + shippingFee - appliedDiscount);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex justify-center items-center">
+        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -90,20 +64,23 @@ export const CartPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* SOL: Ürün Listesi (8 Kolon) */}
+        {/* SOL: Ürün Listesi */}
         <div className="lg:col-span-8 space-y-4">
           {cartItems.map((item) => (
             <div key={item.id} className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
               
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 <div className="w-20 h-20 rounded-xl bg-slate-50 border p-2 shrink-0 flex items-center justify-center">
-                  <img src={item.image} alt={item.title} className="max-h-full object-contain" />
+                  <img 
+                    src={item.productImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'} 
+                    alt={item.productName} 
+                    className="max-h-full object-contain" 
+                  />
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{item.title}</h3>
-                  <span className="text-xs text-slate-400 font-medium block">Renk: {item.color}</span>
-                  <span className="text-xs text-emerald-600 font-bold block">Kargo Bedava</span>
+                  <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{item.productName}</h3>
+                  <span className="text-[10px] text-emerald-600 font-bold block">Kargo Bedava</span>
                 </div>
               </div>
 
@@ -111,14 +88,14 @@ export const CartPage: React.FC = () => {
                 {/* Adet Seçici */}
                 <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
                   <button
-                    onClick={() => updateQuantity(item.id, -1)}
+                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
                     className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <span className="w-8 text-center font-bold text-xs text-slate-900">{item.quantity}</span>
                   <button
-                    onClick={() => updateQuantity(item.id, 1)}
+                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
                     className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -128,13 +105,13 @@ export const CartPage: React.FC = () => {
                 {/* Fiyat */}
                 <div className="text-right">
                   <span className="text-base font-black text-slate-900 block">
-                    {(item.price * item.quantity).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                    {item.totalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                   </span>
                 </div>
 
                 {/* Sil Butonu */}
                 <button
-                  onClick={() => removeItem(item.id)}
+                  onClick={() => removeFromCart(item.id)}
                   className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
                   title="Ürünü Sil"
                 >
@@ -146,7 +123,7 @@ export const CartPage: React.FC = () => {
           ))}
         </div>
 
-        {/* SAĞ: Sipariş Özeti & Kupon (4 Kolon) */}
+        {/* SAĞ: Sipariş Özeti & Kupon */}
         <div className="lg:col-span-4 space-y-4">
           
           {/* İndirim Kuponu */}
