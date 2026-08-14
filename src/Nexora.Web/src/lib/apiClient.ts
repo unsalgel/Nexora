@@ -9,7 +9,6 @@ export const apiClient = axios.create({
   },
 });
 
-// Request Interceptor: Her isteğe JWT Access Token ekler
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -21,7 +20,48 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Standard API Response Wrapper Tipi
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refreshToken');
+      const accessToken = localStorage.getItem('accessToken');
+
+      if (refreshToken && accessToken) {
+        try {
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+            accessToken,
+            refreshToken
+          });
+
+          if (res.data?.isSuccess && res.data?.data) {
+            const newAccessToken = res.data.data.accessToken;
+            const newRefreshToken = res.data.data.refreshToken;
+            
+            localStorage.setItem('accessToken', newAccessToken);
+            localStorage.setItem('refreshToken', newRefreshToken);
+
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return apiClient(originalRequest);
+          }
+        } catch (refreshError) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+            window.location.href = '/login';
+          }
+        }
+      } else {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface ApiResponse<T> {
   isSuccess: boolean;
   data: T;
@@ -29,7 +69,6 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
-// Sayfalı Yanıt Wrapper Tipi
 export interface PagedResponse<T> {
   items: T[];
   page: number;

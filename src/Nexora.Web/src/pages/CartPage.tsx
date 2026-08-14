@@ -26,7 +26,7 @@ export const CartPage: React.FC = () => {
   const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
   const payableTotal = Math.max(0, cartGrandTotal + shippingFee - appliedDiscount);
 
-  if (isLoading) {
+  if (isLoading && !cart) {
     return (
       <div className="min-h-[60vh] flex justify-center items-center">
         <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -90,14 +90,14 @@ export const CartPage: React.FC = () => {
                 {/* Adet Seçici */}
                 <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
                   <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity - 1); }}
                     className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <span className="w-8 text-center font-bold text-xs text-slate-900">{item.quantity}</span>
                   <button
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    type="button" onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity + 1); }}
                     className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -113,7 +113,7 @@ export const CartPage: React.FC = () => {
 
                 {/* Sil Butonu */}
                 <button
-                  onClick={() => removeFromCart(item.id)}
+                  type="button" onClick={(e) => { e.preventDefault(); removeFromCart(item.id); }}
                   className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
                   title="Ürünü Sil"
                 >
