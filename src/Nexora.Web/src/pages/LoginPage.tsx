@@ -1,7 +1,10 @@
 ﻿import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { apiClient } from '../lib/apiClient';
 
 export const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [step, setStep] = useState<1 | 2>(1);
   const [identity, setIdentity] = useState('');
@@ -9,16 +12,77 @@ export const LoginPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!identity.trim()) return;
+    setErrorMessage(null);
     setStep(2);
   };
 
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSuccess(true);
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      if (activeTab === 'login') {
+        const response = await apiClient.post('/auth/login', {
+          email: identity,
+          password: password
+        });
+
+        if (response.data?.isSuccess) {
+          const { accessToken, refreshToken } = response.data.data;
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', refreshToken);
+          
+          setIsSuccess(true);
+          setTimeout(() => {
+            navigate('/profile');
+          }, 1500);
+        } else {
+          setErrorMessage(response.data?.message || 'Giriş yapılamadı.');
+        }
+      } else {
+        // Ad Soyad bilgisini First ve Last olarak ayırıyoruz
+        const parts = fullName.trim().split(' ');
+        const firstName = parts[0] || '';
+        const lastName = parts.slice(1).join(' ') || 'Gel'; // Lastname boş kalırsa varsayılan atıyoruz
+
+        const response = await apiClient.post('/auth/register', {
+          firstName,
+          lastName,
+          email: identity,
+          password: password
+        });
+
+        if (response.data?.isSuccess) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            setActiveTab('login');
+            setStep(1);
+            setIdentity('');
+            setPassword('');
+            setFullName('');
+            setIsSuccess(false);
+          }, 2000);
+        } else {
+          setErrorMessage(response.data?.message || 'Üye olunamadı.');
+        }
+      }
+    } catch (err: any) {
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors && apiErrors.length > 0) {
+        setErrorMessage(apiErrors[0]);
+      } else {
+        setErrorMessage(err.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,7 +92,7 @@ export const LoginPage: React.FC = () => {
         {/* Tab Sekmeleri */}
         <div className="flex border-b border-slate-200">
           <button
-            onClick={() => { setActiveTab('login'); setStep(1); setIsSuccess(false); }}
+            onClick={() => { setActiveTab('login'); setStep(1); setIsSuccess(false); setErrorMessage(null); }}
             className={`flex-1 py-4 text-center font-bold text-sm transition-all relative ${activeTab === 'login'
               ? 'text-orange-600 bg-white'
               : 'text-slate-500 bg-slate-50 hover:bg-slate-100/80'
@@ -41,7 +105,7 @@ export const LoginPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => { setActiveTab('register'); setStep(1); setIsSuccess(false); }}
+            onClick={() => { setActiveTab('register'); setStep(1); setIsSuccess(false); setErrorMessage(null); }}
             className={`flex-1 py-4 text-center font-bold text-sm transition-all relative ${activeTab === 'register'
               ? 'text-orange-600 bg-white'
               : 'text-slate-500 bg-slate-50 hover:bg-slate-100/80'
@@ -59,18 +123,25 @@ export const LoginPage: React.FC = () => {
           {isSuccess && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-700 text-xs font-semibold animate-in fade-in-50">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-              <span>{activeTab === 'login' ? 'Giriş başarılı!' : 'Üyelik oluşturuldu!'} Yönlendiriliyorsunuz...</span>
+              <span>{activeTab === 'login' ? 'Giriş başarılı! Profilinize yönlendiriliyorsunuz...' : 'Üyelik başarıyla oluşturuldu! Giriş yapabilirsiniz...'}</span>
             </div>
           )}
 
-          {/* ADIM 1: E-posta Adresi  Girme */}
+          {errorMessage && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-700 text-xs font-semibold animate-in fade-in-50">
+              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* ADIM 1: E-posta Adresi Girme */}
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in-50">
               <form onSubmit={handleNextStep} className="space-y-4">
                 <div className="relative flex items-center">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-4" />
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={identity}
                     onChange={(e) => setIdentity(e.target.value)}
@@ -153,16 +224,17 @@ export const LoginPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+                  disabled={isLoading}
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <span>{activeTab === 'login' ? 'Giriş Yap' : 'Tamamla ve Üye Ol'}</span>
+                  <span>{isLoading ? 'Yükleniyor...' : (activeTab === 'login' ? 'Giriş Yap' : 'Tamamla ve Üye Ol')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             </div>
           )}
 
-          {/* Alt Sosyal Hesabın ile Giriş Yap Alanı (Hepsiburada Tarzı) */}
+          {/* Alt Sosyal Hesabın ile Giriş Yap Alanı */}
           <div className="pt-4 border-t border-slate-100 space-y-3">
             <p className="text-[11px] font-bold text-slate-400 text-center uppercase tracking-wider">
               Sosyal hesabın ile giriş yap

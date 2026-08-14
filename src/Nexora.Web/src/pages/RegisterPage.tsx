@@ -1,8 +1,10 @@
 ﻿import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { apiClient } from '../lib/apiClient';
 
 export const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,15 +13,50 @@ export const RegisterPage: React.FC = () => {
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    
     if (password !== confirmPassword) {
       setErrorMessage('Şifreler eşleşmiyor!');
       return;
     }
-    setErrorMessage('');
-    setIsSubmitted(true);
+
+    setIsLoading(true);
+
+    try {
+      // Ad Soyad alanını parçalayalım
+      const parts = fullName.trim().split(' ');
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || 'Gel'; // Lastname boş kalırsa varsayılan atıyoruz
+
+      const response = await apiClient.post('/auth/register', {
+        firstName,
+        lastName,
+        email,
+        password
+      });
+
+      if (response.data?.isSuccess) {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setErrorMessage(response.data?.message || 'Üyelik oluşturulamadı.');
+      }
+    } catch (err: any) {
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors && apiErrors.length > 0) {
+        setErrorMessage(apiErrors[0]);
+      } else {
+        setErrorMessage(err.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,16 +65,13 @@ export const RegisterPage: React.FC = () => {
         
         <div className="text-center space-y-3">
           <Link to="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform">
-              N
-            </div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
+            <span className="logo-font text-2xl tracking-tight text-slate-900 leading-none">
               nexora<span className="text-orange-500">.com</span>
             </span>
           </Link>
 
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Aramıza Katılın!</h2>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Aramıza Katılın!</h2>
             <p className="text-xs text-slate-500 font-medium mt-1">Sadece 1 dakikada üye olup özel indirimlerden yararlanın.</p>
           </div>
         </div>
@@ -50,8 +84,9 @@ export const RegisterPage: React.FC = () => {
         )}
 
         {errorMessage && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-semibold">
-            {errorMessage}
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-700 text-xs font-semibold animate-in fade-in-50">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -64,7 +99,7 @@ export const RegisterPage: React.FC = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Ad Soyad"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
             />
           </div>
 
@@ -76,7 +111,7 @@ export const RegisterPage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-Posta Adresi"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
             />
           </div>
 
@@ -88,7 +123,7 @@ export const RegisterPage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Şifre (En az 6 karakter)"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
             />
             <button
               type="button"
@@ -107,7 +142,7 @@ export const RegisterPage: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Şifre Tekrarı"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
             />
           </div>
 
@@ -128,9 +163,10 @@ export const RegisterPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 pt-3"
+            disabled={isLoading}
+            className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           >
-            <span>Üye Ol</span>
+            <span>{isLoading ? 'Yükleniyor...' : 'Üye Ol'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
