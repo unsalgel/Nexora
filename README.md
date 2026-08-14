@@ -26,8 +26,8 @@ Nexora/
 
 ### ⚙️ Backend (.NET 8 Web API)
 - **Framework:** .NET 8 (LTS), ASP.NET Core Web API
-- **Mimari Desenler:** Clean Architecture, CQRS (MediatR 12), Result Pattern
-- **Veritabanı & ORM:** PostgreSQL, Entity Framework Core 8 (Code-First, Fluent API)
+- **Mimari Desenler:** Clean Architecture, CQRS (MediatR 12), Result Pattern, Ubiquitous Language
+- **Veritabanı & ORM:** PostgreSQL, Entity Framework Core 8 (Code-First, Fluent API, AddReviewsTable vb.)
 - **Doğrulama (Validation):** FluentValidation (MediatR Pipeline Behavior)
 - **Güvenlik & Auth:** JWT (Access Token 15 dk + Refresh Token 7 gün), BCrypt Password Hashing
 - **Loglama & İzlenebilirlik:** Serilog (PostgreSQL Sink + Daily Rolling File + Console)
@@ -37,26 +37,27 @@ Nexora/
 ### 💻 Frontend (React + TypeScript)
 - **Framework & Build:** React 18, TypeScript, Vite
 - **Stil & Tasarım:** Tailwind CSS v4, Glassmorphism, Responsive (Mobil Uyumlu)
-- **State & Server State:** TanStack Query v5 (React Query)
-- **HTTP İstemcisi:** Axios (Merkezi `apiClient.ts` - Otomatik Bearer Token Interceptor)
+- **State & Server State:** TanStack Query v5 (React Query), Context API (`CartContext`, `FavoritesContext`)
+- **HTTP İstemcisi:** Axios (Merkezi `apiClient.ts` - Otomatik Bearer Token & 401 Silent Refresh Interceptor)
 - **Yönlendirme:** React Router v6
 
 ---
 
-## 📦 Tamamlanan V1 Backend Modülleri
+## 📦 Tamamlanan V1 Backend & Frontend Modülleri
 
-| # | Modül Adı | Açıklama |
-|---|---|---|
-| 1 | **Auth & Authorization** | Register, Login, Refresh Token, Revoke Token, JWT Güvenliği |
-| 2 | **Category** | Kategori ekleme, listeleme, güncelleme, silme (Admin / Public) |
-| 3 | **Brand** | Marka yönetimi (Admin / Public) |
-| 4 | **Product & Images** | Ürün yönetimi, resim ekleme/silme, soft-delete, filtreli listeleme |
-| 5 | **Product Variants** | SKU, stok ve fiyat bazlı varyant (renk, beden vb.) yönetimi |
-| 6 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve sayfalı listeleme |
-| 7 | **Cart** | Kullanıcı sepet yönetimi (ürün ekleme, miktar güncelleme, temizleme) |
-| 8 | **Order & Payment** | Sipariş oluşturma, `FakePaymentService` ödeme simülasyonu, stok düşümü |
-| 9 | **Notification** | Otomatik sipariş/ödeme durum bildirimleri, okundu işaretleme |
-| 10 | **Logging System** | PostgreSQL `Logs` tablosuna tarih/saat damgalı izlenebilir loglama |
+| # | Modül Adı | Backend Kapsamı | Frontend Entegrasyonu |
+|---|---|---|---|
+| 1 | **Auth & Authorization** | Register, Login, Refresh Token, Revoke Token, JWT Güvenliği | Tamamlandı (`LoginPage.tsx`, `RegisterPage.tsx`, Otomatik Refresh Interceptor) |
+| 2 | **Category** | Kategori ekleme, listeleme, güncelleme, silme (Admin / Public) | Tamamlandı (Navbar ve Filtreleme Menüleri) |
+| 3 | **Brand** | Marka yönetimi (Admin / Public) | Tamamlandı (Katalog Filtreleme) |
+| 4 | **Product & Images** | Ürün yönetimi, optimize EF Core sorguları, galeri, arama | Tamamlandı (`HomePage.tsx`, `ProductsPage.tsx`, `ProductDetailPage.tsx`) |
+| 5 | **Product Variants** | SKU, stok ve fiyat bazlı varyant (renk, beden vb.) yönetimi | Tamamlandı (Ürün Detay Seçicileri) |
+| 6 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve sayfalı listeleme | Tamamlandı (`FavoritesContext.tsx`, `ProfilePage.tsx` Favorilerim Sekmesi) |
+| 7 | **Cart** | Kullanıcı sepet yönetimi (ekleme, akıcı miktar güncelleme, silme) | Tamamlandı (`CartContext.tsx`, `CartPage.tsx`, Dinamik Header Sayacı) |
+| 8 | **Order & Payment** | Sipariş oluşturma, `FakePaymentService` simülasyonu, stok düşümü | Tamamlandı (`CheckoutPage.tsx`, `ProfilePage.tsx` Sipariş Geçmişi) |
+| 9 | **Reviews & Ratings** | Ürün puanlama (1-5 yıldız), yorum yazma ve listeleme CQRS | Tamamlandı (`ProductDetailPage.tsx` Yorum ve Değerlendirme Formu) |
+| 10 | **Notification** | Otomatik sipariş/ödeme durum bildirimleri, okundu işaretleme | Tamamlandı (Backend Altyapısı) |
+| 11 | **Logging System** | PostgreSQL `Logs` tablosuna tarih/saat damgalı izlenebilir loglama | Tamamlandı (Serilog & Diagnostic Middleware) |
 
 ---
 
@@ -75,8 +76,8 @@ Nexora/
 dotnet restore
 dotnet run --project src/Nexora.Api
 ```
-- API adresi: `http://localhost:5000` (veya `https://localhost:5001`)
-- Swagger Dokümantasyonu: `http://localhost:5000/swagger`
+- API adresi: `http://localhost:5285`
+- Swagger Dokümantasyonu: `http://localhost:5285/swagger`
 
 ### 3. Frontend (Müşteri Paneli) Çalıştırma
 ```bash
@@ -90,6 +91,8 @@ npm run dev
 
 ## 🛡️ Güvenlik ve Standartlar
 - **CORS:** API katmanında tanımlı esnek CORS politikası.
-- **Data Protection:** Hiçbir şifre düz metin saklanmaz.
+- **Data Protection:** Hiçbir şifre düz metin saklanmaz (BCrypt).
+- **Silent Refresh:** Access Token süresi dolduğunda (401) kullanıcıyı düşürmeden arkaplanda otomatik yenilenir.
+- **Ubiquitous Language:** Frontend ve Backend arasında aynı domain terimleri (grandTotal, payableTotal, items vb.) korunur.
 - **Audit Logging:** Tüm veritabanı kayıtları `CreatedAtUtc` ve `UpdatedAtUtc` tarihleri ile UTC formatında otomatik damgalanır.
 - **Response Wrapper:** Tüm API yanıtları standart `Result<T>` yapısında dönmektedir.

@@ -14,7 +14,8 @@ Nexora E-Ticaret Platformu müşteri web uygulaması. React 18, TypeScript, Vite
 | **Stil / Tasarım** | Tailwind CSS v4, PostCSS, Lucide React (İkonlar) |
 | **Yönlendirme** | React Router v6 |
 | **Sunucu Durumu (State)** | TanStack Query (React Query v5) |
-| **HTTP İstemcisi** | Axios |
+| **Lokal Durum Yönetimi** | Context API (`CartContext`, `FavoritesContext`) |
+| **HTTP İstemcisi** | Axios (Otomatik 401 Silent Refresh & JWT Bearer Interceptors) |
 
 ---
 
@@ -23,17 +24,11 @@ Nexora E-Ticaret Platformu müşteri web uygulaması. React 18, TypeScript, Vite
 ```
 src/
 ├── components/          # Paylaşılan UI Bileşenleri
-│   ├── layout/          # Navbar, Footer, Sidebar
+│   ├── layout/          # Navbar, Footer
 │   └── ui/              # Atomik Buton, Input, Modal vb.
-├── features/            # Modüler Özellikler (Feature-Based)
-│   ├── auth/            # Giriş / Kayıt Ol
-│   ├── cart/            # Sepet Yönetimi
-│   ├── notifications/   # Müşteri Bildirimleri
-│   ├── orders/          # Sipariş Takibi & Ödeme
-│   └── products/        # Ürün Kataloğu & Detay
-├── lib/                 # Axios İstemcisi & Genel Yardımcılar (apiClient.ts)
-├── pages/               # Route Sayfaları (HomePage vb.)
-├── routes/              # React Router Yapılandırması
+├── context/             # Global Durum Context'leri (CartContext, FavoritesContext)
+├── lib/                 # Axios İstemcisi & JWT Yardımcıları (apiClient.ts, jwt.ts)
+├── pages/               # Route Sayfaları (HomePage, ProductsPage, ProductDetailPage, CartPage, CheckoutPage, ProfilePage, LoginPage, RegisterPage)
 ├── types/               # TypeScript Tip Tanımları
 ├── App.tsx              # Ana Uygulama & Provider'lar
 ├── index.css            # Global CSS & Tailwind Ayarları
@@ -65,4 +60,6 @@ npm run build
 
 ## 🔗 Backend API Bağlantısı
 
-Uygulama, `http://localhost:5000/api` adresinde çalışan **Nexora.Api** (.NET 8 Web API) servisine bağlıdır. `src/lib/apiClient.ts` dosyası JWT Access Token'ları otomatik olarak isteklere ekler.
+Uygulama, `http://localhost:5285/api` adresinde çalışan **Nexora.Api** (.NET 8 Web API) servisine bağlıdır.
+- `src/lib/apiClient.ts` dosyası JWT Access Token'ları otomatik olarak isteklere ekler.
+- `401 Unauthorized` durumunda kullanıcıyı login'e atmadan arka planda otomatik refresh token ile oturumu yeniler.
