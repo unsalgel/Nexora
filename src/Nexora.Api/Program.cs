@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Nexora.Api;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -134,6 +135,9 @@ app.MapControllers();
 
 try
 {
+    Log.Information("Veritabanı kontrol ediliyor ve tohumlanıyor...");
+    await DatabaseSeeder.SeedAsync(app);
+
     Log.Information("Nexora API Başlatılıyor...");
     app.Run();
 }

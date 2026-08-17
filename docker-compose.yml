@@ -14,6 +14,16 @@ services:
     volumes:
       - nexora-db-data:/var/lib/postgresql/data
 
+  nexora-redis:
+    image: redis:7-alpine
+    container_name: nexora-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - nexora-redis-data:/data
+    command: redis-server --appendonly yes
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: nexora-pgadmin
@@ -28,3 +38,4 @@ services:
 
 volumes:
   nexora-db-data:
+  nexora-redis-data:

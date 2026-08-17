@@ -1,13 +1,16 @@
+﻿using System.Text.Json.Serialization;
+
 namespace Nexora.Application.Common;
 
 public sealed class Result<T>
 {
-    public bool IsSuccess { get; }
-    public T? Data { get; }
-    public string? Message { get; }
-    public List<string>? Errors { get; }
+    public bool IsSuccess { get; init; }
+    public T? Data { get; init; }
+    public string? Message { get; init; }
+    public List<string>? Errors { get; init; }
 
-    private Result(bool isSuccess, T? data, string? message, List<string>? errors)
+    [JsonConstructor]
+    public Result(bool isSuccess, T? data, string? message, List<string>? errors)
     {
         IsSuccess = isSuccess;
         Data = data;

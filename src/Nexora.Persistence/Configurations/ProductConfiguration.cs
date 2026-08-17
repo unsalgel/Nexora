@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Nexora.Domain.Entities;
 
@@ -22,6 +22,14 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => p.SKU)
             .IsUnique();
+
+        // Performans & Filtreleme İndeksleri
+        builder.HasIndex(p => p.Name);
+        builder.HasIndex(p => p.CategoryId);
+        builder.HasIndex(p => p.BrandId);
+        builder.HasIndex(p => p.Price);
+        builder.HasIndex(p => p.CreatedAtUtc);
+        builder.HasIndex(p => new { p.IsActive, p.IsDeleted });
 
         builder.Property(p => p.Description)
             .HasMaxLength(2000);
