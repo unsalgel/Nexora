@@ -21,37 +21,64 @@ public sealed class RedisCacheService : ICacheService
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        RedisValue cachedData = await _database.StringGetAsync(key);
-        if (cachedData.IsNullOrEmpty)
+        try
+        {
+            RedisValue cachedData = await _database.StringGetAsync(key);
+            if (cachedData.IsNullOrEmpty)
+            {
+                return default;
+            }
+
+            return JsonSerializer.Deserialize<T>(cachedData.ToString(), JsonOptions);
+        }
+        catch
         {
             return default;
         }
-
-        return JsonSerializer.Deserialize<T>(cachedData.ToString(), JsonOptions);
     }
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
     {
-        var jsonData = JsonSerializer.Serialize(value, JsonOptions);
-        var expiry = expiration ?? TimeSpan.FromMinutes(60);
+        try
+        {
+            var jsonData = JsonSerializer.Serialize(value, JsonOptions);
+            var expiry = expiration ?? TimeSpan.FromMinutes(60);
 
-        await _database.StringSetAsync(key, jsonData, expiry);
+            await _database.StringSetAsync(key, jsonData, expiry);
+        }
+        catch
+        {
+            // Cache write failure should not break the app
+        }
     }
 
     public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        await _database.KeyDeleteAsync(key);
+        try
+        {
+            await _database.KeyDeleteAsync(key);
+        }
+        catch
+        {
+        }
     }
 
     public async Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
     {
-        var endpoints = _connectionMultiplexer.GetEndPoints();
-        var server = _connectionMultiplexer.GetServer(endpoints.First());
-
-        var keys = server.Keys(pattern: $"{prefix}*").ToArray();
-        if (keys.Length > 0)
+        try
         {
-            await _database.KeyDeleteAsync(keys);
+            foreach (var endpoint in _connectionMultiplexer.GetEndPoints())
+            {
+                var server = _connectionMultiplexer.GetServer(endpoint);
+                var keys = server.Keys(pattern: $"*{prefix}*").ToArray();
+                if (keys.Length > 0)
+                {
+                    await _database.KeyDeleteAsync(keys);
+                }
+            }
+        }
+        catch
+        {
         }
     }
 }

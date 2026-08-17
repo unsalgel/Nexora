@@ -448,7 +448,6 @@ export const ProductsPage: React.FC = () => {
                   <label className="text-xs font-semibold text-slate-700">Ürün Adı</label>
                   <input
                     type="text"
-                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Örn: Kablosuz Bluetooth Kulaklık"
@@ -461,8 +460,7 @@ export const ProductsPage: React.FC = () => {
                     <label className="text-xs font-semibold text-slate-700">SKU (Stok Kodu)</label>
                     <input
                       type="text"
-                      required
-                      value={sku}
+                        value={sku}
                       onChange={(e) => setSku(e.target.value)}
                       placeholder="NX-001"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
@@ -474,8 +472,7 @@ export const ProductsPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      required
-                      value={stockQuantity}
+                        value={stockQuantity}
                       onChange={(e) => setStockQuantity(e.target.value)}
                       placeholder="100"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
@@ -490,8 +487,7 @@ export const ProductsPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       min="0"
-                      required
-                      value={price}
+                        value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="1299.90"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
@@ -505,7 +501,6 @@ export const ProductsPage: React.FC = () => {
                     value={categoryId}
                     onChange={(val) => setCategoryId(val)}
                     placeholder="Kategori seçin..."
-                    required
                   />
                 </div>
 
@@ -517,7 +512,6 @@ export const ProductsPage: React.FC = () => {
                     value={brandId}
                     onChange={(val) => setBrandId(val)}
                     placeholder="Marka seçin..."
-                    required
                   />
 
                   <div className="space-y-1">
@@ -569,4 +563,5 @@ export const ProductsPage: React.FC = () => {
     </div>
   );
 };
+
 

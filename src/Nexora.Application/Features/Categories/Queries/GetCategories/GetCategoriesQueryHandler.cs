@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -21,25 +21,19 @@ public sealed class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQue
         var allCategories = await _context.Categories
             .AsNoTracking()
             .Where(c => c.IsActive && !c.IsDeleted)
+            .OrderBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
-        var categoryTree = BuildCategoryTree(allCategories, null);
-
-        return Result<List<CategoryDto>>.Success(categoryTree);
-    }
-
-    private static List<CategoryDto> BuildCategoryTree(List<Category> allCategories, Guid? parentId)
-    {
-        return allCategories
-            .Where(c => c.ParentCategoryId == parentId)
-            .Select(c => new CategoryDto(
-                c.Id,
-                c.Name,
-                c.Description,
-                c.ParentCategoryId,
-                allCategories.FirstOrDefault(p => p.Id == c.ParentCategoryId)?.Name,
-                c.IsActive,
-                BuildCategoryTree(allCategories, c.Id)))
+        var dtos = allCategories.Select(c => new CategoryDto(
+            c.Id,
+            c.Name,
+            c.Description,
+            c.ParentCategoryId,
+            allCategories.FirstOrDefault(p => p.Id == c.ParentCategoryId)?.Name,
+            c.IsActive,
+            new List<CategoryDto>()))
             .ToList();
+
+        return Result<List<CategoryDto>>.Success(dtos);
     }
 }

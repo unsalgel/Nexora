@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -29,7 +29,7 @@ public sealed class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandComma
 
         brand.Name = request.Name;
         brand.LogoUrl = request.LogoUrl;
-        brand.IsActive = request.IsActive;
+        brand.IsActive = true;
 
         await _context.SaveChangesAsync(cancellationToken);
 

@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { BrandsPage } from './pages/BrandsPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 
@@ -28,8 +30,8 @@ export const App: React.FC = () => {
             <Route element={<AdminLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/products" element={<ProductsPage />} />
-              <Route path="/categories" element={<div className="text-slate-900 font-bold">Kategori Yönetimi Hazırlanıyor...</div>} />
-              <Route path="/brands" element={<div className="text-slate-900 font-bold">Marka Yönetimi Hazırlanıyor...</div>} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/brands" element={<BrandsPage />} />
               <Route path="/orders" element={<div className="text-slate-900 font-bold">Sipariş Yönetimi Hazırlanıyor...</div>} />
             </Route>
           </Route>
