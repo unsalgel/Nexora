@@ -9,7 +9,6 @@ import {
   ArrowUpRight, 
   Plus, 
   RefreshCw,
-  Wallet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../lib/apiClient';
@@ -290,3 +289,4 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
