@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Nexora.Application.Abstractions;
 using Nexora.Domain.Entities;
 using Nexora.Persistence.Context;
 
@@ -16,14 +17,59 @@ public static class DatabaseSeeder
     {
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-        // Eğer ürünler varsa tekrar tohumlama yapma
+        var adminRoleId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        // 1. Admin Kullanıcısı
+        var adminEmail = "admin@nexora.com";
+        var existingAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+        if (existingAdmin is null)
+        {
+            var adminId = Guid.NewGuid();
+            var adminUser = new User
+            {
+                Id = adminId,
+                Email = adminEmail,
+                PasswordHash = passwordHasher.Hash("Admin123*"),
+                FirstName = "Sistem",
+                LastName = "Yöneticisi",
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            var adminUserRole = new UserRole
+            {
+                UserId = adminId,
+                RoleId = adminRoleId
+            };
+
+            await context.Users.AddAsync(adminUser);
+            await context.UserRoles.AddAsync(adminUserRole);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            existingAdmin.PasswordHash = passwordHasher.Hash("Admin123*");
+            existingAdmin.IsActive = true;
+            if (!await context.UserRoles.AnyAsync(ur => ur.UserId == existingAdmin.Id && ur.RoleId == adminRoleId))
+            {
+                await context.UserRoles.AddAsync(new UserRole
+                {
+                    UserId = existingAdmin.Id,
+                    RoleId = adminRoleId
+                });
+            }
+            await context.SaveChangesAsync();
+        }
+
+        // 2. Eğer Kategoriler ve Ürünler varsa tekrar ekleme
         if (await context.Categories.AnyAsync())
         {
             return;
         }
 
-        // 1. Kategoriler
+        // Kategoriler
         var catElektronik = new Category { Id = Guid.NewGuid(), Name = "Elektronik", Description = "Telefon, Bilgisayar, Kulaklık", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
         var catModa = new Category { Id = Guid.NewGuid(), Name = "Moda & Giyim", Description = "Kadın, Erkek, Ayakkabı, Çanta", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
         var catEv = new Category { Id = Guid.NewGuid(), Name = "Ev & Yaşam", Description = "Mobilya, Dekorasyon, Aydınlatma", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
@@ -32,7 +78,7 @@ public static class DatabaseSeeder
 
         await context.Categories.AddRangeAsync(catElektronik, catModa, catEv, catKozmetik, catSpor);
 
-        // 2. Markalar
+        // Markalar
         var brandSony = new Brand { Id = Guid.NewGuid(), Name = "Sony", LogoUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
         var brandApple = new Brand { Id = Guid.NewGuid(), Name = "Apple", LogoUrl = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
         var brandNike = new Brand { Id = Guid.NewGuid(), Name = "Nike", LogoUrl = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80", IsActive = true, CreatedAtUtc = DateTime.UtcNow };
@@ -42,7 +88,7 @@ public static class DatabaseSeeder
 
         await context.Brands.AddRangeAsync(brandSony, brandApple, brandNike, brandZara, brandIkea, brandLoreal);
 
-        // 3. Ürünler
+        // Ürünler
         var p1 = new Product
         {
             Id = Guid.NewGuid(),
@@ -129,7 +175,7 @@ public static class DatabaseSeeder
 
         await context.Products.AddRangeAsync(p1, p2, p3, p4, p5, p6);
 
-        // 4. Ürün Resimleri
+        // Ürün Resimleri
         var images = new List<ProductImage>
         {
             new() { Id = Guid.NewGuid(), ProductId = p1.Id, ImageUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80", IsMain = true, DisplayOrder = 1, CreatedAtUtc = DateTime.UtcNow },

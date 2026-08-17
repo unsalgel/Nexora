@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, AlertCircle, ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { decodeAdminJwt } from '../lib/jwt';
 import type { ApiResponse } from '../lib/apiClient';
@@ -14,6 +14,7 @@ export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -51,10 +52,10 @@ export const AdminLoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-orange-500 selection:text-white relative">
-
+      
       {/* Üst Logo ve Başlık */}
       <div className="w-full max-w-md space-y-6">
-
+        
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center gap-2.5">
             <span className="logo-font text-3xl sm:text-4xl text-slate-900 font-black tracking-tight">
@@ -71,7 +72,7 @@ export const AdminLoginPage: React.FC = () => {
 
         {/* Giriş Kartı */}
         <div className="bg-white border border-slate-300/80 rounded-3xl p-7 sm:p-9 shadow-xl shadow-slate-300/40 space-y-6">
-
+          
           <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black text-slate-900 tracking-tight">Yönetici Girişi</h2>
@@ -110,13 +111,24 @@ export const AdminLoginPage: React.FC = () => {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -128,13 +140,12 @@ export const AdminLoginPage: React.FC = () => {
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <>
-                  <span>GİRİŞ YAP</span>
-                </>
+                <span>GİRİŞ YAP</span>
               )}
             </button>
           </form>
         </div>
+
         <div className="text-center">
           <a
             href="http://localhost:5173"
