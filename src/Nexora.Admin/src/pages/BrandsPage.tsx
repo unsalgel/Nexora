@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Tag, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw, Zap } from 'lucide-react';
+import { Tag, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 
@@ -318,4 +318,5 @@ export const BrandsPage: React.FC = () => {
     </div>
   );
 };
+
 

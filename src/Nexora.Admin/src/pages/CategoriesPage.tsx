@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Layers, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw, Zap } from 'lucide-react';
+import { Layers, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 
@@ -311,4 +311,5 @@ export const CategoriesPage: React.FC = () => {
     </div>
   );
 };
+
 
