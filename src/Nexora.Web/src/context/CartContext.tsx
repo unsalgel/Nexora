@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
+import { useToast } from './ToastContext';
 
 export interface CartItem {
   id: string;
@@ -38,6 +39,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { warning, success, info, error: toastError } = useToast();
 
   const isLoggedIn = () => !!localStorage.getItem('accessToken');
 
@@ -66,7 +68,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = async (productId: string, quantity: number = 1): Promise<boolean> => {
     if (!isLoggedIn()) {
-      alert('Ürünü sepete eklemek için lütfen önce giriş yapın.');
+      warning('Ürünü sepete eklemek için lütfen önce giriş yapın.');
       return false;
     }
 
@@ -77,11 +79,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (response.data?.isSuccess) {
         await refreshCart();
+        success('Ürün sepetinize eklendi.');
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('Sepete eklerken hata oluştu:', error);
+    } catch (error: any) {
+      toastError(error.response?.data?.message || 'Sepete eklenirken bir hata oluştu.');
       return false;
     }
   };
@@ -109,6 +112,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiClient.delete<ApiResponse<string>>(`/cart/items/${cartItemId}`);
       if (response.data?.isSuccess) {
         await refreshCart();
+        info('Ürün sepetten kaldırıldı.');
         return true;
       }
       return false;
@@ -123,6 +127,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiClient.delete<ApiResponse<string>>('/cart');
       if (response.data?.isSuccess) {
         setCart(null);
+        info('Sepetiniz temizlendi.');
         return true;
       }
       return false;
@@ -132,7 +137,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sepetteki toplam ürün adetini hesaplar
   const cartCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   return (

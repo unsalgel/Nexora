@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { useToast } from './ToastContext';
 
 export interface ProductItem {
   id: string;
@@ -32,6 +33,7 @@ const FavoritesContext = createContext<FavoritesContextType | undefined>(undefin
 
 export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favorites, setFavorites] = useState<ProductItem[]>([]);
+  const { warning, success, info } = useToast();
 
   const isLoggedIn = () => !!localStorage.getItem('accessToken');
 
@@ -67,7 +69,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const toggleFavorite = async (product: ProductItem) => {
     if (!isLoggedIn()) {
-      alert('Favorilere eklemek için lütfen önce giriş yapın.');
+      warning('Favorilere eklemek için lütfen önce giriş yapın.');
       return;
     }
 
@@ -78,11 +80,13 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const response = await apiClient.delete<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => prev.filter(item => item.id !== product.id));
+          info('Ürün favorilerinizden kaldırıldı.');
         }
       } else {
         const response = await apiClient.post<ApiResponse<string>>(`/favorites/${product.id}`);
         if (response.data?.isSuccess) {
           setFavorites(prev => [...prev, product]);
+          success('Ürün favorilerinize eklendi.');
         }
       }
     } catch (error: any) {
