@@ -20,8 +20,7 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : (request.PageSize > 100 ? 100 : request.PageSize);
 
-        var query = _context.Orders
-            .AsNoTracking();
+        var query = _context.Orders.AsNoTracking();
 
         if (request.Status.HasValue)
         {
@@ -39,6 +38,10 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
+        if (totalCount == 0)
+        {
+            return Result<PagedResult<AdminOrderDto>>.Success(new PagedResult<AdminOrderDto>(new List<AdminOrderDto>(), page, pageSize, 0));
+        }
 
         var dtos = await query
             .OrderByDescending(o => o.CreatedAtUtc)
@@ -68,9 +71,6 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
             ))
             .ToListAsync(cancellationToken);
 
-        var pagedResult = new PagedResult<AdminOrderDto>(dtos, page, pageSize, totalCount);
-
-        return Result<PagedResult<AdminOrderDto>>.Success(pagedResult);
+        return Result<PagedResult<AdminOrderDto>>.Success(new PagedResult<AdminOrderDto>(dtos, page, pageSize, totalCount));
     }
 }
-
