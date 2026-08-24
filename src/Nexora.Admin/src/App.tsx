@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { BrandsPage } from './pages/BrandsPage';
+import { OrdersPage } from './pages/OrdersPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 
@@ -32,7 +33,7 @@ export const App: React.FC = () => {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/brands" element={<BrandsPage />} />
-              <Route path="/orders" element={<div className="text-slate-900 font-bold">Sipariş Yönetimi Hazırlanıyor...</div>} />
+              <Route path="/orders" element={<OrdersPage />} />
             </Route>
           </Route>
 

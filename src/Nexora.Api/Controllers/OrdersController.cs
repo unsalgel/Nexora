@@ -4,8 +4,10 @@ using Nexora.Application.Common;
 using Nexora.Application.Features.Orders.Commands.CreateOrder;
 using Nexora.Application.Features.Orders.Commands.UpdateOrderStatus;
 using Nexora.Application.Features.Orders.Dtos;
+using Nexora.Application.Features.Orders.Queries.GetAllOrders;
 using Nexora.Application.Features.Orders.Queries.GetOrderById;
 using Nexora.Application.Features.Orders.Queries.GetUserOrders;
+using Nexora.Domain.Enums;
 
 namespace Nexora.Api.Controllers;
 
@@ -30,6 +32,20 @@ public sealed class OrdersController : ApiControllerBase
     {
         var userId = GetCurrentUserId();
         var query = new GetUserOrdersQuery(userId, page, pageSize);
+        var result = await Sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("admin")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<PagedResult<AdminOrderDto>>>> GetAllOrders(
+        int page = 1,
+        int pageSize = 20,
+        OrderStatus? status = null,
+        string? searchTerm = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetAllOrdersQuery(page, pageSize, status, searchTerm);
         var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
     }
