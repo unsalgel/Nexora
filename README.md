@@ -1,12 +1,12 @@
-﻿# 🚀 Nexora — Kurumsal E-Ticaret Platformu
+﻿# 🚀 Nexora — Kurumsal E-Ticaret ve Yönetim Platformu
 
-Nexora, Clean Architecture, DDD ve CQRS prensiplerine uygun olarak geliştirilmiş; yüksek performanslı, ölçeklenebilir ve güvenli bir e-ticaret platformudur.
+Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensiplerine tam uyumlu olarak geliştirilmiş; yüksek performanslı, ölçeklenebilir, modern ve güvenli bir e-ticaret platformudur.
 
 ---
 
 ## 🏗️ Genel Mimari Yapısı
 
-Proje, **Clean Architecture** (Temiz Mimari) ilkelerine tam uyumlu olarak 5 temel katmandan oluşmaktadır:
+Proje, **Clean Architecture** (Temiz Mimari) ilkelerine tam uyumlu olarak backend ve modern frontend katmanlarından oluşmaktadır:
 
 ```
 Nexora/
@@ -14,9 +14,10 @@ Nexora/
 │   ├── Nexora.Domain/         # Core Domain Entities, Enums, Value Objects, Domain Exceptions
 │   ├── Nexora.Application/    # CQRS (MediatR), DTO'lar, Validation (FluentValidation), Behaviors
 │   ├── Nexora.Infrastructure/ # Security (JWT, BCrypt), External Services (Payment)
-│   ├── Nexora.Persistence/    # EF Core (Code-First), PostgreSQL Configurations, DbContext
+│   ├── Nexora.Persistence/    # EF Core 8 (Code-First), PostgreSQL Configurations, DbContext
 │   ├── Nexora.Api/            # ASP.NET Core Web API, Controllers, Middleware, Serilog
-│   └── Nexora.Web/            # React 18 + TypeScript + Vite + Tailwind Client (Müşteri Paneli)
+│   ├── Nexora.Web/            # React 19 + TypeScript + Vite + Tailwind Client (Müşteri Mağazası)
+│   └── Nexora.Admin/          # React 19 + TypeScript + Vite + Tailwind Portal (Yönetici Paneli)
 └── Nexora.sln
 ```
 
@@ -27,48 +28,44 @@ Nexora/
 ### ⚙️ Backend (.NET 8 Web API)
 - **Framework:** .NET 8 (LTS), ASP.NET Core Web API
 - **Mimari Desenler:** Clean Architecture, CQRS (MediatR 12), Result Pattern, Ubiquitous Language
-- **Veritabanı & ORM:** PostgreSQL, Entity Framework Core 8 (Code-First, Fluent API, AddReviewsTable vb.)
+- **Veritabanı & ORM:** PostgreSQL, Entity Framework Core 8 (Code-First, Fluent API, Optimize Projeksiyonlar)
+- **Önbellek (Caching):** Redis Entegrasyonu
 - **Doğrulama (Validation):** FluentValidation (MediatR Pipeline Behavior)
-- **Güvenlik & Auth:** JWT (Access Token 15 dk + Refresh Token 7 gün), BCrypt Password Hashing
+- **Güvenlik & Auth:** JWT (Access Token 15 dk + Refresh Token 7 gün), BCrypt Password Hashing, Rol Tabanlı Güvenlik (`Admin`, `Customer`)
 - **Loglama & İzlenebilirlik:** Serilog (PostgreSQL Sink + Daily Rolling File + Console)
 - **Performans İzleme:** `LoggingBehavior` (500ms üzeri yavaş istekleri otomatik uyarma)
 - **Dokümantasyon:** Swagger / OpenAPI (JWT Bearer destekli)
 
-### 💻 Frontend (React + TypeScript)
-- **Framework & Build:** React 18, TypeScript, Vite
-- **Stil & Tasarım:** Tailwind CSS v4, Glassmorphism, Responsive (Mobil Uyumlu)
-- **State & Server State:** TanStack Query v5 (React Query), Context API (`CartContext`, `FavoritesContext`)
+### 💻 Frontend Uygulamaları (React + TypeScript)
+- **Nexora.Web (Müşteri Mağazası - Port 5173):** React 19, TypeScript, Tailwind CSS v4, Lucide İkonlar, TanStack Query v5, Context API (`CartContext`, `FavoritesContext`).
+- **Nexora.Admin (Yönetim Portalı - Port 5174):** React 19, TypeScript, Tailwind CSS v4, TanStack Query v5 (`keepPreviousData` akıcı filtreleme), Lucide React.
 - **HTTP İstemcisi:** Axios (Merkezi `apiClient.ts` - Otomatik Bearer Token & 401 Silent Refresh Interceptor)
-- **Yönlendirme:** React Router v6
 
 ---
 
-## 📦 Tamamlanan V1 Backend & Frontend Modülleri
+## 📦 Tamamlanan Backend & Frontend Modülleri
 
-| # | Modül Adı | Backend Kapsamı | Frontend Entegrasyonu |
+| # | Modül Adı | Backend Kapsamı | Frontend & Admin Entegrasyonu |
 |---|---|---|---|
-| 1 | **Auth & Authorization** | Register, Login, Refresh Token, Revoke Token, JWT Güvenliği | Tamamlandı (`LoginPage.tsx`, `RegisterPage.tsx`, Otomatik Refresh Interceptor) |
-| 2 | **Category** | Kategori ekleme, listeleme, güncelleme, silme (Admin / Public) | Tamamlandı (Navbar ve Filtreleme Menüleri) |
-| 3 | **Brand** | Marka yönetimi (Admin / Public) | Tamamlandı (Katalog Filtreleme) |
-| 4 | **Product & Images** | Ürün yönetimi, optimize EF Core sorguları, galeri, arama | Tamamlandı (`HomePage.tsx`, `ProductsPage.tsx`, `ProductDetailPage.tsx`) |
-| 5 | **Product Variants** | SKU, stok ve fiyat bazlı varyant (renk, beden vb.) yönetimi | Tamamlandı (Ürün Detay Seçicileri) |
-| 6 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve sayfalı listeleme | Tamamlandı (`FavoritesContext.tsx`, `ProfilePage.tsx` Favorilerim Sekmesi) |
-| 7 | **Cart** | Kullanıcı sepet yönetimi (ekleme, akıcı miktar güncelleme, silme) | Tamamlandı (`CartContext.tsx`, `CartPage.tsx`, Dinamik Header Sayacı) |
-| 8 | **Order & Payment** | Sipariş oluşturma, `FakePaymentService` simülasyonu, stok düşümü | Tamamlandı (`CheckoutPage.tsx`, `ProfilePage.tsx` Sipariş Geçmişi) |
-| 9 | **Reviews & Ratings** | Ürün puanlama (1-5 yıldız), yorum yazma ve listeleme CQRS | Tamamlandı (`ProductDetailPage.tsx` Yorum ve Değerlendirme Formu) |
-| 10 | **Notification** | Otomatik sipariş/ödeme durum bildirimleri, okundu işaretleme | Tamamlandı (Backend Altyapısı) |
-| 11 | **Logging System** | PostgreSQL `Logs` tablosuna tarih/saat damgalı izlenebilir loglama | Tamamlandı (Serilog & Diagnostic Middleware) |
+| 1 | **Auth & Authorization** | Register, Login, Refresh Token, Revoke Token, Rol Güvenliği | Müşteri Giriş/Kayıt + Admin Özel Giriş (`/login`) |
+| 2 | **Admin Dashboard** | Mağaza envanter değeri, toplam sipariş, son siparişler | `DashboardPage.tsx` Canlı İstatistikler & Kritik Stok |
+| 3 | **Order Management** | CQRS Sipariş Listeleme, Canlı Durum Değiştirme, Filtreleme | `OrdersPage.tsx` Arama, Filtreleme, Detay Modalı |
+| 4 | **Product & Variants** | Ürün ve varyant yönetimi (SKU, stok, fiyat), galeri | Müşteri Kataloğu + Admin Ürün/Varyant Ekleme |
+| 5 | **Category & Brand** | 5 Ana Kategori ve Dağıtıcı Markaların Yönetimi | Dinamik Navbar, Filtreleme ve Admin Listeleri |
+| 6 | **Cart & Checkout** | Sepet yönetimi, stok rezervasyonu ve sipariş oluşturma | `CartPage.tsx`, `CheckoutPage.tsx`, Dinamik Header Sayacı |
+| 7 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve listeleme | `FavoritesContext.tsx`, `ProfilePage.tsx` |
+| 8 | **Reviews & Ratings** | Ürün puanlama (1-5 yıldız), yorum yazma ve listeleme | `ProductDetailPage.tsx` Yorum ve Değerlendirme Formu |
+| 9 | **Notifications** | Otomatik sipariş/ödeme/kargo durum bildirimleri | Bildirim motoru ve veritabanı entegrasyonu |
+| 10 | **Logging System** | PostgreSQL `Logs` tablosuna tarih/saat damgalı loglama | Serilog & Diagnostic Middleware |
 
 ---
 
 ## 🚀 Projeyi Çalıştırma
 
-### 1. Veritabanı ve Connection String
-`src/Nexora.Api/appsettings.json` dosyasındaki connection string'i PostgreSQL sunucunuza göre ayarlayın:
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Host=localhost;Port=5432;Database=NexoraDb;Username=postgres;Password=postgres"
-}
+### 1. Veritabanı ve Docker Stack
+Docker Compose ile PostgreSQL ve Redis servislerini başlatın:
+```bash
+docker compose up -d
 ```
 
 ### 2. Backend API'yi Çalıştırma
@@ -79,20 +76,27 @@ dotnet run --project src/Nexora.Api
 - API adresi: `http://localhost:5285`
 - Swagger Dokümantasyonu: `http://localhost:5285/swagger`
 
-### 3. Frontend (Müşteri Paneli) Çalıştırma
+### 3. Müşteri Web Mağazasını Çalıştırma (`Nexora.Web`)
 ```bash
 cd src/Nexora.Web
 npm install
 npm run dev
 ```
-- Frontend adresi: `http://localhost:5173`
+- Mağaza adresi: `http://localhost:5173`
+
+### 4. Admin Yönetim Portalını Çalıştırma (`Nexora.Admin`)
+```bash
+cd src/Nexora.Admin
+npm install
+npm run dev
+```
+- Admin Paneli: `http://localhost:5174` (Giriş: `admin@nexora.com` / `Admin123!`)
 
 ---
 
-## 🛡️ Güvenlik ve Standartlar
-- **CORS:** API katmanında tanımlı esnek CORS politikası.
-- **Data Protection:** Hiçbir şifre düz metin saklanmaz (BCrypt).
-- **Silent Refresh:** Access Token süresi dolduğunda (401) kullanıcıyı düşürmeden arkaplanda otomatik yenilenir.
-- **Ubiquitous Language:** Frontend ve Backend arasında aynı domain terimleri (grandTotal, payableTotal, items vb.) korunur.
+## 🛡️ Güvenlik ve Mimari İlkeler
+- **Sıfır `any` & Strict Mode:** Tüm projelerde strict TypeScript kuralları uygulanmaktadır.
+- **Silent Refresh:** Access Token süresi dolduğunda (401) kullanıcı oturumu kopmadan arkaplanda otomatik yenilenir.
+- **Ubiquitous Language:** Frontend ve Backend arasında aynı domain terimleri (`grandTotal`, `payableTotal`, `items`, `status` vb.) kullanılır.
 - **Audit Logging:** Tüm veritabanı kayıtları `CreatedAtUtc` ve `UpdatedAtUtc` tarihleri ile UTC formatında otomatik damgalanır.
-- **Response Wrapper:** Tüm API yanıtları standart `Result<T>` yapısında dönmektedir.
+- **Temiz Kod (Clean Code):** Gereksiz yorum satırları bulunmaz, kod okunabilir ve modülerdir.
