@@ -1,4 +1,4 @@
-namespace Nexora.Application.Features.Orders.Dtos;
+﻿namespace Nexora.Application.Features.Orders.Dtos;
 
 public sealed record OrderDto(
     Guid Id,
@@ -10,3 +10,4 @@ public sealed record OrderDto(
     string PaymentStatus,
     DateTime CreatedAtUtc,
     List<OrderItemDto> Items);
+

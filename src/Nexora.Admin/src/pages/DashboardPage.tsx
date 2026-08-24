@@ -37,7 +37,6 @@ interface BrandDto {
 }
 
 export const DashboardPage: React.FC = () => {
-  // 1. Ürünleri Çek
   const { data: productsData, isLoading: isProductsLoading, refetch: refetchProducts } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
     queryKey: ['admin-dashboard-products'],
     queryFn: async () => {
@@ -48,7 +47,6 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  // 2. Kategorileri Çek (Redis)
   const { data: categoriesData, isLoading: isCatLoading } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-dashboard-categories'],
     queryFn: async () => {
@@ -57,7 +55,6 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  // 3. Markaları Çek (Redis)
   const { data: brandsData, isLoading: isBrandsLoading } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-dashboard-brands'],
     queryFn: async () => {
@@ -71,7 +68,6 @@ export const DashboardPage: React.FC = () => {
   const categoriesCount = categoriesData?.data?.length || 0;
   const brandsCount = brandsData?.data?.length || 0;
 
-  // İstatistiksel Hesaplamalar
   const totalInventoryValue = products.reduce((acc, p) => acc + (p.price * p.stockQuantity), 0);
   const lowStockProducts = products.filter(p => p.stockQuantity <= 30);
 
@@ -80,7 +76,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-12 font-sans">
       
-      {/* Üst Başlık ve Hızlı Aksiyon */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mağaza Genel Bakış</h1>
@@ -108,10 +104,10 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Ana Metrik Kartı */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {/* 1. Toplam Stok Değeri */}
+        
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3 hover:shadow transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Toplam Stok Hacmi</span>
@@ -129,7 +125,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Toplam Ürün Sayısı */}
+        
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3 hover:shadow transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Katalog Ürünleri</span>
@@ -147,7 +143,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Kategoriler */}
+        
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3 hover:shadow transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Kategoriler</span>
@@ -165,7 +161,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Markalar */}
+        
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3 hover:shadow transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Anlaşmalı Markalar</span>
@@ -185,10 +181,10 @@ export const DashboardPage: React.FC = () => {
 
       </div>
 
-      {/* 2 Sütunlu Alt Panel */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* SOL: Son Eklenen Ürünler Tablosu (8 Kolon) */}
+        
         <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm space-y-5">
           <div className="flex items-center justify-between">
             <div>
@@ -247,7 +243,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* SAĞ: Kritik Stok Uyarıları (4 Kolon) */}
+        
         <div className="lg:col-span-4 space-y-6">
           
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm space-y-4">
@@ -289,4 +285,5 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
 

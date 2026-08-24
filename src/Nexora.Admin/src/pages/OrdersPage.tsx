@@ -1,20 +1,26 @@
 ﻿import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ShoppingBag, RefreshCw, Clock, CheckCircle2, Truck, Package, XCircle, ChevronRight } from 'lucide-react';
+import { ShoppingBag, RefreshCw, Clock, CheckCircle2, Truck, Package, XCircle, ChevronRight, Search } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { AdminOrderDto } from '../types/order';
 
 export const OrdersPage: React.FC = () => {
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const pageSize = 20;
 
-  // 1. Siparişleri Çekme Metodu (React Query)
   const { data: ordersData, isLoading, refetch } = useQuery<ApiResponse<PagedResponse<AdminOrderDto>>>({
-    queryKey: ['admin-orders-list', page],
+    queryKey: ['admin-orders-list', page, statusFilter, searchTerm],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<AdminOrderDto>>>('/orders/admin', {
-        params: { page, pageSize }
+        params: {
+          page,
+          pageSize,
+          status: statusFilter || undefined,
+          searchTerm: searchTerm || undefined
+        }
       });
       return res.data;
     }
@@ -23,7 +29,6 @@ export const OrdersPage: React.FC = () => {
   const orders = ordersData?.data?.items || [];
   const totalCount = ordersData?.data?.totalCount || 0;
 
-  // Durum Rozet Rengi ve İkonu Yardımcı Metodu
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'delivered':
@@ -59,9 +64,18 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
+  const statusTabs = [
+    { label: 'Tüm Siparişler', value: '' },
+    { label: 'Beklemede', value: 'Pending' },
+    { label: 'Hazırlanıyor', value: 'Processing' },
+    { label: 'Kargoya Verildi', value: 'Shipped' },
+    { label: 'Teslim Edildi', value: 'Delivered' },
+    { label: 'İptal Edilenler', value: 'Cancelled' },
+  ];
+
   return (
     <div className="space-y-6 pb-12 font-sans">
-      {/* Üst Başlık */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sipariş Yönetimi</h1>
@@ -79,7 +93,48 @@ export const OrdersPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Sipariş Tablosu */}
+      
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm space-y-3">
+        
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Sipariş numarası, müşteri adı, e-posta veya adres ile ara..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+          />
+        </div>
+
+        
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
+          {statusTabs.map((tab) => {
+            const isActive = statusFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setStatusFilter(tab.value);
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-orange-500 text-white shadow-xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -104,7 +159,7 @@ export const OrdersPage: React.FC = () => {
               ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
-                    Henüz oluşturulmuş bir sipariş bulunamadı.
+                    Aranan kriterlere uygun sipariş bulunamadı.
                   </td>
                 </tr>
               ) : (
@@ -163,7 +218,7 @@ export const OrdersPage: React.FC = () => {
           </table>
         </div>
 
-        {/* Tablo Alt Bilgi */}
+        
         <div className="py-3 px-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
           <span>Toplam <strong>{totalCount}</strong> sipariş listeleniyor</span>
         </div>
@@ -171,3 +226,4 @@ export const OrdersPage: React.FC = () => {
     </div>
   );
 };
+

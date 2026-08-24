@@ -45,19 +45,16 @@ interface BrandDto {
 export const ProductsPage: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // Filtre State'leri
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [page, setPage] = useState(1);
 
-  // Modal State'leri
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Form State'leri
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
@@ -67,7 +64,6 @@ export const ProductsPage: React.FC = () => {
   const [brandId, setBrandId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
-  // 1. Ürünleri Çek
   const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
     queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand],
     queryFn: async () => {
@@ -84,7 +80,6 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  // 2. Kategorileri Çek
   const { data: categoriesData } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-categories-dropdown'],
     queryFn: async () => {
@@ -93,7 +88,6 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  // 3. Markaları Çek
   const { data: brandsData } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-brands-dropdown'],
     queryFn: async () => {
@@ -108,12 +102,10 @@ export const ProductsPage: React.FC = () => {
   const totalCount = productsData?.data?.totalCount || 0;
   const totalPages = productsData?.data?.totalPages || 1;
 
-  // Yeni Ürün Ekleme / Güncelleme Mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
       setFormError(null);
       if (editingProductId) {
-        // Güncelleme
         const res = await apiClient.put(`/products/${editingProductId}`, {
           name,
           sku,
@@ -125,7 +117,6 @@ export const ProductsPage: React.FC = () => {
         });
         return res.data;
       } else {
-        // Yeni Ekleme
         const res = await apiClient.post('/products', {
           name,
           sku,
@@ -149,7 +140,6 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  // Ürün Silme
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiClient.delete(`/products/${id}`);
@@ -175,7 +165,6 @@ export const ProductsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // Düzenleme Modalı Açıldığında GET /api/products/{id} ile tüm detayları (Kategori, Marka, Açıklama, Resim) eksiksiz çeker
   const openEditModal = async (item: ProductListItemDto) => {
     setEditingProductId(item.id);
     setIsDetailLoading(true);
@@ -217,7 +206,7 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 font-sans">
       
-      {/* Üst Başlık ve Ekle Butonu */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Ürün & Stok Yönetimi</h1>
@@ -235,7 +224,7 @@ export const ProductsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Arama & Filtreleme Çubuğu */}
+      
       <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -252,7 +241,7 @@ export const ProductsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          {/* Kategori Filtresi */}
+          
           <select
             value={selectedCategory}
             onChange={(e) => {
@@ -267,7 +256,7 @@ export const ProductsPage: React.FC = () => {
             ))}
           </select>
 
-          {/* Marka Filtresi */}
+          
           <select
             value={selectedBrand}
             onChange={(e) => {
@@ -284,7 +273,7 @@ export const ProductsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Ürünler Tablosu */}
+      
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -380,7 +369,7 @@ export const ProductsPage: React.FC = () => {
           </table>
         </div>
 
-        {/* Sayfalama (Pagination) */}
+        
         {totalPages > 1 && (
           <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Toplam {totalCount} üründen {(page - 1) * 15 + 1} - {Math.min(page * 15, totalCount)} arası gösteriliyor</span>
@@ -405,7 +394,7 @@ export const ProductsPage: React.FC = () => {
         )}
       </div>
 
-      {/* YENİ ÜRÜN EKLE / DÜZENLE MODALI */}
+      
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
@@ -494,7 +483,7 @@ export const ProductsPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* 🔍 ARAMALI ŞIK KATEGORİ DROPDOWN */}
+                  
                   <SearchableSelect
                     label="Kategori"
                     options={categories}
@@ -505,7 +494,7 @@ export const ProductsPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* 🔍 ARAMALI ŞIK MARKA DROPDOWN */}
+                  
                   <SearchableSelect
                     label="Marka"
                     options={brands}
@@ -563,5 +552,6 @@ export const ProductsPage: React.FC = () => {
     </div>
   );
 };
+
 
 

@@ -18,11 +18,9 @@ export const CategoriesPage: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Form State'leri
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  // 1. Kategorileri Çek (Redis destekli)
   const { data: categoriesData, isLoading, refetch } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-categories-list'],
     queryFn: async () => {
@@ -37,7 +35,6 @@ export const CategoriesPage: React.FC = () => {
     (c.description && c.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Ekleme / Güncelleme Mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
       setFormError(null);
@@ -56,7 +53,6 @@ export const CategoriesPage: React.FC = () => {
       }
     },
     onSuccess: () => {
-      // Redis Cache Invalidation backend'de otomatik çalışır, frontend önbelleğini de tazeliyoruz
       queryClient.invalidateQueries({ queryKey: ['admin-categories-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
@@ -67,7 +63,6 @@ export const CategoriesPage: React.FC = () => {
     }
   });
 
-  // Silme Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiClient.delete(`/categories/${id}`);
@@ -114,7 +109,7 @@ export const CategoriesPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 font-sans">
 
-      {/* Üst Başlık */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -144,7 +139,7 @@ export const CategoriesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Arama Çubuğu */}
+      
       <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -158,7 +153,7 @@ export const CategoriesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Kategori Tablosu */}
+      
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -231,7 +226,7 @@ export const CategoriesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL */}
+      
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
@@ -311,5 +306,6 @@ export const CategoriesPage: React.FC = () => {
     </div>
   );
 };
+
 
 

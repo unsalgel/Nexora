@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -58,3 +58,4 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
         return Result<PagedResult<OrderDto>>.Success(pagedResult);
     }
 }
+

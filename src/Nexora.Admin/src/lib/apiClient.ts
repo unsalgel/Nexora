@@ -77,3 +77,4 @@ export interface PagedResponse<T> {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
 }
+

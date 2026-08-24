@@ -42,7 +42,7 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 text-slate-900 font-sans selection:bg-orange-500 selection:text-white">
       
-      {/* 📱 MOBİL ÜST HEADER (Yalnızca küçük ekranlarda görünür) */}
+      
       <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
         <Link to="/" className="flex items-center gap-1.5" onClick={closeMenu}>
           <span className="logo-font text-xl text-slate-900 font-bold tracking-tight">
@@ -62,7 +62,7 @@ export const AdminLayout: React.FC = () => {
         </button>
       </header>
 
-      {/* 📱 MOBİL KARARTMA ARKA PLANI (Overlay) */}
+      
       {isMobileMenuOpen && (
         <div
           onClick={closeMenu}
@@ -70,7 +70,7 @@ export const AdminLayout: React.FC = () => {
         />
       )}
 
-      {/* 🖥️ SOL MENÜ (Sidebar - Mobilde Drawer/Çekmece, Masaüstünde Sabit) */}
+      
       <aside
         className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-4 z-50 transition-transform duration-300 ease-in-out md:translate-x-0 ${
           isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
@@ -78,7 +78,7 @@ export const AdminLayout: React.FC = () => {
       >
         <div className="space-y-6">
           
-          {/* Logo (Masaüstü) */}
+          
           <div className="px-3 py-2 flex items-center justify-between">
             <Link to="/" className="inline-flex items-center gap-1.5 group" onClick={closeMenu}>
               <span className="logo-font text-2xl text-slate-900 font-bold tracking-tight">
@@ -90,7 +90,7 @@ export const AdminLayout: React.FC = () => {
             </span>
           </div>
 
-          {/* Menü Linkleri */}
+          
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -114,7 +114,7 @@ export const AdminLayout: React.FC = () => {
           </nav>
         </div>
 
-        {/* Alt Bilgi & Çıkış */}
+        
         <div className="space-y-3 pt-4 border-t border-slate-100">
           <a
             href="http://localhost:5173"
@@ -154,7 +154,7 @@ export const AdminLayout: React.FC = () => {
         </div>
       </aside>
 
-      {/* 📄 SAĞ İÇERİK ALANI */}
+      
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           <Outlet />
@@ -164,3 +164,4 @@ export const AdminLayout: React.FC = () => {
     </div>
   );
 };
+

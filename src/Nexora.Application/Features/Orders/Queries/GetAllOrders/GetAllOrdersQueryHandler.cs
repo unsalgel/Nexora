@@ -73,3 +73,4 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
         return Result<PagedResult<AdminOrderDto>>.Success(pagedResult);
     }
 }
+

@@ -20,3 +20,4 @@ export const AdminRoute: React.FC = () => {
 
   return <Outlet />;
 };
+

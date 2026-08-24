@@ -26,7 +26,7 @@ export const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<AdminLoginPage />} />
           
-          {/* Admin Korumalı Rotalar */}
+          
           <Route element={<AdminRoute />}>
             <Route element={<AdminLayout />}>
               <Route path="/" element={<DashboardPage />} />
@@ -45,3 +45,4 @@ export const App: React.FC = () => {
 };
 
 export default App;
+

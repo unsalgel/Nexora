@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Orders.Dtos;
-using DomainEntities = Nexora.Domain.Entities;
-using FluentValidation;
+using Nexora.Domain.Entities;
 using Nexora.Domain.Enums;
 using Nexora.Domain.Exceptions;
+using DomainEntities = Nexora.Domain.Entities;
 
 namespace Nexora.Application.Features.Orders.Commands.CreateOrder;
 
@@ -25,57 +25,80 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     {
         var cart = await _context.Carts
             .Include(c => c.Items)
-                .ThenInclude(ci => ci.Product)
+                .ThenInclude(i => i.Product)
             .Include(c => c.Items)
-                .ThenInclude(ci => ci.ProductVariant)
+                .ThenInclude(i => i.ProductVariant)
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken)
-            ?? throw new NotFoundException("Sipariş verilecek aktif bir sepet bulunamadı.");
+            ?? throw new NotFoundException("Kullanıcıya ait sepet bulunamadı.");
 
-        if (cart.Items.Count == 0)
-            throw new ValidationException("Sepetinizde ürün bulunmamaktadır.");
+        if (!cart.Items.Any())
+        {
+            throw new ConflictException("Sepetinizde ürün bulunmamaktadır. Boş sepetle sipariş oluşturulamaz.");
+        }
 
-        // 1. Stok Doğrulaması
+        var orderItems = new List<OrderItem>();
+        decimal grandTotal = 0;
+
         foreach (var item in cart.Items)
         {
-            var availableStock = item.ProductVariant?.StockQuantity ?? item.Product.StockQuantity;
-            if (item.Quantity > availableStock)
+            if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
-                var name = item.ProductVariant != null ? $"{item.Product.Name} ({item.ProductVariant.SKU})" : item.Product.Name;
-                throw new ConflictException($"'{name}' ürünü için yeterli stok yok. Mevcut stok: {availableStock}");
+                if (!item.ProductVariant.IsActive || item.ProductVariant.IsDeleted)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' ürününün seçili varyantı satışta değildir.");
+                }
+
+                if (item.ProductVariant.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' varyantı için yetersiz stok! Mevcut stok: {item.ProductVariant.StockQuantity}");
+                }
+
+                var itemTotal = item.ProductVariant.Price * item.Quantity;
+                grandTotal += itemTotal;
+
+                orderItems.Add(new OrderItem
+                {
+                    ProductId = item.ProductId,
+                    ProductName = item.Product.Name,
+                    ProductVariantId = item.ProductVariantId,
+                    VariantSKU = item.ProductVariant.SKU,
+                    UnitPrice = item.ProductVariant.Price,
+                    Quantity = item.Quantity,
+                    TotalPrice = itemTotal
+                });
+            }
+            else
+            {
+                if (!item.Product.IsActive || item.Product.IsDeleted)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' ürünü satışta değildir.");
+                }
+
+                if (item.Product.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' için yetersiz stok! Mevcut stok: {item.Product.StockQuantity}");
+                }
+
+                var itemTotal = item.Product.Price * item.Quantity;
+                grandTotal += itemTotal;
+
+                orderItems.Add(new OrderItem
+                {
+                    ProductId = item.ProductId,
+                    ProductName = item.Product.Name,
+                    UnitPrice = item.Product.Price,
+                    Quantity = item.Quantity,
+                    TotalPrice = itemTotal
+                });
             }
         }
 
-        // 2. Toplam Tutar Hesaplama ve Sipariş Kalemlerini Hazırlama
-        decimal grandTotal = 0;
-        var orderItems = new List<DomainEntities.OrderItem>();
+        var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
 
-        foreach (var item in cart.Items)
-        {
-            var unitPrice = item.ProductVariant?.Price ?? item.Product.Price;
-            var itemTotal = unitPrice * item.Quantity;
-            grandTotal += itemTotal;
-
-            orderItems.Add(new DomainEntities.OrderItem
-            {
-                ProductId = item.ProductId,
-                ProductName = item.Product.Name,
-                ProductVariantId = item.ProductVariantId,
-                VariantSKU = item.ProductVariant?.SKU,
-                UnitPrice = unitPrice,
-                Quantity = item.Quantity,
-                TotalPrice = itemTotal
-            });
-        }
-
-        // 3. Sipariş Numarası Üretme (NXR-YYYYMMDD-XXXX)
-        var orderNumber = $"NXR-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
-
-        // 4. Ödeme İşlemi Simülasyonu
         var isPaymentSuccessful = await _paymentService.ProcessPaymentAsync(grandTotal, request.PaymentInfo, cancellationToken);
 
         if (!isPaymentSuccessful)
         {
-            // Ödeme Başarısız: Siparişi 'Cancelled' ve 'Failed' olarak kaydet (Audit için), ama stok düşme ve sepeti SİLME!
             var failedOrder = new DomainEntities.Order
             {
                 OrderNumber = orderNumber,
@@ -89,7 +112,6 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 
             _context.Orders.Add(failedOrder);
 
-            // Ödeme Başarısız Bildirimi
             _context.Notifications.Add(new DomainEntities.Notification
             {
                 UserId = request.UserId,
@@ -101,10 +123,9 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            throw new ValidationException("Ödeme işlemi başarısız oldu. Kart bilgilerinizi veya bakiyenizi kontrol ediniz.");
+            throw new ConflictException("Ödeme işlemi başarısız oldu. Kart bilgilerinizi veya bakiyenizi kontrol ediniz.");
         }
 
-        // 5. Siparişi Kaydetme (Ödeme Başarılı)
         var order = new DomainEntities.Order
         {
             OrderNumber = orderNumber,
@@ -116,12 +137,9 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             Items = orderItems
         };
 
-        _context.Orders.Add(order);
-
-        // 6. Stok Düşürme ve Sepeti Temizleme
         foreach (var item in cart.Items)
         {
-            if (item.ProductVariant != null)
+            if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
                 item.ProductVariant.StockQuantity -= item.Quantity;
             }
@@ -131,32 +149,21 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             }
         }
 
+        _context.Orders.Add(order);
         _context.CartItems.RemoveRange(cart.Items);
 
-        // Başarılı Sipariş Bildirimi
         _context.Notifications.Add(new DomainEntities.Notification
         {
             UserId = request.UserId,
             Title = "Siparişiniz Alındı",
-            Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu ve ödemesi onaylandı.",
+            Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu. Toplam Tutar: {grandTotal:N2} TL",
             Type = NotificationType.OrderCreated,
             IsRead = false
         });
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // 7. DTO Dönüşü
-        var itemDtos = order.Items.Select(i => new OrderItemDto(
-            i.Id,
-            i.ProductId,
-            i.ProductName,
-            i.ProductVariantId,
-            i.VariantSKU,
-            i.UnitPrice,
-            i.Quantity,
-            i.TotalPrice)).ToList();
-
-        var orderDto = new OrderDto(
+        var dto = new OrderDto(
             order.Id,
             order.OrderNumber,
             order.UserId,
@@ -165,8 +172,16 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             order.Status.ToString(),
             order.PaymentStatus.ToString(),
             order.CreatedAtUtc,
-            itemDtos);
+            order.Items.Select(i => new OrderItemDto(
+                i.Id,
+                i.ProductId,
+                i.ProductName,
+                i.ProductVariantId,
+                i.VariantSKU,
+                i.UnitPrice,
+                i.Quantity,
+                i.TotalPrice)).ToList());
 
-        return Result<OrderDto>.Success(orderDto, "Siparişiniz başarıyla oluşturuldu ve ödemeniz alındı.");
+        return Result<OrderDto>.Success(dto, "Siparişiniz başarıyla oluşturuldu.");
     }
 }

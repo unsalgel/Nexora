@@ -21,18 +21,13 @@ public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery
         var order = await _context.Orders
             .AsNoTracking()
             .Include(o => o.Items)
-            .FirstOrDefaultAsync(o => o.Id == request.OrderId && o.UserId == request.UserId, cancellationToken)
+            .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new NotFoundException("Sipariş bulunamadı.");
 
-        var itemDtos = order.Items.Select(i => new OrderItemDto(
-            i.Id,
-            i.ProductId,
-            i.ProductName,
-            i.ProductVariantId,
-            i.VariantSKU,
-            i.UnitPrice,
-            i.Quantity,
-            i.TotalPrice)).ToList();
+        if (order.UserId != request.UserId)
+        {
+            throw new UnauthorizedException("Bu siparişi görüntüleme yetkiniz bulunmamaktadır.");
+        }
 
         var dto = new OrderDto(
             order.Id,
@@ -43,7 +38,15 @@ public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery
             order.Status.ToString(),
             order.PaymentStatus.ToString(),
             order.CreatedAtUtc,
-            itemDtos);
+            order.Items.Select(i => new OrderItemDto(
+                i.Id,
+                i.ProductId,
+                i.ProductName,
+                i.ProductVariantId,
+                i.VariantSKU,
+                i.UnitPrice,
+                i.Quantity,
+                i.TotalPrice)).ToList());
 
         return Result<OrderDto>.Success(dto);
     }

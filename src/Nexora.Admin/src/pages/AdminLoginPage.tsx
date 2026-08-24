@@ -53,7 +53,7 @@ export const AdminLoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-orange-500 selection:text-white relative">
       
-      {/* Üst Logo ve Başlık */}
+      
       <div className="w-full max-w-md space-y-6">
         
         <div className="text-center space-y-2">
@@ -70,7 +70,7 @@ export const AdminLoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Giriş Kartı */}
+        
         <div className="bg-white border border-slate-300/80 rounded-3xl p-7 sm:p-9 shadow-xl shadow-slate-300/40 space-y-6">
           
           <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
@@ -161,3 +161,4 @@ export const AdminLoginPage: React.FC = () => {
     </div>
   );
 };
+

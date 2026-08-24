@@ -10,3 +10,4 @@ public sealed record GetAllOrdersQuery(
     int PageSize = 20,
     OrderStatus? Status = null,
     string? SearchTerm = null) : IRequest<Result<PagedResult<AdminOrderDto>>>;
+

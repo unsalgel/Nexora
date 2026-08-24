@@ -1,4 +1,4 @@
-namespace Nexora.Application.Features.Orders.Dtos;
+﻿namespace Nexora.Application.Features.Orders.Dtos;
 
 public sealed record PaymentRequestDto(
     string CardHolderName,
@@ -6,3 +6,4 @@ public sealed record PaymentRequestDto(
     string ExpirationMonth,
     string ExpirationYear,
     string Cvv);
+

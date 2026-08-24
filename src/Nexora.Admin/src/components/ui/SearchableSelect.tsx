@@ -60,7 +60,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-orange-500' : ''}`} />
       </button>
 
-      {/* Açılır Arama Menüsü */}
+      
       {isOpen && (
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-150 max-h-56 flex flex-col">
           <div className="relative shrink-0">
@@ -109,4 +109,5 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     </div>
   );
 };
+
 
