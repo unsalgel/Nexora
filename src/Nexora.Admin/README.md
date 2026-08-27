@@ -1,6 +1,6 @@
-﻿# Nexora Admin Portal (Yönetim Paneli)
+# Nexora Admin Portal (Yönetim Paneli)
 
-Nexora modern e-ticaret platformunun merkezi yönetim, sipariş karşılama, katalog ve stok kontrol paneli.
+Nexora modern e-ticaret platformunun merkezi yönetim, sipariş karşılama, kupon yönetimi, katalog ve stok kontrol paneli.
 
 ---
 
@@ -15,7 +15,7 @@ Nexora modern e-ticaret platformunun merkezi yönetim, sipariş karşılama, kat
 
 ---
 
-## 🚀 Şimdiye Kadar Geliştirilen Modüller ve Özellikler
+## 🚀 Geliştirilen Modüller ve Özellikler
 
 ### 1. 🔐 Güvenlik ve Yetkilendirme (Admin Auth)
 * **Rol Koruması:** Sadece `Admin` rolüne sahip kullanıcılar paneli görüntüleyebilir.
@@ -23,35 +23,27 @@ Nexora modern e-ticaret platformunun merkezi yönetim, sipariş karşılama, kat
 * **Giriş Bilgileri:** `admin@nexora.com` / `Admin123!`
 
 ### 2. 📊 Dashboard (Mağaza Genel Bakış)
-* **Metrik Kartları:**
-  * Toplam Sipariş Sayısı
-  * Toplam Aktif Stok Hacmi (₺)
-  * Canlıdaki Katalog Ürün Adedi
-  * Aktif Kategori ve Anlaşmalı Marka Sayısı
-* **Son Gelen Siparişler:** En güncel 5 siparişin canlı durum ve tutar özeti.
-* **Son Eklenen Ürünler & Kritik Stok Uyarısı:** Stoğu kritik seviyede (<= 30 adet) olan ürünlerin anlık uyarı listesi.
-* **Tek Tıkla Senkronizasyon:** Tüm mağaza metriklerini tek butonla canlı tazeleme.
+* **Metrik Kartları:** Toplam Sipariş, Aktif Stok Hacmi (₺), Canlıdaki Ürün Adedi, Kategori ve Marka Sayısı.
+* **Son Gelen Siparişler:** En güncel siparişlerin canlı durum ve tutar özeti.
+* **Kritik Stok Uyarısı:** Stoğu kritik seviyede (<= 30 adet) olan ürünlerin anlık uyarı listesi.
 
 ### 3. 📦 Sipariş Yönetimi (`/orders`)
-* **Performanslı Listeleme:** SQL Projeksiyonu (`.Select()`) ve TanStack Query `keepPreviousData` ile sıfır bekleme süreli akıcı sayfalama.
+* **Performanslı Listeleme:** SQL Projeksiyonu (`.Select()`) ve TanStack Query `keepPreviousData` ile akıcı sayfalama.
 * **Gelişmiş Arama:** Sipariş No (`NX-ORD-...`), Müşteri Adı/Soyadı, E-posta ve Teslimat Adresine göre anlık arama.
-* **Durum Filtreleri:**
-  * *Tüm Siparişler, Beklemede, Hazırlanıyor, Kargoya Verildi, Teslim Edildi, İptal Edilenler*
-* **Sipariş Detay Modalı:**
-  * Sipariş verilen ürünlerin detayları (Ürün Adı, SKU, Birim Fiyat, Miktar, Toplam Tutar).
-  * Müşteri ve Teslimat Adresi bilgi kartları.
-* **Canlı Kargo Durumu Güncelleme:** Tek tıkla sipariş durumunu `Hazırlanıyor -> Kargoya Verildi -> Teslim Edildi -> İptal` aşamalarına taşıma (`PUT /api/orders/{id}/status`).
-* **İş Kuralları:** Teslim edilmiş veya iptal edilmiş siparişlerin durumu güvenlik gereği kilitlenir.
+* **Akıllı 24 Saat Rozeti:** Son 24 saat içinde verilen siparişlerin yanında parıldayan şık **"YENİ"** rozeti.
+* **Durum Filtreleri:** *Tüm Siparişler, Ödenen Siparişler, Hazırlanıyor, Kargoya Verildi, Teslim Edildi, İptal Edilenler*.
+* **Canlı Durum Güncelleme:** Tek tıkla sipariş durumunu `Ödendi -> Hazırlanıyor -> Kargoya Verildi -> Teslim Edildi -> İptal` aşamalarına taşıma.
 
-### 4. 🛍️ Ürün ve Varyant Yönetimi (`/products`)
-* **Ürün Kataloğu:** Sayfalanmış, filtrelenebilir ve sıralanabilir ürün tablosu.
-* **Yeni Ürün & Varyant Ekleme:** Ürün adı, SKU, açıklama, kategori, marka, taban fiyat ve stok belirleme.
-* **Varyant Desteği:** Renk, Beden vb. dinamik varyant tanımlama.
-* **Aktif / Pasif Yönetimi:** Ürünleri tek tıkla satışa açma / kapatma.
+### 4. 🎟️ Kupon & Promosyon Yönetimi (`/coupons`)
+* **Kupon İstatistikleri:** Toplam Kupon, Aktif Kupon ve Toplam Kullanım Adedi kartları.
+* **Kupon Oluşturma:** Yüzdelik (%) veya Sabit Tutar (TL) indirim, minimum sepet tutarı, kullanım limiti ve son kullanma tarihi belirleme.
+* **Canlı Limit İlerleme Çubuğu:** Kuponların doluluk oranını canlı renkli bar ile takip etme.
+* **Sipariş Sayacı Entegrasyonu:** Müşteri checkout'ta kuponu kullandığında sayaç otomatik `+1` artar.
 
-### 5. 🗂️ Kategori & Marka Yönetimi (`/categories`, `/brands`)
-* **Kategori Yönetimi:** 5 ana kategori (Elektronik, Moda & Giyim, Ev & Yaşam, Kozmetik, Spor & Outdoor) tekilleştirilmiş ve canlı yönetilebilir yapıdadır.
-* **Marka Yönetimi:** Anlaşmalı distribütör markaları tanımlama, düzenleme ve silme.
+### 5. 🛍️ Ürün, Kategori & Marka Yönetimi
+* **Aktif / Pasif ToggleSwitch:** Ürün, kategori veya markayı silmeden tek tıkla satışa kapatma / açma (Soft state).
+* **ConfirmModal:** Silme işlemlerinde tarayıcı popup'ı yerine platforma özel zarif onay penceresi.
+* **Arama & Filtreleme:** Kategori ve Marka bazlı anlık katalog filtreleme.
 
 ---
 
@@ -73,4 +65,4 @@ npm run build
 ## 🎨 Tasarım Prensipleri
 * **Ferah & Modern Açık Tema:** Soft gri kartlar (`bg-slate-50`), net border'lar (`border-slate-200`) ve turuncu aksiyon butonları.
 * **Sıfır `any` Prensibi:** Tüm veri modelleri strict TypeScript interface'leri ile korunmaktadır.
-* **Temiz Kod (Clean Code):** Kod tabanı gereksiz yorum satırlarından arındırılmış, modüler ve okunabilir yapıdadır.
+* **Temiz Kod (Clean Code):** Gereksiz yorum satırlarından arındırılmış, modüler ve okunabilir yapıdadır.

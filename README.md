@@ -1,4 +1,4 @@
-﻿# 🚀 Nexora — Kurumsal E-Ticaret ve Yönetim Platformu
+# 🚀 Nexora — Kurumsal E-Ticaret ve Yönetim Platformu
 
 Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensiplerine tam uyumlu olarak geliştirilmiş; yüksek performanslı, ölçeklenebilir, modern ve güvenli bir e-ticaret platformudur.
 
@@ -49,14 +49,16 @@ Nexora/
 |---|---|---|---|
 | 1 | **Auth & Authorization** | Register, Login, Refresh Token, Revoke Token, Rol Güvenliği | Müşteri Giriş/Kayıt + Admin Özel Giriş (`/login`) |
 | 2 | **Admin Dashboard** | Mağaza envanter değeri, toplam sipariş, son siparişler | `DashboardPage.tsx` Canlı İstatistikler & Kritik Stok |
-| 3 | **Order Management** | CQRS Sipariş Listeleme, Canlı Durum Değiştirme, Filtreleme | `OrdersPage.tsx` Arama, Filtreleme, Detay Modalı |
-| 4 | **Product & Variants** | Ürün ve varyant yönetimi (SKU, stok, fiyat), galeri | Müşteri Kataloğu + Admin Ürün/Varyant Ekleme |
-| 5 | **Category & Brand** | 5 Ana Kategori ve Dağıtıcı Markaların Yönetimi | Dinamik Navbar, Filtreleme ve Admin Listeleri |
-| 6 | **Cart & Checkout** | Sepet yönetimi, stok rezervasyonu ve sipariş oluşturma | `CartPage.tsx`, `CheckoutPage.tsx`, Dinamik Header Sayacı |
-| 7 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve listeleme | `FavoritesContext.tsx`, `ProfilePage.tsx` |
-| 8 | **Reviews & Ratings** | Ürün puanlama (1-5 yıldız), yorum yazma ve listeleme | `ProductDetailPage.tsx` Yorum ve Değerlendirme Formu |
-| 9 | **Notifications** | Otomatik sipariş/ödeme/kargo durum bildirimleri | Bildirim motoru ve veritabanı entegrasyonu |
-| 10 | **Logging System** | PostgreSQL `Logs` tablosuna tarih/saat damgalı loglama | Serilog & Diagnostic Middleware |
+| 3 | **Order Management** | CQRS Sipariş Listeleme, Canlı Durum Değiştirme, Filtreleme | `OrdersPage.tsx` Arama, Filtreleme, Akıllı 24h Yeni Rozeti, Detay Modalı |
+| 4 | **Product & Variants** | Ürün ve varyant yönetimi (SKU, stok, fiyat), galeri | Müşteri Kataloğu + Admin Ürün Ekleme/Düzenleme & Aktif/Pasif Switch |
+| 5 | **Category & Brand** | 5 Ana Kategori ve Dağıtıcı Markaların Yönetimi | Dinamik Navbar, Filtreleme, Admin Listeleri & Aktif/Pasif Toggle |
+| 6 | **Cart & Checkout** | Sepet yönetimi, stok rezervasyonu, Luhn validasyonu | `CartPage.tsx`, `CheckoutPage.tsx` 3D Canlı Kart & Marka Algılama |
+| 7 | **Coupon System** | Kupon doğrulama, indirim hesabı, kullanım limiti takibi | `CouponsPage.tsx` Kupon oluşturma, limit çubuğu & Checkout indirimi |
+| 8 | **Favorites** | Kullanıcı favori ürün ekleme, çıkarma ve listeleme | `FavoritesContext.tsx`, `ProfilePage.tsx` |
+| 9 | **Reviews & Ratings** | Ürün puanlama (1-5 yıldız), yorum yazma ve listeleme | `ProductDetailPage.tsx` Yorum ve Değerlendirme Formu |
+| 10 | **Notifications** | Otomatik sipariş/ödeme/kargo bildirimleri | Zilin altına açılan `NotificationDropdown.tsx` Popover Menüsü |
+| 11 | **Search System** | Ürün, marka ve SKU bazlı genel arama motoru | Navbar Arama Formu & URL Query Parametreli `ProductsPage.tsx` |
+| 12 | **UI & UX Enhancements** | Reusable UI Komponentleri | `ConfirmModal.tsx` (Zarif Onay Penceresi), `ToggleSwitch.tsx` (Durum Switch'i) |
 
 ---
 
@@ -98,5 +100,5 @@ npm run dev
 - **Sıfır `any` & Strict Mode:** Tüm projelerde strict TypeScript kuralları uygulanmaktadır.
 - **Silent Refresh:** Access Token süresi dolduğunda (401) kullanıcı oturumu kopmadan arkaplanda otomatik yenilenir.
 - **Ubiquitous Language:** Frontend ve Backend arasında aynı domain terimleri (`grandTotal`, `payableTotal`, `items`, `status` vb.) kullanılır.
-- **Audit Logging:** Tüm veritabanı kayıtları `CreatedAtUtc` ve `UpdatedAtUtc` tarihleri ile UTC formatında otomatik damgalanır.
-- **Temiz Kod (Clean Code):** Gereksiz yorum satırları bulunmaz, kod okunabilir ve modülerdir.
+- **Luhn Algorithm Validasyonu:** Kredi kartı doğrulaması güvenli standart Luhn algoritması ile istemci tarafında denetlenir.
+- **Soft State / Non-Destructive Management:** Varlıklar doğrudan silinmek yerine `ToggleSwitch` ile pasife alınabilir; veri bütünlüğü korunur.

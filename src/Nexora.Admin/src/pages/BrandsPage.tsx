@@ -1,9 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Tag, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { Tag, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 
 interface BrandDto {
   id: string;
@@ -21,6 +23,10 @@ export const BrandsPage: React.FC = () => {
 
   const [name, setName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [isActive, setIsActive] = useState(true);
+
+  const [brandToDelete, setBrandToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [togglingBrandId, setTogglingBrandId] = useState<string | null>(null);
 
   const { data: brandsData, isLoading, refetch } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-brands-list'],
@@ -42,6 +48,7 @@ export const BrandsPage: React.FC = () => {
         const res = await apiClient.put(`/brands/${editingBrand.id}`, {
           name,
           logoUrl: logoUrl || undefined,
+          isActive,
         });
         return res.data;
       } else {
@@ -64,6 +71,29 @@ export const BrandsPage: React.FC = () => {
     }
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ brand, newStatus }: { brand: BrandDto; newStatus: boolean }) => {
+      setTogglingBrandId(brand.id);
+      const res = await apiClient.put(`/brands/${brand.id}`, {
+        name: brand.name,
+        logoUrl: brand.logoUrl || undefined,
+        isActive: newStatus
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-brands-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-brands-dropdown'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-brands'] });
+      setTogglingBrandId(null);
+    },
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      alert(error.response?.data?.message || 'Marka durumu güncellenirken bir hata oluştu.');
+      setTogglingBrandId(null);
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiClient.delete(`/brands/${id}`);
@@ -73,10 +103,12 @@ export const BrandsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-brands-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-brands-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-brands'] });
+      setBrandToDelete(null);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
       alert(error.response?.data?.message || 'Marka silinirken bir hata oluştu.');
+      setBrandToDelete(null);
     }
   });
 
@@ -84,6 +116,7 @@ export const BrandsPage: React.FC = () => {
     setEditingBrand(null);
     setName('');
     setLogoUrl('');
+    setIsActive(true);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -92,6 +125,7 @@ export const BrandsPage: React.FC = () => {
     setEditingBrand(brand);
     setName(brand.name);
     setLogoUrl(brand.logoUrl || '');
+    setIsActive(brand.isActive);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -102,15 +136,8 @@ export const BrandsPage: React.FC = () => {
     setFormError(null);
   };
 
-  const handleDelete = (id: string, brandName: string) => {
-    if (window.confirm(`"${brandName}" markasını silmek istediğinize emin misiniz?`)) {
-      deleteMutation.mutate(id);
-    }
-  };
-
   return (
     <div className="space-y-6 pb-12 font-sans">
-
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -141,7 +168,6 @@ export const BrandsPage: React.FC = () => {
         </div>
       </div>
 
-      
       <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -155,7 +181,6 @@ export const BrandsPage: React.FC = () => {
         </div>
       </div>
 
-      
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -205,9 +230,11 @@ export const BrandsPage: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Aktif
-                      </span>
+                      <ToggleSwitch
+                        checked={brand.isActive}
+                        isLoading={togglingBrandId === brand.id}
+                        onChange={(newVal) => toggleStatusMutation.mutate({ brand, newStatus: newVal })}
+                      />
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
@@ -220,7 +247,7 @@ export const BrandsPage: React.FC = () => {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(brand.id, brand.name)}
+                          onClick={() => setBrandToDelete({ id: brand.id, name: brand.name })}
                           className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Sil"
                         >
@@ -236,7 +263,6 @@ export const BrandsPage: React.FC = () => {
         </div>
       </div>
 
-      
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
@@ -249,14 +275,14 @@ export const BrandsPage: React.FC = () => {
               </div>
               <button
                 onClick={closeModal}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
@@ -269,43 +295,60 @@ export const BrandsPage: React.FC = () => {
               }}
               className="space-y-4"
             >
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Marka Adı</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Marka Adı <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Örn: Samsung"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  placeholder="Örn: Apple, Nike, Samsung..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Logo Görsel URL (Opsiyonel)</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Logo URL
+                </label>
                 <input
                   type="url"
                   value={logoUrl}
                   onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  placeholder="https://example.com/logo.png"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              {editingBrand && (
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block">Marka Durumu</label>
+                    <span className="text-[11px] text-slate-400">Pasif markalar mağazada gizlenir</span>
+                  </div>
+                  <ToggleSwitch
+                    checked={isActive}
+                    onChange={(val) => setIsActive(val)}
+                  />
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 >
-                  İptal
+                  Vazgeç
                 </button>
                 <button
                   type="submit"
                   disabled={saveMutation.isPending}
-                  className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {saveMutation.isPending ? 'Kaydediliyor...' : editingBrand ? 'Güncelle' : 'Markayı Oluştur'}
+                  {saveMutation.isPending ? 'Kaydediliyor...' : editingBrand ? 'Güncelle' : 'Kaydet'}
                 </button>
               </div>
             </form>
@@ -313,9 +356,20 @@ export const BrandsPage: React.FC = () => {
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={brandToDelete !== null}
+        title="Markayı Silmek İstediğinize Emin Misiniz?"
+        message="Bu markayı sildiğinizde, markaya ait tüm ürünler ve ilişkiler etkilenebilir."
+        itemName={brandToDelete?.name}
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (brandToDelete) {
+            deleteMutation.mutate(brandToDelete.id);
+          }
+        }}
+        onClose={() => setBrandToDelete(null)}
+      />
+
     </div>
   );
 };
-
-
-

@@ -1,6 +1,22 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { ShoppingBag, RefreshCw, Clock, CheckCircle2, Truck, Package, XCircle, ChevronRight, Search, X, MapPin, User, AlertCircle, Filter } from 'lucide-react';
+import { 
+  ShoppingBag, 
+  RefreshCw, 
+  Clock, 
+  CheckCircle2, 
+  Truck, 
+  Package, 
+  XCircle, 
+  ChevronRight, 
+  Search, 
+  X, 
+  MapPin, 
+  User, 
+  AlertCircle, 
+  Filter,
+  CreditCard
+} from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
@@ -35,6 +51,13 @@ export const OrdersPage: React.FC = () => {
   const orders = ordersData?.data?.items || [];
   const totalCount = ordersData?.data?.totalCount || 0;
 
+  const isRecentOrder = (createdAtUtc: string): boolean => {
+    const orderDate = new Date(createdAtUtc).getTime();
+    const now = new Date().getTime();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return now - orderDate <= twentyFourHours;
+  };
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: number }) => {
       setModalError(null);
@@ -68,6 +91,12 @@ export const OrdersPage: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'paid':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
+            <CreditCard className="w-3.5 h-3.5 text-emerald-600" /> Ödendi
+          </span>
+        );
       case 'delivered':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
@@ -103,7 +132,7 @@ export const OrdersPage: React.FC = () => {
 
   const statusTabs = [
     { label: 'Tüm Siparişler', value: '', icon: Filter },
-    { label: 'Beklemede', value: 'Pending', icon: Clock },
+    { label: 'Ödenen Siparişler', value: 'Paid', icon: CreditCard },
     { label: 'Hazırlanıyor', value: 'Processing', icon: Package },
     { label: 'Kargoya Verildi', value: 'Shipped', icon: Truck },
     { label: 'Teslim Edildi', value: 'Delivered', icon: CheckCircle2 },
@@ -198,216 +227,207 @@ export const OrdersPage: React.FC = () => {
                   <td colSpan={7} className="py-14 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <ShoppingBag className="w-8 h-8 text-slate-300 stroke-1" />
-                      <span className="font-semibold text-slate-600 text-sm">Sipariş Bulunamadı</span>
-                      <span className="text-xs text-slate-400">Aranan kriterlere uygun bir sipariş kaydı mevcut değil.</span>
+                      <span className="font-semibold text-slate-700">Sipariş Bulunamadı</span>
+                      <span className="text-[11px] text-slate-400">Aranan kriterlere uygun bir sipariş kaydı mevcut değil.</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                orders.map((order: AdminOrderDto) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setModalError(null);
-                    }}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                          <ShoppingBag className="w-4 h-4" />
+                orders.map((order) => {
+                  const isNew = isRecentOrder(order.createdAtUtc);
+
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    >
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                          </div>
+                          <span>{order.orderNumber}</span>
+                          {isNew && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-orange-500 text-white uppercase tracking-wider shadow-2xs">
+                              YENİ
+                            </span>
+                          )}
                         </div>
-                        <span className="font-bold text-slate-900 font-mono text-xs tracking-tight">{order.orderNumber}</span>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="font-bold text-slate-900">{order.customerFullName || 'İsimsiz Müşteri'}</div>
-                      <div className="text-[11px] text-slate-400 font-medium">{order.customerEmail}</div>
-                    </td>
-
-                    <td className="py-4 px-4 font-medium text-slate-500">
-                      {new Date(order.createdAtUtc).toLocaleDateString('tr-TR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </td>
-
-                    <td className="py-4 px-4 text-center font-bold text-slate-700">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs">
-                        {order.totalItemCount} adet
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <span className="font-extrabold text-slate-900">
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-800">{order.customerFullName || 'Bilinmeyen Müşteri'}</div>
+                        <div className="text-[11px] text-slate-400">{order.customerEmail}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-500 font-medium">
+                        {new Date(order.createdAtUtc).toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-semibold text-slate-700">
+                        {order.items?.reduce((acc, i) => acc + i.quantity, 0) || 0} adet
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
                         {order.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4 text-center">
-                      {getStatusBadge(order.status)}
-                    </td>
-
-                    <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedOrder(order);
-                          setModalError(null);
-                        }}
-                        className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
-                        title="Detayları İncele"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {getStatusBadge(order.status)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(order);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          title="Detay Görüntüle"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="py-3.5 px-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-xs text-slate-500">
           <span>Toplam <strong>{totalCount}</strong> sipariş listeleniyor</span>
+          {totalCount > pageSize && (
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 text-xs font-semibold"
+              >
+                Önceki
+              </button>
+              <span>Sayfa {page}</span>
+              <button
+                disabled={page * pageSize >= totalCount}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg disabled:opacity-50 text-xs font-semibold"
+              >
+                Sonraki
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {selectedOrder && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-900 font-mono">
-                    {selectedOrder.orderNumber}
-                  </h2>
+                  <h2 className="text-lg font-bold text-slate-900">{selectedOrder.orderNumber}</h2>
                   {getStatusBadge(selectedOrder.status)}
                 </div>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  {new Date(selectedOrder.createdAtUtc).toLocaleDateString('tr-TR', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Sipariş Tarihi: {new Date(selectedOrder.createdAtUtc).toLocaleString('tr-TR')}
                 </p>
               </div>
-
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {modalError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{modalError}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-xs font-semibold">
-                  <User className="w-3.5 h-3.5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex items-center gap-2 text-slate-700 text-xs font-bold">
+                  <User className="w-4 h-4 text-orange-500" />
                   <span>Müşteri Bilgileri</span>
                 </div>
-                <div className="font-bold text-slate-900 text-xs">{selectedOrder.customerFullName}</div>
-                <div className="text-slate-500 text-xs">{selectedOrder.customerEmail}</div>
+                <div className="text-xs space-y-1">
+                  <p className="font-semibold text-slate-800">{selectedOrder.customerFullName}</p>
+                  <p className="text-slate-500">{selectedOrder.customerEmail}</p>
+                </div>
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-xs font-semibold">
-                  <MapPin className="w-3.5 h-3.5" />
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex items-center gap-2 text-slate-700 text-xs font-bold">
+                  <MapPin className="w-4 h-4 text-orange-500" />
                   <span>Teslimat Adresi</span>
                 </div>
-                <div className="font-medium text-slate-700 text-xs leading-relaxed">
-                  {selectedOrder.shippingAddress}
-                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">{selectedOrder.shippingAddress}</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-slate-700">Sipariş Edilen Ürünler</div>
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Sipariş Edilen Ürünler</h3>
               <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
-                {selectedOrder.items.map((item) => (
-                  <div key={item.id} className="p-3 bg-white flex items-center justify-between gap-3 text-xs">
+                {selectedOrder.items?.map((item) => (
+                  <div key={item.id} className="p-3.5 flex items-center justify-between gap-4 text-xs">
                     <div>
-                      <div className="font-bold text-slate-900">{item.productName}</div>
+                      <h4 className="font-bold text-slate-800">{item.productName}</h4>
                       {item.variantSKU && (
-                        <div className="text-[11px] text-slate-400 font-mono">SKU: {item.variantSKU}</div>
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">SKU: {item.variantSKU}</p>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right">
                       <div className="font-bold text-slate-900">
                         {item.totalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                       </div>
                       <div className="text-[11px] text-slate-400">
-                        {item.quantity} adet x {item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                        {item.quantity} x {item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="flex items-center justify-between pt-2 px-1">
-                <span className="text-xs font-bold text-slate-500">Genel Toplam</span>
-                <span className="text-base font-black text-slate-900">
-                  {selectedOrder.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                </span>
-              </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              <label className="text-xs font-bold text-slate-700">Kargo & Sipariş Durumunu Güncelle</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="p-4 bg-orange-50/60 rounded-2xl border border-orange-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Toplam Tahsil Edilen Tutar</span>
+              <span className="text-base font-black text-orange-600">
+                {selectedOrder.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+              </span>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 space-y-2">
+              <label className="text-xs font-bold text-slate-700 block">Sipariş Durumunu Güncelle</label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
-                  { label: 'Hazırlanıyor', value: 3, disabled: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Cancelled' },
-                  { label: 'Kargoya Verildi', value: 4, disabled: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Cancelled' },
-                  { label: 'Teslim Edildi', value: 5, disabled: selectedOrder.status === 'Cancelled' },
-                  { label: 'İptal Et', value: 6, disabled: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Cancelled' },
-                ].map((btn) => (
-                  <button
-                    key={btn.value}
-                    disabled={btn.disabled || updateStatusMutation.isPending}
-                    onClick={() => {
-                      updateStatusMutation.mutate({
-                        orderId: selectedOrder.id,
-                        newStatus: btn.value
-                      });
-                    }}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                      (selectedOrder.status === 'Processing' && btn.value === 3) ||
-                      (selectedOrder.status === 'Shipped' && btn.value === 4) ||
-                      (selectedOrder.status === 'Delivered' && btn.value === 5) ||
-                      (selectedOrder.status === 'Cancelled' && btn.value === 6)
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
+                  { status: 2, label: 'Ödendi', icon: CreditCard, color: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200' },
+                  { status: 3, label: 'Hazırlanıyor', icon: Package, color: 'hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200' },
+                  { status: 4, label: 'Kargoya Verildi', icon: Truck, color: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200' },
+                  { status: 5, label: 'Teslim Edildi', icon: CheckCircle2, color: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200' },
+                  { status: 6, label: 'İptal Et', icon: XCircle, color: 'hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200' },
+                ].map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={action.status}
+                      disabled={updateStatusMutation.isPending}
+                      onClick={() => updateStatusMutation.mutate({ orderId: selectedOrder.id, newStatus: action.status })}
+                      className={`p-2.5 border border-slate-200 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer bg-white text-slate-700 ${action.color}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{action.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-
-            <div className="flex items-center justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-              >
-                Kapat
-              </button>
             </div>
           </div>
         </div>

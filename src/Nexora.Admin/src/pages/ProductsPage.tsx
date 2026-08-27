@@ -1,10 +1,12 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 
 interface ProductListItemDto {
   id: string;
@@ -12,7 +14,9 @@ interface ProductListItemDto {
   sku: string;
   price: number;
   stockQuantity: number;
+  categoryId: string;
   categoryName: string;
+  brandId: string;
   brandName: string;
   mainImageUrl?: string;
   isActive: boolean;
@@ -56,6 +60,9 @@ export const ProductsPage: React.FC = () => {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
+
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
@@ -64,6 +71,7 @@ export const ProductsPage: React.FC = () => {
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isActive, setIsActive] = useState(true);
 
   const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
     queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand],
@@ -115,6 +123,7 @@ export const ProductsPage: React.FC = () => {
           stockQuantity: parseInt(stockQuantity, 10),
           categoryId,
           brandId,
+          isActive,
         });
         return res.data;
       } else {
@@ -142,6 +151,37 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ product, newStatus }: { product: ProductListItemDto; newStatus: boolean }) => {
+      setTogglingProductId(product.id);
+      
+      const detailRes = await apiClient.get<ApiResponse<ProductDetailDto>>(`/products/${product.id}`);
+      const p = detailRes.data?.data;
+
+      const res = await apiClient.put(`/products/${product.id}`, {
+        name: p?.name || product.name,
+        sku: p?.sku || product.sku,
+        description: p?.description || '',
+        price: p?.price ?? product.price,
+        stockQuantity: p?.stockQuantity ?? product.stockQuantity,
+        categoryId: p?.categoryId || product.categoryId,
+        brandId: p?.brandId || product.brandId,
+        isActive: newStatus
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      setTogglingProductId(null);
+    },
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      alert(error.response?.data?.message || 'Ürün durumu güncellenirken bir hata oluştu.');
+      setTogglingProductId(null);
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiClient.delete(`/products/${id}`);
@@ -150,6 +190,12 @@ export const ProductsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      setProductToDelete(null);
+    },
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      alert(error.response?.data?.message || 'Ürün silinirken bir hata oluştu.');
+      setProductToDelete(null);
     }
   });
 
@@ -163,6 +209,7 @@ export const ProductsPage: React.FC = () => {
     setCategoryId(categories[0]?.id || '');
     setBrandId(brands[0]?.id || '');
     setImageUrl('');
+    setIsActive(true);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -184,6 +231,7 @@ export const ProductsPage: React.FC = () => {
         setStockQuantity(p.stockQuantity.toString());
         setCategoryId(p.categoryId || '');
         setBrandId(p.brandId || '');
+        setIsActive(p.isActive);
         setImageUrl(p.images?.find(i => i.isMain)?.imageUrl || p.images?.[0]?.imageUrl || '');
       }
     } catch (error) {
@@ -199,15 +247,8 @@ export const ProductsPage: React.FC = () => {
     setFormError(null);
   };
 
-  const handleDelete = (id: string, productName: string) => {
-    if (window.confirm(`"${productName}" adlı ürünü silmek istediğinize emin misiniz?`)) {
-      deleteMutation.mutate(id);
-    }
-  };
-
   return (
     <div className="space-y-6 pb-12 font-sans">
-      
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -226,7 +267,6 @@ export const ProductsPage: React.FC = () => {
         </button>
       </div>
 
-      
       <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -243,7 +283,6 @@ export const ProductsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          
           <select
             value={selectedCategory}
             onChange={(e) => {
@@ -258,7 +297,6 @@ export const ProductsPage: React.FC = () => {
             ))}
           </select>
 
-          
           <select
             value={selectedBrand}
             onChange={(e) => {
@@ -275,7 +313,6 @@ export const ProductsPage: React.FC = () => {
         </div>
       </div>
 
-      
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -341,9 +378,11 @@ export const ProductsPage: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Aktif
-                      </span>
+                      <ToggleSwitch
+                        checked={product.isActive}
+                        isLoading={togglingProductId === product.id}
+                        onChange={(newVal) => toggleStatusMutation.mutate({ product, newStatus: newVal })}
+                      />
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
@@ -356,7 +395,7 @@ export const ProductsPage: React.FC = () => {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(product.id, product.name)}
+                          onClick={() => setProductToDelete({ id: product.id, name: product.name })}
                           className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Sil"
                         >
@@ -371,7 +410,6 @@ export const ProductsPage: React.FC = () => {
           </table>
         </div>
 
-        
         {totalPages > 1 && (
           <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Toplam {totalCount} üründen {(page - 1) * 15 + 1} - {Math.min(page * 15, totalCount)} arası gösteriliyor</span>
@@ -396,7 +434,6 @@ export const ProductsPage: React.FC = () => {
         )}
       </div>
 
-      
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
@@ -451,7 +488,7 @@ export const ProductsPage: React.FC = () => {
                     <label className="text-xs font-semibold text-slate-700">SKU (Stok Kodu)</label>
                     <input
                       type="text"
-                        value={sku}
+                      value={sku}
                       onChange={(e) => setSku(e.target.value)}
                       placeholder="NX-001"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
@@ -463,7 +500,7 @@ export const ProductsPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                        value={stockQuantity}
+                      value={stockQuantity}
                       onChange={(e) => setStockQuantity(e.target.value)}
                       placeholder="100"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
@@ -478,14 +515,13 @@ export const ProductsPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       min="0"
-                        value={price}
+                      value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="1299.90"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
                     />
                   </div>
 
-                  
                   <SearchableSelect
                     label="Kategori"
                     options={categories}
@@ -496,7 +532,6 @@ export const ProductsPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  
                   <SearchableSelect
                     label="Marka"
                     options={brands}
@@ -528,6 +563,19 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
 
+                {editingProductId && (
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block">Satış Durumu</label>
+                      <span className="text-[11px] text-slate-400">Pasif ürünler mağazada listelenmez ve satın alınamaz</span>
+                    </div>
+                    <ToggleSwitch
+                      checked={isActive}
+                      onChange={(val) => setIsActive(val)}
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <button
                     type="button"
@@ -551,9 +599,20 @@ export const ProductsPage: React.FC = () => {
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={productToDelete !== null}
+        title="Ürünü Silmek İstediğinize Emin Misiniz?"
+        message="Bu ürünü sildiğinizde, ürün katalogdan ve müşteri sepetlerinden kaldırılacaktır."
+        itemName={productToDelete?.name}
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (productToDelete) {
+            deleteMutation.mutate(productToDelete.id);
+          }
+        }}
+        onClose={() => setProductToDelete(null)}
+      />
+
     </div>
   );
 };
-
-
-

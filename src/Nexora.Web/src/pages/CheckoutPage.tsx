@@ -141,6 +141,7 @@ export const CheckoutPage: React.FC = () => {
 
       const response = await apiClient.post<ApiResponse<OrderDto>>('/orders', {
         shippingAddress: fullShippingAddress,
+        couponCode: appliedCoupon?.couponCode || null,
         paymentInfo: {
           cardHolderName: card.holder.trim(),
           cardNumber: cleanCardNumber,

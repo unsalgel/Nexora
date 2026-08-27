@@ -16,6 +16,7 @@ import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 import type { CouponDto, CreateCouponDto } from '../types/coupon';
 import { AxiosError } from 'axios';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 export const CouponsPage: React.FC = () => {
   const [coupons, setCoupons] = useState<CouponDto[]>([]);
@@ -25,6 +26,9 @@ export const CouponsPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [couponToDelete, setCouponToDelete] = useState<{ id: string; code: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const [formData, setFormData] = useState<{
     code: string;
@@ -109,19 +113,22 @@ export const CouponsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteCoupon = async (id: string, code: string) => {
-    if (!window.confirm(`'${code}' kodlu kuponu silmek istediğinize emin misiniz?`)) {
-      return;
-    }
+  const confirmDeleteCoupon = async () => {
+    if (!couponToDelete) return;
 
     try {
-      const response = await apiClient.delete<ApiResponse<string>>(`/coupons/${id}`);
+      setIsDeleting(true);
+      const response = await apiClient.delete<ApiResponse<string>>(`/coupons/${couponToDelete.id}`);
       if (response.data?.isSuccess) {
-        setCoupons(prev => prev.filter(c => c.id !== id));
-        setSuccessMessage(`'${code}' kuponu silindi.`);
+        setCoupons(prev => prev.filter(c => c.id !== couponToDelete.id));
+        setSuccessMessage(`'${couponToDelete.code}' kuponu silindi.`);
+        setCouponToDelete(null);
       }
     } catch {
       setErrorMessage('Kupon silinirken bir hata oluştu.');
+      setCouponToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -188,7 +195,7 @@ export const CouponsPage: React.FC = () => {
             <span className="text-xs font-semibold text-slate-400 block">Toplam Kupon</span>
             <span className="text-2xl font-black text-slate-900 mt-1 block">{coupons.length}</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100">
             <Ticket className="w-5 h-5" />
           </div>
         </div>
@@ -198,7 +205,7 @@ export const CouponsPage: React.FC = () => {
             <span className="text-xs font-semibold text-slate-400 block">Aktif Kuponlar</span>
             <span className="text-2xl font-black text-emerald-600 mt-1 block">{activeCouponsCount}</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
@@ -206,9 +213,12 @@ export const CouponsPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-400 block">Toplam Kullanım</span>
-            <span className="text-2xl font-black text-blue-600 mt-1 block">{totalUsages} Kez</span>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-2xl font-black text-slate-900">{totalUsages}</span>
+              <span className="text-xs font-bold text-slate-400">Kez</span>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
             <Coins className="w-5 h-5" />
           </div>
         </div>
@@ -344,7 +354,7 @@ export const CouponsPage: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <button
-                          onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                          onClick={() => setCouponToDelete({ id: coupon.id, code: coupon.code })}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Kuponu Sil"
                         >
@@ -499,6 +509,16 @@ export const CouponsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={couponToDelete !== null}
+        title="Kuponu Silmek İstediğinize Emin Misiniz?"
+        message="Bu kupon kodunu sildiğinizde, müşteriler bu kuponla artık indirim kazanamayacaktır."
+        itemName={couponToDelete?.code}
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteCoupon}
+        onClose={() => setCouponToDelete(null)}
+      />
 
     </div>
   );

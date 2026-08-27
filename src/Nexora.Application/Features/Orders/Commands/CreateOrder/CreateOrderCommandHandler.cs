@@ -37,7 +37,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         }
 
         var orderItems = new List<OrderItem>();
-        decimal grandTotal = 0;
+        decimal rawTotal = 0;
 
         foreach (var item in cart.Items)
         {
@@ -54,7 +54,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 }
 
                 var itemTotal = item.ProductVariant.Price * item.Quantity;
-                grandTotal += itemTotal;
+                rawTotal += itemTotal;
 
                 orderItems.Add(new OrderItem
                 {
@@ -80,7 +80,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 }
 
                 var itemTotal = item.Product.Price * item.Quantity;
-                grandTotal += itemTotal;
+                rawTotal += itemTotal;
 
                 orderItems.Add(new OrderItem
                 {
@@ -93,6 +93,44 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             }
         }
 
+        decimal discountAmount = 0;
+        Coupon? appliedCoupon = null;
+
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+        {
+            var normalizedCode = request.CouponCode.Trim().ToUpperInvariant();
+            appliedCoupon = await _context.Coupons
+                .FirstOrDefaultAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken);
+
+            if (appliedCoupon is not null && appliedCoupon.IsActive && appliedCoupon.ExpirationDateUtc > DateTime.UtcNow && appliedCoupon.CurrentUsageCount < appliedCoupon.TotalUsageLimit && rawTotal >= appliedCoupon.MinimumOrderAmount)
+            {
+                if (appliedCoupon.DiscountType == DiscountType.Percentage)
+                {
+                    discountAmount = (rawTotal * appliedCoupon.DiscountValue) / 100m;
+                    if (appliedCoupon.MaximumDiscountAmount.HasValue && discountAmount > appliedCoupon.MaximumDiscountAmount.Value)
+                    {
+                        discountAmount = appliedCoupon.MaximumDiscountAmount.Value;
+                    }
+                }
+                else
+                {
+                    discountAmount = appliedCoupon.DiscountValue;
+                }
+
+                if (discountAmount > rawTotal)
+                {
+                    discountAmount = rawTotal;
+                }
+
+                appliedCoupon.CurrentUsageCount++;
+                if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
+                {
+                    appliedCoupon.IsActive = false;
+                }
+            }
+        }
+
+        var grandTotal = Math.Max(0, rawTotal - discountAmount);
         var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
 
         var isPaymentSuccessful = await _paymentService.ProcessPaymentAsync(grandTotal, request.PaymentInfo, cancellationToken);
@@ -156,7 +194,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         {
             UserId = request.UserId,
             Title = "Siparişiniz Alındı",
-            Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu. Toplam Tutar: {grandTotal:N2} TL",
+            Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu. Ödenen Tutar: {grandTotal:N2} TL",
             Type = NotificationType.OrderCreated,
             IsRead = false
         });
