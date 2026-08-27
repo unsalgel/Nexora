@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './context/ToastContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { CartProvider } from './context/CartContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { HomePage } from './pages/HomePage';
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
       <ToastProvider>
         <FavoritesProvider>
           <CartProvider>
+            <NotificationProvider>
             <Router>
               <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white font-sans overflow-x-hidden">
                 <Navbar />
@@ -51,6 +53,7 @@ export const App: React.FC = () => {
                 <Footer />
               </div>
             </Router>
+          </NotificationProvider>
           </CartProvider>
         </FavoritesProvider>
       </ToastProvider>

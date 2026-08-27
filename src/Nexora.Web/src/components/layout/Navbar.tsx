@@ -1,12 +1,15 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { decodeJwt } from '../../lib/jwt';
+import { NotificationDrawer } from './NotificationDrawer';
 import { 
   Search, 
   ShoppingBag, 
   User, 
   Heart, 
+  Bell,
   Menu, 
   X, 
   Layers, 
@@ -19,6 +22,7 @@ import {
 export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { cartCount } = useCart();
+  const { unreadCount, setIsOpen: setIsNotificationOpen } = useNotifications();
   const navigate = useNavigate();
   const categoryScrollRef = useRef<HTMLUListElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -136,6 +140,24 @@ export const Navbar: React.FC = () => {
               </div>
             </Link>
 
+            {isLoggedIn && (
+              <button
+                onClick={() => setIsNotificationOpen(true)}
+                className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5 relative cursor-pointer"
+                title="Bildirimler"
+              >
+                <div className="relative">
+                  <Bell className="w-5 h-5 text-slate-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className="hidden lg:inline text-xs font-bold">Bildirimler</span>
+              </button>
+            )}
+
             <Link
               to="/favorites"
               className="p-2 sm:px-3 text-slate-700 hover:text-rose-600 hover:bg-rose-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1"
@@ -244,6 +266,8 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       )}
+
+      <NotificationDrawer />
     </header>
   );
 };
