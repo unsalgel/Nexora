@@ -1,12 +1,13 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
+import type { CouponValidationResultDto } from '../types/coupon';
 import { TURKEY_CITIES } from '../data/turkeyLocations';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
-import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle } from 'lucide-react';
+import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle, Tag } from 'lucide-react';
 
 interface OrderDto {
   id: string;
@@ -20,6 +21,18 @@ export const CheckoutPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedCoupon = sessionStorage.getItem('appliedCoupon');
+      if (savedCoupon) {
+        setAppliedCoupon(JSON.parse(savedCoupon) as CouponValidationResultDto);
+      }
+    } catch {
+      // JSON parse hatası durumunda sessiz kal
+    }
+  }, []);
 
   const [address, setAddress] = useState({
     fullName: '',
@@ -61,7 +74,7 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleCardCvvChange = (val: string) => {
-    const digits = val.replace(/\\D/g, '').slice(0, 3);
+    const digits = val.replace(/\D/g, '').slice(0, 3);
     setCard({ ...card, cvv: digits });
   };
 
@@ -131,6 +144,7 @@ export const CheckoutPage: React.FC = () => {
 
       if (response.data?.isSuccess) {
         setCreatedOrderNumber(response.data.data?.orderNumber || 'NXR-2026-TEMP');
+        sessionStorage.removeItem('appliedCoupon');
         await clearCart();
         await refreshCart();
       } else {
@@ -152,7 +166,8 @@ export const CheckoutPage: React.FC = () => {
   const cartItems = cart?.items || [];
   const cartGrandTotal = cart?.grandTotal || 0;
   const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
-  const payableTotal = Math.max(0, cartGrandTotal + shippingFee);
+  const discountAmount = appliedCoupon ? appliedCoupon.calculatedDiscountAmount : 0;
+  const payableTotal = Math.max(0, cartGrandTotal + shippingFee - discountAmount);
 
   if (createdOrderNumber) {
     return (
@@ -318,14 +333,12 @@ export const CheckoutPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* 3D Kredi Kartı (Ön & Arka Animasyonlu Flip) */}
               <div className="w-full max-w-sm mx-auto h-48 [perspective:1000px]">
                 <div
                   className={`relative w-full h-full duration-500 [transform-style:preserve-3d] transition-transform ${
                     isFlipped ? '[transform:rotateY(180deg)]' : ''
                   }`}
                 >
-                  {/* Kart Ön Yüzü */}
                   <div className="absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-xl flex flex-col justify-between [backface-visibility:hidden]">
                     <div className="flex items-center justify-between">
                       <span className="font-black italic text-lg tracking-wider text-orange-500">NEXORA</span>
@@ -349,7 +362,6 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Kart Arka Yüzü (CVV) */}
                   <div className="absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl flex flex-col justify-between py-5 [transform:rotateY(180deg)] [backface-visibility:hidden]">
                     <div className="w-full h-10 bg-slate-950 mt-1" />
                     <div className="px-6 space-y-1">
@@ -480,6 +492,14 @@ export const CheckoutPage: React.FC = () => {
                   {shippingFee === 0 ? 'BEDAVA' : `${shippingFee.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL`}
                 </span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600 font-semibold items-center">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> Kupon İndirimi ({appliedCoupon?.couponCode})
+                  </span>
+                  <span>-{discountAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-900 font-extrabold text-sm pt-2 border-t border-slate-100">
                 <span>Toplam Tutar</span>
                 <span className="text-orange-600 font-black">{payableTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>

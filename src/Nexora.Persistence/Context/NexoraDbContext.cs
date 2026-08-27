@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Entities;
 
@@ -29,6 +29,7 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
