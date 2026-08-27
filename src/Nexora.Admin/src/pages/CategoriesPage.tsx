@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layers, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 
 interface CategoryDto {
@@ -58,8 +59,9 @@ export const CategoriesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err.response?.data?.message || 'Kategori kaydedilirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      setFormError(error.response?.data?.message || 'Kategori kaydedilirken bir hata oluştu.');
     }
   });
 
@@ -73,8 +75,9 @@ export const CategoriesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
     },
-    onError: (err: any) => {
-      alert(err.response?.data?.message || 'Kategori silinirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      alert(error.response?.data?.message || 'Kategori silinirken bir hata oluştu.');
     }
   });
 

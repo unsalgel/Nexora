@@ -1,5 +1,6 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { useToast } from './ToastContext';
 
@@ -89,7 +90,8 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           success('Ürün favorilerinize eklendi.');
         }
       }
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as AxiosError;
       if (error.response?.status === 409) {
         if (!exists) {
           setFavorites(prev => [...prev, product]);

@@ -2,6 +2,7 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,12 +48,13 @@ export const RegisterPage: React.FC = () => {
       } else {
         setErrorMessage(response.data?.message || 'Üyelik oluşturulamadı.');
       }
-    } catch (err: any) {
-      const apiErrors = err.response?.data?.errors;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      const apiErrors = error.response?.data?.errors;
       if (apiErrors && apiErrors.length > 0) {
         setErrorMessage(apiErrors[0]);
       } else {
-        setErrorMessage(err.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
+        setErrorMessage(error.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
       }
     } finally {
       setIsLoading(false);

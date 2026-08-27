@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 import { TURKEY_CITIES } from '../data/turkeyLocations';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
@@ -135,12 +136,13 @@ export const CheckoutPage: React.FC = () => {
       } else {
         setErrorMessage(response.data?.message || 'Ödeme ve sipariş işlemi başarısız.');
       }
-    } catch (err: any) {
-      const apiErrors = err.response?.data?.errors;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      const apiErrors = error.response?.data?.errors;
       if (apiErrors && apiErrors.length > 0) {
         setErrorMessage(apiErrors[0]);
       } else {
-        setErrorMessage(err.response?.data?.message || 'Ödeme doğrulanırken bir hata oluştu. Kart bilgilerinizi kontrol edin.');
+        setErrorMessage(error.response?.data?.message || 'Ödeme doğrulanırken bir hata oluştu. Kart bilgilerinizi kontrol edin.');
       }
     } finally {
       setIsLoading(false);

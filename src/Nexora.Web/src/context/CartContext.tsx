@@ -1,5 +1,6 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 import { useToast } from './ToastContext';
 
@@ -83,7 +84,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
       return false;
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
       toastError(error.response?.data?.message || 'Sepete eklenirken bir hata oluştu.');
       return false;
     }

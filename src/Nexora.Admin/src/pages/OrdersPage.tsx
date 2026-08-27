@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ShoppingBag, RefreshCw, Clock, CheckCircle2, Truck, Package, XCircle, ChevronRight, Search, X, MapPin, User, AlertCircle, Filter } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { AdminOrderDto } from '../types/order';
 
@@ -59,8 +60,9 @@ export const OrdersPage: React.FC = () => {
         });
       }
     },
-    onError: (err: any) => {
-      setModalError(err.response?.data?.message || 'Sipariş durumu güncellenirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      setModalError(error.response?.data?.message || 'Sipariş durumu güncellenirken bir hata oluştu.');
     }
   });
 

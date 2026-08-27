@@ -28,6 +28,18 @@ interface ProductImageDto {
   displayOrder: number;
 }
 
+interface HomeProductItem {
+  id: string;
+  title: string;
+  price: number;
+  oldPrice: number;
+  rating: number;
+  reviews: number;
+  imageUrl: string;
+  badge?: string;
+  coupon?: string;
+}
+
 interface ProductDto {
   id: string;
   name: string;
@@ -59,7 +71,7 @@ export const HomePage: React.FC = () => {
     }
   });
 
-  const toggleFavorite = (product: any, e: React.MouseEvent) => {
+  const toggleFavorite = (product: HomeProductItem, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleFavStore({
@@ -121,7 +133,7 @@ export const HomePage: React.FC = () => {
     coupon: 'Kargo Bedava'
   }));
 
-  const renderProductGrid = (productsList: any[]) => (
+  const renderProductGrid = (productsList: HomeProductItem[]) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {productsList.map((product) => (
         <Link

@@ -18,6 +18,7 @@ import {
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 
 interface ProductImageDto {
@@ -104,9 +105,11 @@ export const ProductDetailPage: React.FC = () => {
       refetchReviews();
       queryClient.invalidateQueries({ queryKey: ['product', id] });
     },
-    onError: (err: any) => {
-      setReviewError(err.response?.data?.message || 'Yorum eklenirken hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      setReviewError(error.response?.data?.message || 'Yorum eklenirken hata oluştu.');
     }
+      
   });
 
   const product = productData?.data;

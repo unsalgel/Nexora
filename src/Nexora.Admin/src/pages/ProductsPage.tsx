@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 
@@ -135,8 +136,9 @@ export const ProductsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err.response?.data?.message || 'Ürün kaydedilirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      setFormError(error.response?.data?.message || 'Ürün kaydedilirken bir hata oluştu.');
     }
   });
 

@@ -77,11 +77,10 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  // 3. API'den Ürünleri Dinamik Filtrelerle Çek
-  const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
+    const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
     queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy],
     queryFn: async () => {
-      const params: any = {
+      const params: Record<string, string | number | undefined> = {
         page,
         pageSize: 9,
       };

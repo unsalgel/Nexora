@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import { decodeAdminJwt } from '../lib/jwt';
 import type { ApiResponse } from '../lib/apiClient';
 
@@ -43,8 +44,9 @@ export const AdminLoginPage: React.FC = () => {
       } else {
         setErrorMsg(response.data?.message || 'Giriş yapılamadı.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Giriş bilgileri hatalı veya sunucuya ulaşılamıyor.');
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      setErrorMsg(error.response?.data?.message || 'Giriş bilgileri hatalı veya sunucuya ulaşılamıyor.');
     } finally {
       setIsLoading(false);
     }

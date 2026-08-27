@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 
@@ -80,12 +81,13 @@ export const LoginPage: React.FC = () => {
           setErrorMessage(response.data?.message || 'Üye olunamadı.');
         }
       }
-    } catch (err: any) {
-      const apiErrors = err.response?.data?.errors;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      const apiErrors = error.response?.data?.errors;
       if (apiErrors && apiErrors.length > 0) {
         setErrorMessage(apiErrors[0]);
       } else {
-        setErrorMessage(err.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
+        setErrorMessage(error.response?.data?.message || 'Bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
       }
     } finally {
       setIsLoading(false);

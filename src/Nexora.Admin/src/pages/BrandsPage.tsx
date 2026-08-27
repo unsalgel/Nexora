@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tag, Plus, Search, Edit2, Trash2, CheckCircle2, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 
 interface BrandDto {
@@ -57,8 +58,9 @@ export const BrandsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-brands'] });
       closeModal();
     },
-    onError: (err: any) => {
-      setFormError(err.response?.data?.message || 'Marka kaydedilirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      setFormError(error.response?.data?.message || 'Marka kaydedilirken bir hata oluştu.');
     }
   });
 
@@ -72,8 +74,9 @@ export const BrandsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-brands-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-brands'] });
     },
-    onError: (err: any) => {
-      alert(err.response?.data?.message || 'Marka silinirken bir hata oluştu.');
+    onError: (err: unknown) => {
+      const error = err as AxiosError<{ message?: string }>;
+      alert(error.response?.data?.message || 'Marka silinirken bir hata oluştu.');
     }
   });
 
