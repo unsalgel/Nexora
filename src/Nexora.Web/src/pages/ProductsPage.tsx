@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Filter, 
@@ -42,11 +42,14 @@ interface ProductListDto {
 }
 
 export const ProductsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlSearch = searchParams.get('search') || '';
+
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [selectedBrandId, setSelectedBrandId] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [searchInputValue, setSearchInputValue] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(urlSearch);
+  const [searchInputValue, setSearchInputValue] = useState<string>(urlSearch);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [appliedMinPrice, setAppliedMinPrice] = useState<string>('');
@@ -55,11 +58,16 @@ export const ProductsPage: React.FC = () => {
   const [brandSearch, setBrandSearch] = useState<string>('');
   const [page, setPage] = useState<number>(1);
 
+  useEffect(() => {
+    setSearchTerm(urlSearch);
+    setSearchInputValue(urlSearch);
+    setPage(1);
+  }, [urlSearch]);
+
   const { toggleFavorite: toggleFavStore, isFavorite: checkIsFav } = useFavorites();
   const { addToCart } = useCart();
   const [addedCartItems, setAddedCartItems] = useState<{ [key: string]: boolean }>({});
 
-  // 1. API'den Kategorileri Çek
   const { data: categoriesData } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -68,7 +76,6 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  // 2. API'den Markaları Çek
   const { data: brandsData } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['brands'],
     queryFn: async () => {
@@ -77,7 +84,7 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-    const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
+  const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
     queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy],
     queryFn: async () => {
       const params: Record<string, string | number | undefined> = {
@@ -98,7 +105,6 @@ export const ProductsPage: React.FC = () => {
   const pagedProducts = productsData?.data;
   const products = pagedProducts?.items || [];
 
-  // Fiyat filtrelemesini client-side (veya gelecekte API'ye parametre eklenerek) yönetiyoruz
   const filteredProducts = React.useMemo(() => {
     let result = [...products];
     if (appliedMinPrice !== '') {
@@ -108,7 +114,6 @@ export const ProductsPage: React.FC = () => {
       result = result.filter(p => p.price <= parseFloat(appliedMaxPrice));
     }
     
-    // Sıralama
     if (sortBy === 'price-asc') {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'price-desc') {
@@ -153,10 +158,15 @@ export const ProductsPage: React.FC = () => {
         <Link to="/" className="hover:text-orange-600 transition-colors">Ana Sayfa</Link>
         <ChevronRight className="w-3 h-3 text-slate-400" />
         <span className="text-slate-900 font-bold">Ürün Kataloğu</span>
+        {searchTerm && (
+          <>
+            <ChevronRight className="w-3 h-3 text-slate-400" />
+            <span className="text-orange-600 font-bold">"{searchTerm}" Arama Sonuçları</span>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sol Filtre Paneli */}
         <aside className={`
           lg:w-64 shrink-0 
           ${isMobileFilterOpen ? 'fixed inset-0 z-50 bg-white p-6 overflow-y-auto block' : 'hidden lg:block'}
@@ -172,7 +182,6 @@ export const ProductsPage: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            {/* Kategoriler */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Kategoriler</h4>
               <div className="space-y-1.5">
@@ -204,7 +213,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Arama Kutusu */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Ürün Ara</h4>
               <div className="relative">
@@ -232,7 +240,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Fiyat Aralığı */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Fiyat Aralığı (TL)</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -261,7 +268,6 @@ export const ProductsPage: React.FC = () => {
 
             <div className="border-t border-slate-200/80" />
 
-            {/* Markalar */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Markalar</h4>
               <div className="relative">
@@ -308,7 +314,6 @@ export const ProductsPage: React.FC = () => {
           </div>
         </aside>
 
-        {/* Ürün Listesi */}
         <main className="flex-1 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div>
@@ -440,7 +445,6 @@ export const ProductsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Sayfalama (Pagination) */}
           {pagedProducts && pagedProducts.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-6">
               <button 

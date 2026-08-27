@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminLoginPage } from './pages/AdminLoginPage';
@@ -7,6 +7,7 @@ import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { CouponsPage } from './pages/CouponsPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 
@@ -26,7 +27,6 @@ export const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<AdminLoginPage />} />
           
-          
           <Route element={<AdminRoute />}>
             <Route element={<AdminLayout />}>
               <Route path="/" element={<DashboardPage />} />
@@ -34,6 +34,7 @@ export const App: React.FC = () => {
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/brands" element={<BrandsPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/coupons" element={<CouponsPage />} />
             </Route>
           </Route>
 
@@ -45,4 +46,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

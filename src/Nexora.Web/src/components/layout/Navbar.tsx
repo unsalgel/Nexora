@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { decodeJwt } from '../../lib/jwt';
-import { NotificationDrawer } from './NotificationDrawer';
+import { NotificationDropdown } from './NotificationDropdown';
 import { 
   Search, 
   ShoppingBag, 
@@ -21,8 +21,9 @@ import {
 
 export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { cartCount } = useCart();
-  const { unreadCount, setIsOpen: setIsNotificationOpen } = useNotifications();
+  const { unreadCount, isOpen: isNotificationOpen, setIsOpen: setIsNotificationOpen } = useNotifications();
   const navigate = useNavigate();
   const categoryScrollRef = useRef<HTMLUListElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -73,6 +74,16 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (query) {
+      navigate(`/products?search=${encodeURIComponent(query)}`);
+    } else {
+      navigate('/products');
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs font-sans">
       <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5 px-4 hidden md:block">
@@ -104,19 +115,22 @@ export const Navbar: React.FC = () => {
           </Link>
 
           <div className="flex-1 max-w-2xl hidden md:block">
-            <div className="relative flex items-center">
+            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Aradığınız ürün, marka veya kategoriyi yazınız..."
                 className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-5 pr-14 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all shadow-inner"
               />
               <button 
-                type="button"
-                className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full flex items-center justify-center shadow-md shadow-orange-500/20 cursor-pointer"
+                type="submit"
+                className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full flex items-center justify-center shadow-md shadow-orange-500/20 hover:opacity-90 transition-opacity cursor-pointer"
+                title="Ara"
               >
                 <Search className="w-4 h-4" />
               </button>
-            </div>
+            </form>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-3">
@@ -134,28 +148,37 @@ export const Navbar: React.FC = () => {
                 ) : (
                   <>
                     <span className="text-[11px] text-slate-400 font-normal">Giriş Yap</span>
-                    <span className="text-xs font-bold text-slate-800">veya Üye Ol</span>
+                    <span className="text-xs font-bold text-slate-800">veye Üye Ol</span>
                   </>
                 )}
               </div>
             </Link>
 
             {isLoggedIn && (
-              <button
-                onClick={() => setIsNotificationOpen(true)}
-                className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5 relative cursor-pointer"
-                title="Bildirimler"
-              >
-                <div className="relative">
-                  <Bell className="w-5 h-5 text-slate-600" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </div>
-                <span className="hidden lg:inline text-xs font-bold">Bildirimler</span>
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  className={`p-2 sm:px-3 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5 cursor-pointer ${
+                    isNotificationOpen 
+                      ? 'text-orange-600 bg-orange-50' 
+                      : 'text-slate-700 hover:text-orange-600 hover:bg-orange-50/70'
+                  }`}
+                  title="Bildirimler"
+                >
+                  <div className="relative">
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden lg:inline text-xs font-bold">Bildirimler</span>
+                </button>
+
+                <NotificationDropdown />
+              </div>
             )}
 
             <Link
@@ -189,16 +212,21 @@ export const Navbar: React.FC = () => {
         </div>
 
         <div className="mt-2 sm:mt-3 md:hidden w-full">
-          <div className="relative flex items-center w-full">
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Ürün, marka veya kategori ara..."
               className="w-full bg-slate-100 border border-slate-200 rounded-full pl-4 pr-10 py-2 text-xs text-slate-900"
             />
-            <button className="absolute right-1 top-1 bottom-1 px-3 bg-orange-500 text-white rounded-full flex items-center justify-center">
+            <button 
+              type="submit"
+              className="absolute right-1 top-1 bottom-1 px-3 bg-orange-500 text-white rounded-full flex items-center justify-center"
+            >
               <Search className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </form>
         </div>
       </div>
 
@@ -266,8 +294,6 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       )}
-
-      <NotificationDrawer />
     </header>
   );
 };
