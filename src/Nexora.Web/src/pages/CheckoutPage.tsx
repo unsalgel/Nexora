@@ -7,6 +7,7 @@ import type { ApiResponse } from '../lib/apiClient';
 import type { CouponValidationResultDto } from '../types/coupon';
 import { TURKEY_CITIES } from '../data/turkeyLocations';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { validateLuhn, getCardBrand } from '../lib/cardValidation';
 import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle, Tag } from 'lucide-react';
 
 interface OrderDto {
@@ -99,6 +100,20 @@ export const CheckoutPage: React.FC = () => {
     setErrorMessage(null);
     setIsLoading(true);
 
+    const cleanCardNumber = card.number.replace(/\s+/g, '');
+
+    if (cleanCardNumber.length < 15) {
+      setErrorMessage('Lütfen 15 veya 16 haneli geçerli bir kart numarası giriniz.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validateLuhn(cleanCardNumber)) {
+      setErrorMessage('Kredi kartı numarası doğrulanamadı. Lütfen kart numaranızı kontrol ediniz.');
+      setIsLoading(false);
+      return;
+    }
+
     const [month, year] = card.expiry.split('/');
     if (!month || !year || month.length !== 2 || year.length !== 2) {
       setErrorMessage('Lütfen son kullanma tarihini AA/YY formatında geçerli olarak giriniz.');
@@ -114,13 +129,6 @@ export const CheckoutPage: React.FC = () => {
     }
 
     const fullYear = `20${year}`;
-    const cleanCardNumber = card.number.replace(/\s+/g, '');
-
-    if (cleanCardNumber.length < 15) {
-      setErrorMessage('Lütfen 16 haneli geçerli bir kart numarası giriniz.');
-      setIsLoading(false);
-      return;
-    }
 
     if (card.cvv.length < 3) {
       setErrorMessage('Lütfen 3 haneli güvenlik kodunu (CVV) giriniz.');
@@ -163,6 +171,7 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const cardBrand = getCardBrand(card.number);
   const cartItems = cart?.items || [];
   const cartGrandTotal = cart?.grandTotal || 0;
   const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
@@ -342,7 +351,13 @@ export const CheckoutPage: React.FC = () => {
                   <div className="absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-xl flex flex-col justify-between [backface-visibility:hidden]">
                     <div className="flex items-center justify-between">
                       <span className="font-black italic text-lg tracking-wider text-orange-500">NEXORA</span>
-                      <Lock className="w-4 h-4 text-slate-400" />
+                      <div className="flex items-center gap-2">
+                        {cardBrand === 'visa' && <span className="font-bold text-xs text-blue-400 font-mono tracking-widest">VISA</span>}
+                        {cardBrand === 'mastercard' && <span className="font-bold text-xs text-amber-400 font-mono tracking-widest">MASTERCARD</span>}
+                        {cardBrand === 'troy' && <span className="font-bold text-xs text-cyan-400 font-mono tracking-widest">TROY</span>}
+                        {cardBrand === 'amex' && <span className="font-bold text-xs text-emerald-400 font-mono tracking-widest">AMEX</span>}
+                        <Lock className="w-4 h-4 text-slate-400" />
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <span className="text-[10px] text-slate-400 font-mono uppercase block">Kart Numarası</span>

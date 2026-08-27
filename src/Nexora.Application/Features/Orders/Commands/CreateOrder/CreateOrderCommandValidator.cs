@@ -20,7 +20,7 @@ public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderC
         {
             RuleFor(x => x.PaymentInfo.CardNumber)
                 .NotEmpty().WithMessage("Kart numarası boş olamaz.")
-                .CreditCard().WithMessage("Geçersiz kredi kartı numarası.");
+                .Matches(@"^\d{15,16}$").WithMessage("Geçersiz kredi kartı numarası. Kart numarası 15 veya 16 haneli olmalıdır.");
 
             RuleFor(x => x.PaymentInfo.CardHolderName)
                 .NotEmpty().WithMessage("Kart üzerindeki isim boş olamaz.")
