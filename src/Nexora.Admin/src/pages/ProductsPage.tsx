@@ -293,7 +293,7 @@ export const ProductsPage: React.FC = () => {
             }}
             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-44 cursor-pointer"
           >
-            <option value="all">Tüm Durumlar (Tümü)</option>
+            <option value="all">Tüm Ürünler</option>
             <option value="active">Sadece Aktifler</option>
             <option value="inactive">Sadece Pasifler</option>
           </select>
