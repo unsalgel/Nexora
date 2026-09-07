@@ -1,68 +1,64 @@
-# Nexora Admin Portal (Yönetim Paneli)
+# Nexora.Admin — Yönetim Portalı
 
-Nexora modern e-ticaret platformunun merkezi yönetim, sipariş karşılama, kupon yönetimi, katalog ve stok kontrol paneli.
+Nexora e-ticaret platformunun merkezi idari yönetim, analitik, sipariş karşılama, kupon yönetimi, katalog ve stok kontrol portalıdır.
 
 ---
 
-## 🛠️ Teknoloji Yığını ve Mimarisi
+## Mimari ve Teknoloji Yığını
 
-* **Framework:** React 19 + TypeScript (Strict Mode)
-* **Build Aracı:** Vite
-* **Stil & Tasarım:** Tailwind CSS v4 (Light Premium Theme - `#F97316` Vurgu Rengi)
+* **Çekirdek:** React 19 + TypeScript (Strict Mode)
+* **Derleme ve Paketleme:** Vite
+* **Tasarım Sistemi:** Tailwind CSS v4 (Hafif, modern ve kurumsal renk paleti)
 * **İkon Seti:** Lucide React
-* **Veri Yönetimi & Cache:** TanStack React Query v5 (`keepPreviousData`, akıllı önbellek)
-* **İletişim & Güvenlik:** Axios (JWT Access & Refresh Token Interceptor)
+* **Veri Yönetimi ve Önbellek:** TanStack React Query v5 (`keepPreviousData` akıcı sayfalama desteği)
+* **İletişim ve Güvenlik:** Axios (Merkezi Interceptor ile otomatik JWT Bearer ekleme ve sessiz Refresh Token yenileme)
 
 ---
 
-## 🚀 Geliştirilen Modüller ve Özellikler
+## Modüller ve Fonksiyonel Özellikler
 
-### 1. 🔐 Güvenlik ve Yetkilendirme (Admin Auth)
-* **Rol Koruması:** Sadece `Admin` rolüne sahip kullanıcılar paneli görüntüleyebilir.
-* **Akıllı Token Yenileme:** 401 Unauthorized durumunda arka planda otomatik `Refresh Token` mekanizması çalışır.
-* **Giriş Bilgileri:** `admin@nexora.com` / `Admin123!`
+### 1. Güvenlik ve Yetkilendirme (Admin Auth)
+* Sadece `Admin` rolüne sahip kullanıcıların erişebildiği korumalı rota (`AdminRoute`).
+* Oturum süresi dolduğunda (401 Unauthorized) arka planda otomatik çalışan `Refresh Token` yenileme mekanizması.
+* Varsayılan Giriş: `admin@nexora.com` / `Admin123!`
 
-### 2. 📊 Dashboard (Mağaza Genel Bakış)
-* **Metrik Kartları:** Toplam Sipariş, Aktif Stok Hacmi (₺), Canlıdaki Ürün Adedi, Kategori ve Marka Sayısı.
-* **Son Gelen Siparişler:** En güncel siparişlerin canlı durum ve tutar özeti.
-* **Kritik Stok Uyarısı:** Stoğu kritik seviyede (<= 30 adet) olan ürünlerin anlık uyarı listesi.
+### 2. Dashboard ve Satış Analitiği
+* **Özet Metrik Kartları:** Toplam Ciro, Ortalama Sepet Tutarı (AOV), Tamamlanan İşlem Hacmi, Aktif Stok Hacmi (TL), Canlı Katalog Sayısı, Kategori ve Marka Ağı.
+* **Dönemsel Satış Trend Çizgisi:** Son 7, 14 veya 30 günün günlük cirosunu ve sipariş adetlerini hover detaylarıyla gösteren hafif çubuk grafik.
+* **Kategori Gelir Dağılımı:** Kategorilerin toplam hasılattaki payını yüzde ve adet bazında gösteren ilerleme çubukları.
+* **Sipariş Durumu Dağılımı:** Beklemede, Hazırlanıyor, Kargoda, Teslim Edildi ve İptal durumlarının oransal gösterimi.
+* **Kritik Stok Uyarısı:** Stoğu kritik seviyenin (30 adet ve altı) altına düşen ürünlerin anlık alarm listesi.
+* **Son Siparişler:** Mağazaya ulaşan en güncel siparişlerin anlık durum tablosu.
 
-### 3. 📦 Sipariş Yönetimi (`/orders`)
-* **Performanslı Listeleme:** SQL Projeksiyonu (`.Select()`) ve TanStack Query `keepPreviousData` ile akıcı sayfalama.
-* **Gelişmiş Arama:** Sipariş No (`NX-ORD-...`), Müşteri Adı/Soyadı, E-posta ve Teslimat Adresine göre anlık arama.
-* **Akıllı 24 Saat Rozeti:** Son 24 saat içinde verilen siparişlerin yanında parıldayan şık **"YENİ"** rozeti.
-* **Durum Filtreleri:** *Tüm Siparişler, Ödenen Siparişler, Hazırlanıyor, Kargoya Verildi, Teslim Edildi, İptal Edilenler*.
-* **Canlı Durum Güncelleme:** Tek tıkla sipariş durumunu `Ödendi -> Hazırlanıyor -> Kargoya Verildi -> Teslim Edildi -> İptal` aşamalarına taşıma.
+### 3. Sipariş Yönetimi (`/orders`)
+* Veritabanı seviyesinde optimize edilmiş SQL projeksiyonları ile yüksek performanslı sayfalama.
+* Sipariş Numarası (`NX-ORD-...`), Müşteri Adı, E-posta ve Teslimat Adresine göre anlık çoklu arama.
+* Son 24 saat içinde oluşturulan siparişlerde otomatik parıldayan "YENİ" durum rozeti.
+* Sipariş durumu filtreleme (Tümü, Beklemede, Hazırlanıyor, Kargoda, Teslim Edildi, İptal).
+* Tek tıkla sipariş durumunu bir sonraki aşamaya taşıma veya iptal etme.
 
-### 4. 🎟️ Kupon & Promosyon Yönetimi (`/coupons`)
-* **Kupon İstatistikleri:** Toplam Kupon, Aktif Kupon ve Toplam Kullanım Adedi kartları.
-* **Kupon Oluşturma:** Yüzdelik (%) veya Sabit Tutar (TL) indirim, minimum sepet tutarı, kullanım limiti ve son kullanma tarihi belirleme.
-* **Canlı Limit İlerleme Çubuğu:** Kuponların doluluk oranını canlı renkli bar ile takip etme.
-* **Sipariş Sayacı Entegrasyonu:** Müşteri checkout'ta kuponu kullandığında sayaç otomatik `+1` artar.
+### 4. Kupon ve Promosyon Yönetimi (`/coupons`)
+* Yüzdelik (%) veya Sabit Tutar (TL) indirim kuponu tanımlama.
+* Minimum sepet tutarı, kullanım kotası ve son kullanma tarihi belirleme.
+* Kupon kullanım limitini gösteren canlı doluluk çubuğu.
+* Müşteri checkout işlemiyle senkron çalışan kullanım sayacı.
 
-### 5. 🛍️ Ürün, Kategori & Marka Yönetimi
-* **Aktif / Pasif ToggleSwitch:** Ürün, kategori veya markayı silmeden tek tıkla satışa kapatma / açma (Soft state).
-* **ConfirmModal:** Silme işlemlerinde tarayıcı popup'ı yerine platforma özel zarif onay penceresi.
-* **Arama & Filtreleme:** Kategori ve Marka bazlı anlık katalog filtreleme.
+### 5. Katalog, Kategori ve Marka Yönetimi
+* Ürün, kategori veya markayı kalıcı silmeden tek tıkla satışa kapatıp açan aktif/pasif anahtarları (`ToggleSwitch`).
+* Silme işlemleri için platforma özel onay pencereleri (`ConfirmModal`).
+* Kategori ve marka bazlı dinamik filtreleme ve arama.
 
 ---
 
-## 💻 Yerel Geliştirme Ortamı
+## Geliştirme ve Çalıştırma
 
 ```bash
-# Bağımlılıkları yükle
+# Bağımlılıkları yükleyin
 npm install
 
-# Geliştirme sunucusunu başlat (Port: 5174)
+# Geliştirme sunucusunu başlatın (Port: 5174)
 npm run dev
 
-# TypeScript ve Production Build kontrolü
+# Tip kontrolü ve üretim derlemesi
 npm run build
 ```
-
----
-
-## 🎨 Tasarım Prensipleri
-* **Ferah & Modern Açık Tema:** Soft gri kartlar (`bg-slate-50`), net border'lar (`border-slate-200`) ve turuncu aksiyon butonları.
-* **Sıfır `any` Prensibi:** Tüm veri modelleri strict TypeScript interface'leri ile korunmaktadır.
-* **Temiz Kod (Clean Code):** Gereksiz yorum satırlarından arındırılmış, modüler ve okunabilir yapıdadır.

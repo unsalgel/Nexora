@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Package, 
@@ -12,12 +12,15 @@ import {
   Clock,
   CheckCircle2,
   Truck,
-  XCircle
+  XCircle,
+  PieChart as PieChartIcon,
+  BarChart3
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { AdminOrderDto } from '../types/order';
+import type { SalesAnalyticsDto } from '../types/dashboard';
 
 interface ProductDto {
   id: string;
@@ -42,6 +45,18 @@ interface BrandDto {
 }
 
 export const DashboardPage: React.FC = () => {
+  const [analyticsDays, setAnalyticsDays] = useState<number>(30);
+
+  const { data: analyticsData, isLoading: isAnalyticsLoading, refetch: refetchAnalytics } = useQuery<ApiResponse<SalesAnalyticsDto>>({
+    queryKey: ['admin-dashboard-analytics', analyticsDays],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<SalesAnalyticsDto>>('/dashboard/analytics', {
+        params: { days: analyticsDays }
+      });
+      return res.data;
+    }
+  });
+
   const { data: productsData, isLoading: isProductsLoading, refetch: refetchProducts } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
     queryKey: ['admin-dashboard-products'],
     queryFn: async () => {
@@ -78,6 +93,7 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
+  const analytics = analyticsData?.data;
   const products = productsData?.data?.items || [];
   const totalProductCount = productsData?.data?.totalCount || 0;
   const categoriesCount = categoriesData?.data?.length || 0;
@@ -88,9 +104,10 @@ export const DashboardPage: React.FC = () => {
   const totalInventoryValue = products.reduce((acc, p) => acc + (p.price * p.stockQuantity), 0);
   const lowStockProducts = products.filter(p => p.stockQuantity <= 30);
 
-  const isLoading = isProductsLoading || isCatLoading || isBrandsLoading || isOrdersLoading;
+  const isLoading = isProductsLoading || isCatLoading || isBrandsLoading || isOrdersLoading || isAnalyticsLoading;
 
   const handleRefreshAll = () => {
+    refetchAnalytics();
     refetchProducts();
     refetchCategories();
     refetchBrands();
@@ -368,6 +385,166 @@ export const DashboardPage: React.FC = () => {
                     <span className="text-xs font-bold text-amber-600 shrink-0">
                       {item.stockQuantity} kaldı
                     </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4 text-blue-500" />
+                <span>Sipariş Dağılımı</span>
+              </h3>
+              <span className="text-[11px] font-semibold text-slate-400">Genel Durum</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {(analytics?.statusDistribution || []).map((item) => {
+                const total = analytics?.totalOrdersAllTime || 1;
+                const pct = Math.round((item.count / total) * 100);
+                return (
+                  <div key={item.status} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-slate-700">{item.label}</span>
+                      <span className="font-bold text-slate-900">{item.count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          item.status === 'Delivered' ? 'bg-emerald-500' :
+                          item.status === 'Shipped' ? 'bg-blue-500' :
+                          item.status === 'Processing' ? 'bg-amber-500' :
+                          item.status === 'Cancelled' ? 'bg-rose-500' : 'bg-slate-400'
+                        }`}
+                        style={{ width: `${Math.max(pct, item.count > 0 ? 4 : 0)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-orange-500" />
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Satış ve Gelir Analitiği</h2>
+            </div>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              Dönemsel ciro performansı, sepet ortalaması ve kategori bazlı gelir dağılımı
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+            {[7, 14, 30].map((days) => (
+              <button
+                key={days}
+                onClick={() => setAnalyticsDays(days)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  analyticsDays === days
+                    ? 'bg-white text-orange-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Son {days} Gün
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-100 space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Toplam Hasılat</span>
+            <span className="text-xl font-bold text-slate-900 block">
+              ₺{(analytics?.totalRevenueAllTime || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">İptal edilmeyen tüm siparişler</span>
+          </div>
+
+          <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-100 space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Ortalama Sepet Tutarı (AOV)</span>
+            <span className="text-xl font-bold text-slate-900 block">
+              ₺{(analytics?.averageOrderValue || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">Sipariş başına düşen ciro</span>
+          </div>
+
+          <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-100 space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tamamlanan İşlem</span>
+            <span className="text-xl font-bold text-slate-900 block">
+              {analytics?.totalOrdersAllTime || 0} Adet
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">Platform geneli sipariş hacmi</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          <div className="lg:col-span-8 space-y-3">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Günlük Satış Trend Çizgisi</h3>
+            <div className="h-56 bg-slate-50/60 rounded-xl border border-slate-100 p-4 flex flex-col justify-between">
+              {(!analytics?.dailySales || analytics.dailySales.length === 0) ? (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  Grafik için veri bulunmuyor.
+                </div>
+              ) : (
+                (() => {
+                  const maxRevenue = Math.max(...analytics.dailySales.map(d => d.totalRevenue), 1);
+                  return (
+                    <div className="h-full flex items-end gap-1.5 sm:gap-2 pt-6">
+                      {analytics.dailySales.map((item) => {
+                        const heightPct = Math.max(Math.round((item.totalRevenue / maxRevenue) * 100), 4);
+                        return (
+                          <div key={item.date} className="flex-1 h-full flex flex-col items-center justify-end group relative">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap pointer-events-none z-10 shadow-md">
+                              {item.date}: ₺{item.totalRevenue.toLocaleString('tr-TR')} ({item.orderCount} sipariş)
+                            </div>
+                            <div 
+                              className="w-full bg-orange-400/80 group-hover:bg-orange-500 rounded-t transition-all duration-300"
+                              style={{ height: `${heightPct}%` }}
+                            />
+                            <span className="text-[9px] text-slate-400 mt-2 truncate w-full text-center hidden sm:block">
+                              {item.date.slice(5)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 space-y-3">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Kategori Bazlı Hasılat</h3>
+            <div className="bg-slate-50/60 rounded-xl border border-slate-100 p-4 space-y-3 max-h-56 overflow-y-auto">
+              {(!analytics?.categorySales || analytics.categorySales.length === 0) ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Kategori satış verisi bulunmuyor.
+                </div>
+              ) : (
+                analytics.categorySales.map((cat) => (
+                  <div key={cat.categoryId} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-800 truncate pr-2">{cat.categoryName}</span>
+                      <span className="font-bold text-slate-900 shrink-0">%{cat.percentage}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-orange-500 rounded-full transition-all duration-500" 
+                        style={{ width: `${Math.max(cat.percentage, 4)}%` }} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>{cat.totalQuantity} adet ürün</span>
+                      <span>₺{cat.totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 0 })}</span>
+                    </div>
                   </div>
                 ))
               )}

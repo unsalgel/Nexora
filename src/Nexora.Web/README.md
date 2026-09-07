@@ -1,61 +1,81 @@
-# 🛍️ Nexora.Web — Müşteri Paneli (Frontend)
+# Nexora.Web — Müşteri Mağazası
 
-Nexora E-Ticaret Platformu müşteri web uygulaması. React 19, TypeScript, Vite ve Tailwind CSS teknolojileri ile geliştirilmiş modern, hızlı ve duyarlı (responsive) bir e-ticaret arayüzüdür.
-
----
-
-## 🚀 Kullanılan Teknolojiler
-
-| Kategori | Teknoloji |
-|---|---|
-| **Framework** | React 19+ |
-| **Dil** | TypeScript (Strict Mode) |
-| **Build Tool** | Vite |
-| **Stil / Tasarım** | Tailwind CSS v4, PostCSS, Lucide React (İkonlar) |
-| **Yönlendirme** | React Router v6 |
-| **Sunucu Durumu (State)** | TanStack Query (React Query v5) |
-| **Lokal Durum Yönetimi** | Context API (`CartContext`, `FavoritesContext`) |
-| **Ödeme & Kart Validasyonu** | Luhn Algoritması & Otomatik Kart Markası Algılama (`cardValidation.ts`) |
-| **HTTP İstemcisi** | Axios (Otomatik 401 Silent Refresh & JWT Bearer Interceptors) |
+Nexora E-Ticaret Platformu müşteri web uygulamasıdır. React 19, TypeScript, Vite ve Tailwind CSS teknolojileri ile geliştirilmiş modern, hızlı ve duyarlı (responsive) bir e-ticaret arayüzüdür.
 
 ---
 
-## ✨ Öne Çıkan Özellikler
+## Kullanılan Teknolojiler
 
-1. **🎟️ Kupon & Promosyon Sistemi:** Sepette anlık kupon kodu doğrulama, dinamik indirim hesabı ve indirimli sipariş oluşturma.
-2. **💳 Güvenli Ödeme & 3D Kart:** Luhn algoritması denetimi, otomatik Visa / Mastercard / Troy / Amex kart logosu tespiti, 3D çevrilen kart animasyonu.
-3. **🔔 Popover Bildirim Menüsü:** Ekranı karartmadan zilin tam altına açılan `NotificationDropdown.tsx` menüsü ve tek tıkla okundu işaretleme.
-4. **🔍 Navbar Genel Arama:** Enter veya butonla `/products?search=...` yönlendirmesi ve URL parametresiyle anlık katalog filtreleme.
+| Kategori | Teknoloji / Kütüphane | Açıklama |
+|---|---|---|
+| Çekirdek | React 19+ | Modern fonksiyonel bileşen mimarisi |
+| Dil | TypeScript | Strict mode tip güvenliği |
+| Paketleme Aracı | Vite | Hızlı yerel geliştirme ve optimize bundle |
+| Tasarım ve Stil | Tailwind CSS v4, Lucide React | Modern utility-first CSS ve hafif SVG ikonlar |
+| Yönlendirme | React Router v7 | Deklaratif sayfa yönlendirme altyapısı |
+| Sunucu Durumu | TanStack React Query v5 | Veri getirme, önbellek ve otomatik arka plan tazeleme |
+| Yerel Durum Yönetimi | Context API | Sepet (`CartContext`) ve Favoriler (`FavoritesContext`) |
+| Ödeme Doğrulaması | Luhn Algoritması | Otomatik kart sağlayıcı tespiti ve geçerlilik kontrolü |
+| HTTP İstemcisi | Axios | Otomatik JWT Bearer ekleme ve 401 sessiz token yenileme |
 
 ---
 
-## 📁 Proje Klasör Yapısı
+## Öne Çıkan Özellikler
+
+### 1. Kupon ve Promosyon Motoru
+* Sepet ekranında anlık kupon kodu doğrulama.
+* Dinamik indirim hesaplaması (Yüzdelik veya Sabit Tutar).
+* Minimum sepet tutarı ve kullanım limiti denetimi.
+
+### 2. Güvenli Ödeme ve 3D Kart Görselleştirmesi
+* Luhn algoritması ile anlık kart numarası kontrolü.
+* Girilen ilk hanelere göre otomatik kart markası algılama (Visa, Mastercard, Troy, American Express).
+* Kart arkası çevrilerek CVV alanının doldurulduğu etkileşimli 3D kart animasyonu.
+
+### 3. Popover Bildirim Menüsü
+* Ekranı karartmadan zil ikonunun altına doğrudan açılan popover menüsü (`NotificationDropdown`).
+* Sipariş, kargo ve ödeme bildirimlerini tek tıkla okundu olarak işaretleme.
+
+### 4. Küresel Katalog Arama ve Filtreleme
+* Navbar üzerinden ürün adı, marka veya SKU ile arama.
+* URL parametresi (`/products?search=...`) entegrasyonu ile sayfalandırılabilir filtreleme.
+* Kategori ve marka bazlı dinamik filtreler, fiyat aralığı seçimi.
+
+### 5. Favoriler ve Kullanıcı Etkileşimi
+* Tek tıkla ürünleri favorilere ekleme veya çıkarma.
+* Profil sayfasında favorilenen ürünleri ve sipariş geçmişini görüntüleme.
+* İncelenen ürünlere 1-5 yıldız puan verme ve yorum yapma olanağı.
+
+---
+
+## Proje Klasör Yapısı
 
 ```
 src/
-├── components/          # Paylaşılan UI Bileşenleri
+├── components/          # Paylaşılan UI bileşenleri
+│   ├── auth/            # Giriş, kayıt ve korumalı rota bileşenleri
 │   ├── layout/          # Navbar, Footer, NotificationDropdown
-│   └── ui/              # Atomik Buton, SearchableSelect vb.
-├── context/             # Global Durum Context'leri (CartContext, FavoritesContext)
-├── lib/                 # Axios İstemcisi, Kart Validasyonu & JWT (apiClient.ts, cardValidation.ts, jwt.ts)
-├── pages/               # Route Sayfaları (HomePage, ProductsPage, ProductDetailPage, CartPage, CheckoutPage, ProfilePage, LoginPage, RegisterPage, OrdersPage)
-├── types/               # TypeScript Tip Tanımları (coupon.ts, order.ts, product.ts vb.)
-├── App.tsx              # Ana Uygulama & Provider'lar
-├── index.css            # Global CSS & Tailwind Ayarları
-└── main.tsx             # Giriş Noktası
+│   └── ui/              # Buton, modal, bildirim kutuları
+├── context/             # Global durum sağlayıcıları (CartContext, FavoritesContext)
+├── lib/                 # Axios istemcisi, kart doğrulama ve yardımcı araçlar
+├── pages/               # Rota sayfaları (HomePage, ProductsPage, ProductDetailPage, CartPage, CheckoutPage vb.)
+├── types/               # TypeScript arayüz ve tip tanımları
+├── App.tsx              # Uygulama ana gövdesi ve route yapılandırması
+├── index.css            # Global stil ve Tailwind yönergeleri
+└── main.tsx             # Uygulama başlangıç noktası
 ```
 
 ---
 
-## 🛠️ Kurulum ve Çalıştırma
+## Kurulum ve Çalıştırma
 
 ```bash
-# Bağımlılıkları yükle
+# Bağımlılıkları yükleyin
 npm install
 
-# Geliştirme sunucusunu başlat (Port: 5173)
+# Geliştirme sunucusunu başlatın (Port: 5173)
 npm run dev
 
-# Production Build kontrolü
+# Tip denetimi ve üretim derlemesi
 npm run build
 ```
