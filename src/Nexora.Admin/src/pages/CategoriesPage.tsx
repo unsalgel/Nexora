@@ -6,6 +6,8 @@ import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
+import { ToastContainer } from '../components/ui/Toast';
+import type { ToastMessage } from '../components/ui/Toast';
 
 interface CategoryDto {
   id: string;
@@ -17,9 +19,24 @@ interface CategoryDto {
 export const CategoriesPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -29,9 +46,13 @@ export const CategoriesPage: React.FC = () => {
   const [togglingCategoryId, setTogglingCategoryId] = useState<string | null>(null);
 
   const { data: categoriesData, isLoading, refetch } = useQuery<ApiResponse<CategoryDto[]>>({
-    queryKey: ['admin-categories-list'],
+    queryKey: ['admin-categories-list', statusFilter],
     queryFn: async () => {
-      const res = await apiClient.get<ApiResponse<CategoryDto[]>>('/categories');
+      const res = await apiClient.get<ApiResponse<CategoryDto[]>>('/categories', {
+        params: {
+          isActive: statusFilter === 'all' ? undefined : statusFilter === 'active'
+        }
+      });
       return res.data;
     }
   });
@@ -63,6 +84,7 @@ export const CategoriesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
+      showToast('success', editingCategory ? 'Kategori başarıyla güncellendi.' : 'Yeni kategori başarıyla oluşturuldu.');
       closeModal();
     },
     onError: (err: unknown) => {
@@ -81,15 +103,16 @@ export const CategoriesPage: React.FC = () => {
       });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
       setTogglingCategoryId(null);
+      showToast('success', `"${variables.category.name}" kategorisi başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
-      alert(error.response?.data?.message || 'Kategori durumu güncellenirken bir hata oluştu.');
+      showToast('error', error.response?.data?.message || 'Kategori durumu güncellenirken bir hata oluştu.');
       setTogglingCategoryId(null);
     }
   });
@@ -103,11 +126,12 @@ export const CategoriesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
+      showToast('success', 'Kategori başarıyla silindi.');
       setCategoryToDelete(null);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
-      alert(error.response?.data?.message || 'Kategori silinirken bir hata oluştu.');
+      showToast('error', error.response?.data?.message || 'Kategori silinirken bir hata oluştu.');
       setCategoryToDelete(null);
     }
   });
@@ -168,8 +192,8 @@ export const CategoriesPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm">
-        <div className="relative">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -179,6 +203,16 @@ export const CategoriesPage: React.FC = () => {
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
           />
         </div>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+          className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-44 cursor-pointer"
+        >
+          <option value="all">Tüm Kategoriler</option>
+          <option value="active">Sadece Aktifler</option>
+          <option value="inactive">Sadece Pasifler</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
@@ -359,6 +393,8 @@ export const CategoriesPage: React.FC = () => {
         }}
         onClose={() => setCategoryToDelete(null)}
       />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
     </div>
   );

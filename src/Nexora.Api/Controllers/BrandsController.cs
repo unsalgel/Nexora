@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Brands.Dtos;
@@ -15,9 +15,10 @@ public sealed class BrandsController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<BrandDto>>>> GetBrands(
+        [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetBrandsQuery(), cancellationToken);
+        var result = await Sender.Send(new GetBrandsQuery(isActive), cancellationToken);
         return Ok(result);
     }
 

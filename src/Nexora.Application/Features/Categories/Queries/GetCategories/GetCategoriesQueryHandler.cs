@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -18,9 +18,16 @@ public sealed class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQue
 
     public async Task<Result<List<CategoryDto>>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
-        var allCategories = await _context.Categories
+        var query = _context.Categories
             .AsNoTracking()
-            .Where(c => c.IsActive && !c.IsDeleted)
+            .Where(c => !c.IsDeleted);
+
+        if (request.IsActive.HasValue)
+        {
+            query = query.Where(c => c.IsActive == request.IsActive.Value);
+        }
+
+        var allCategories = await query
             .OrderBy(c => c.Name)
             .ToListAsync(cancellationToken);
 

@@ -17,15 +17,34 @@ import type { ApiResponse } from '../lib/apiClient';
 import type { CouponDto, CreateCouponDto } from '../types/coupon';
 import { AxiosError } from 'axios';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { ToggleSwitch } from '../components/ui/ToggleSwitch';
+import { ToastContainer } from '../components/ui/Toast';
+import type { ToastMessage } from '../components/ui/Toast';
 
 export const CouponsPage: React.FC = () => {
   const [coupons, setCoupons] = useState<CouponDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [togglingCouponId, setTogglingCouponId] = useState<string | null>(null);
+
+  const showToast = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const [couponToDelete, setCouponToDelete] = useState<{ id: string; code: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -113,6 +132,24 @@ export const CouponsPage: React.FC = () => {
     }
   };
 
+  const handleToggleCouponStatus = async (coupon: CouponDto, newStatus: boolean) => {
+    try {
+      setTogglingCouponId(coupon.id);
+      const res = await apiClient.put<ApiResponse<string>>(`/coupons/${coupon.id}/status`, newStatus, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.data?.isSuccess) {
+        setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, isActive: newStatus } : c));
+        showToast('success', `"${coupon.code}" kuponu başarıyla ${newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
+      }
+    } catch (err: unknown) {
+      const axiosError = err as AxiosError<ApiResponse<unknown>>;
+      showToast('error', axiosError.response?.data?.message || 'Kupon durumu güncellenirken bir hata oluştu.');
+    } finally {
+      setTogglingCouponId(null);
+    }
+  };
+
   const confirmDeleteCoupon = async () => {
     if (!couponToDelete) return;
 
@@ -121,20 +158,24 @@ export const CouponsPage: React.FC = () => {
       const response = await apiClient.delete<ApiResponse<string>>(`/coupons/${couponToDelete.id}`);
       if (response.data?.isSuccess) {
         setCoupons(prev => prev.filter(c => c.id !== couponToDelete.id));
-        setSuccessMessage(`'${couponToDelete.code}' kuponu silindi.`);
+        showToast('success', `'${couponToDelete.code}' kuponu başarıyla silindi.`);
         setCouponToDelete(null);
       }
     } catch {
-      setErrorMessage('Kupon silinirken bir hata oluştu.');
+      showToast('error', 'Kupon silinirken bir hata oluştu.');
       setCouponToDelete(null);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const filteredCoupons = coupons.filter(c => 
-    c.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCoupons = coupons.filter(c => {
+    const matchesSearch = c.code.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (statusFilter === 'active') return c.isActive;
+    if (statusFilter === 'inactive') return !c.isActive;
+    return true;
+  });
 
   const activeCouponsCount = coupons.filter(c => c.isActive && new Date(c.expirationDateUtc) > new Date()).length;
   const totalUsages = coupons.reduce((sum, c) => sum + c.currentUsageCount, 0);
@@ -226,19 +267,31 @@ export const CouponsPage: React.FC = () => {
 
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
         
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Kupon kodu ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all uppercase"
-            />
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Kupon kodu ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all uppercase"
+              />
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full sm:w-44 cursor-pointer"
+            >
+              <option value="all">Tüm Kuponlar</option>
+              <option value="active">Sadece Aktifler</option>
+              <option value="inactive">Sadece Pasifler</option>
+            </select>
           </div>
 
-          <span className="text-xs font-bold text-slate-400">
+          <span className="text-xs font-bold text-slate-400 shrink-0">
             {filteredCoupons.length} Kupon
           </span>
         </div>
@@ -252,7 +305,7 @@ export const CouponsPage: React.FC = () => {
                 <th className="py-3.5 px-4">Min. Sepet Tutarı</th>
                 <th className="py-3.5 px-4">Kullanım Durumu</th>
                 <th className="py-3.5 px-4">Son Kullanma</th>
-                <th className="py-3.5 px-4">Durum</th>
+                <th className="py-3.5 px-4 text-center">Durum</th>
                 <th className="py-3.5 px-4 text-right">İşlem</th>
               </tr>
             </thead>
@@ -332,24 +385,24 @@ export const CouponsPage: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4">
-                        {isExpired ? (
-                          <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-md font-bold text-[10px]">
-                            Süresi Doldu
-                          </span>
-                        ) : isFull ? (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-md font-bold text-[10px]">
-                            Limit Doldu
-                          </span>
-                        ) : coupon.isActive ? (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md font-bold text-[10px]">
-                            Aktif
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-md font-bold text-[10px]">
-                            Pasif
-                          </span>
-                        )}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <ToggleSwitch
+                            checked={coupon.isActive}
+                            isLoading={togglingCouponId === coupon.id}
+                            onChange={(newVal) => handleToggleCouponStatus(coupon, newVal)}
+                          />
+                          {isExpired && (
+                            <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-bold">
+                              Süresi Doldu
+                            </span>
+                          )}
+                          {!isExpired && isFull && (
+                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-bold">
+                              Doldu
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
@@ -519,6 +572,8 @@ export const CouponsPage: React.FC = () => {
         onConfirm={confirmDeleteCoupon}
         onClose={() => setCouponToDelete(null)}
       />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
     </div>
   );

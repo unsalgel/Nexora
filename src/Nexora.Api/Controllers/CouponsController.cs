@@ -39,6 +39,17 @@ public sealed class CouponsController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:guid}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<string>>> UpdateCouponStatus(
+        Guid id,
+        [FromBody] bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Sender.Send(new Nexora.Application.Features.Coupons.Commands.UpdateCouponStatus.UpdateCouponStatusCommand(id, isActive), cancellationToken);
+        return Ok(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteCoupon(

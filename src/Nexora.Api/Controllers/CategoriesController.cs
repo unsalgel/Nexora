@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Categories.Dtos;
@@ -15,9 +15,10 @@ public sealed class CategoriesController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<CategoryDto>>>> GetCategories(
+        [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetCategoriesQuery(), cancellationToken);
+        var result = await Sender.Send(new GetCategoriesQuery(isActive), cancellationToken);
         return Ok(result);
     }
 

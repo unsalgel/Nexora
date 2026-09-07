@@ -31,13 +31,13 @@ export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
   const getStyles = (type: ToastMessage['type']) => {
     switch (type) {
       case 'success':
-        return 'border-emerald-100 bg-white/95 text-slate-800 shadow-emerald-500/10';
+        return 'border-slate-200/90 bg-white/95 text-slate-800 shadow-lg';
       case 'error':
-        return 'border-rose-100 bg-white/95 text-slate-800 shadow-rose-500/10';
+        return 'border-rose-200/80 bg-white/95 text-slate-800 shadow-lg';
       case 'warning':
-        return 'border-amber-100 bg-white/95 text-slate-800 shadow-amber-500/10';
+        return 'border-amber-200/80 bg-white/95 text-slate-800 shadow-lg';
       default:
-        return 'border-blue-100 bg-white/95 text-slate-800 shadow-blue-500/10';
+        return 'border-slate-200/90 bg-white/95 text-slate-800 shadow-lg';
     }
   };
 
