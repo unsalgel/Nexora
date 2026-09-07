@@ -15,7 +15,7 @@ public sealed class BrandsController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<BrandDto>>>> GetBrands(
-        [FromQuery] bool? isActive = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(new GetBrandsQuery(isActive), cancellationToken);

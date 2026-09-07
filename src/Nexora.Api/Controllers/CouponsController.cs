@@ -13,7 +13,7 @@ public sealed class CouponsController : ApiControllerBase
 {
     [HttpPost("validate")]
     public async Task<ActionResult<Result<CouponValidationResultDto>>> ValidateCoupon(
-        [FromBody] ValidateCouponQuery query, 
+        ValidateCouponQuery query, 
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(query, cancellationToken);
@@ -32,7 +32,7 @@ public sealed class CouponsController : ApiControllerBase
     [HttpPost]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<CouponDto>>> CreateCoupon(
-        [FromBody] CreateCouponCommand command, 
+        CreateCouponCommand command, 
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(command, cancellationToken);
@@ -43,7 +43,7 @@ public sealed class CouponsController : ApiControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> UpdateCouponStatus(
         Guid id,
-        [FromBody] bool isActive,
+        bool isActive,
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(new Nexora.Application.Features.Coupons.Commands.UpdateCouponStatus.UpdateCouponStatusCommand(id, isActive), cancellationToken);

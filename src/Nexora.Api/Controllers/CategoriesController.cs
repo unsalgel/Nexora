@@ -15,7 +15,7 @@ public sealed class CategoriesController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<List<CategoryDto>>>> GetCategories(
-        [FromQuery] bool? isActive = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(new GetCategoriesQuery(isActive), cancellationToken);
