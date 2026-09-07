@@ -7,6 +7,8 @@ import { SearchableSelect } from '../components/ui/SearchableSelect';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
+import { ToastContainer } from '../components/ui/Toast';
+import type { ToastMessage } from '../components/ui/Toast';
 
 interface ProductListItemDto {
   id: string;
@@ -63,6 +65,20 @@ export const ProductsPage: React.FC = () => {
 
   const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null);
   const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
@@ -145,6 +161,7 @@ export const ProductsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      showToast('success', editingProductId ? 'Ürün başarıyla güncellendi.' : 'Yeni ürün başarıyla oluşturuldu.');
       closeModal();
     },
     onError: (err: unknown) => {
@@ -172,14 +189,15 @@ export const ProductsPage: React.FC = () => {
       });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
       setTogglingProductId(null);
+      showToast('success', `"${variables.product.name}" başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
-      alert(error.response?.data?.message || 'Ürün durumu güncellenirken bir hata oluştu.');
+      showToast('error', error.response?.data?.message || 'Ürün durumu güncellenirken bir hata oluştu.');
       setTogglingProductId(null);
     }
   });
@@ -192,11 +210,12 @@ export const ProductsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      showToast('success', 'Ürün başarıyla silindi.');
       setProductToDelete(null);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
-      alert(error.response?.data?.message || 'Ürün silinirken bir hata oluştu.');
+      showToast('error', error.response?.data?.message || 'Ürün silinirken bir hata oluştu.');
       setProductToDelete(null);
     }
   });
@@ -627,6 +646,8 @@ export const ProductsPage: React.FC = () => {
         }}
         onClose={() => setProductToDelete(null)}
       />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
     </div>
   );

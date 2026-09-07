@@ -23,7 +23,7 @@ public sealed class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQ
             .Include(p => p.Category)
             .Include(p => p.Brand)
             .Include(p => p.Images)
-            .FirstOrDefaultAsync(p => p.Id == request.Id && p.IsActive && !p.IsDeleted, cancellationToken)
+            .FirstOrDefaultAsync(p => p.Id == request.Id && !p.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Ürün bulunamadı.");
 
         var imageDtos = product.Images
