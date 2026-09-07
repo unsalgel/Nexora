@@ -14,7 +14,7 @@ export interface CategorySalesPointDto {
 
 export interface OrderStatusDistributionDto {
   status: string;
-  label: string;
+  statusLabel: string;
   count: number;
 }
 

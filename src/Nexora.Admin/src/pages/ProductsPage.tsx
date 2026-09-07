@@ -53,6 +53,7 @@ export const ProductsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [page, setPage] = useState(1);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,7 +75,7 @@ export const ProductsPage: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
 
   const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
-    queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand],
+    queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand, statusFilter],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<ProductListItemDto>>>('/products', {
         params: {
@@ -83,6 +84,7 @@ export const ProductsPage: React.FC = () => {
           searchTerm: searchTerm || undefined,
           categoryId: selectedCategory || undefined,
           brandId: selectedBrand || undefined,
+          isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
         }
       });
       return res.data;
@@ -282,14 +284,27 @@ export const ProductsPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as 'all' | 'active' | 'inactive');
+              setPage(1);
+            }}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-44 cursor-pointer"
+          >
+            <option value="all">Tüm Durumlar (Tümü)</option>
+            <option value="active">Sadece Aktifler</option>
+            <option value="inactive">Sadece Pasifler</option>
+          </select>
+
           <select
             value={selectedCategory}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
               setPage(1);
             }}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-44"
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-40"
           >
             <option value="">Tüm Kategoriler</option>
             {categories.map((c) => (
@@ -303,7 +318,7 @@ export const ProductsPage: React.FC = () => {
               setSelectedBrand(e.target.value);
               setPage(1);
             }}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-40"
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-orange-500 focus:bg-white transition-all w-full md:w-36"
           >
             <option value="">Tüm Markalar</option>
             {brands.map((b) => (

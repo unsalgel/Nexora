@@ -87,9 +87,10 @@ export const ProductsPage: React.FC = () => {
   const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
     queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy],
     queryFn: async () => {
-      const params: Record<string, string | number | undefined> = {
+      const params: Record<string, string | number | boolean | undefined> = {
         page,
         pageSize: 9,
+        isActive: true,
       };
       if (selectedCategoryId !== 'all') params.categoryId = selectedCategoryId;
       if (selectedBrandId !== 'all') params.brandId = selectedBrandId;

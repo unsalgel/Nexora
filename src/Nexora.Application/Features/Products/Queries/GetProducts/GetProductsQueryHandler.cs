@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -19,10 +19,12 @@ public sealed class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, 
     {
         var query = _context.Products
             .AsNoTracking()
-            
-            
-            
-            .Where(p => p.IsActive && !p.IsDeleted);
+            .Where(p => !p.IsDeleted);
+
+        if (request.IsActive.HasValue)
+        {
+            query = query.Where(p => p.IsActive == request.IsActive.Value);
+        }
 
         if (request.CategoryId.HasValue)
             query = query.Where(p => p.CategoryId == request.CategoryId.Value);

@@ -9,4 +9,5 @@ public sealed record GetProductsQuery(
     int PageSize = 20,
     Guid? CategoryId = null,
     Guid? BrandId = null,
-    string? SearchTerm = null) : IRequest<Result<PagedResult<ProductListDto>>>;
+    string? SearchTerm = null,
+    bool? IsActive = null) : IRequest<Result<PagedResult<ProductListDto>>>;
