@@ -6,6 +6,7 @@ using Nexora.Persistence.Context;
 
 namespace Nexora.Persistence;
 
+// Veritabanı ve kalıcılık katmanı bağımlılık enjeksiyonu yapılandırması
 public static class DependencyInjection
 {
     public static IServiceCollection AddPersistence(
@@ -15,7 +16,8 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         services.AddDbContext<NexoraDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<NexoraDbContext>());

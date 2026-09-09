@@ -15,5 +15,9 @@ public sealed class Order : BaseEntity
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
 
+    // Kargo Takip Bilgileri
+    public string? TrackingNumber { get; set; }
+    public string? Carrier { get; set; }
+
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

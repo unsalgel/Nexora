@@ -17,6 +17,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { resolveImageUrl } from '../lib/imageUtils';
 
 interface CategoryDto {
   id: string;
@@ -44,9 +45,10 @@ interface ProductListDto {
 export const ProductsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const urlSearch = searchParams.get('search') || '';
+  const urlCategoryId = searchParams.get('categoryId') || 'all';
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(urlCategoryId);
   const [selectedBrandId, setSelectedBrandId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>(urlSearch);
   const [searchInputValue, setSearchInputValue] = useState<string>(urlSearch);
@@ -63,6 +65,11 @@ export const ProductsPage: React.FC = () => {
     setSearchInputValue(urlSearch);
     setPage(1);
   }, [urlSearch]);
+
+  useEffect(() => {
+    setSelectedCategoryId(urlCategoryId);
+    setPage(1);
+  }, [urlCategoryId]);
 
   const { toggleFavorite: toggleFavStore, isFavorite: checkIsFav } = useFavorites();
   const { addToCart } = useCart();
@@ -385,7 +392,7 @@ export const ProductsPage: React.FC = () => {
                         title: product.name, 
                         price: product.price, 
                         oldPrice: product.price * 1.25, 
-                        image: product.mainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80' 
+                        image: resolveImageUrl(product.mainImageUrl)
                       });
                     }}
                     className="absolute top-3 right-3 z-10 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm transition-all border border-slate-100 active:scale-90"
@@ -396,7 +403,7 @@ export const ProductsPage: React.FC = () => {
 
                   <div className="relative h-56 overflow-hidden bg-slate-50 flex items-center justify-center p-4">
                     <img
-                      src={product.mainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80'}
+                      src={resolveImageUrl(product.mainImageUrl)}
                       alt={product.name}
                       className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />

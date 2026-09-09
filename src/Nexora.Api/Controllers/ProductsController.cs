@@ -17,11 +17,17 @@ public sealed class ProductsController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<PagedResult<ProductListDto>>>> GetProducts(
-        GetProductsQuery query,
+        int page = 1,
+        int pageSize = 20,
+        Guid? categoryId = null,
+        Guid? brandId = null,
+        string? searchTerm = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var safeQuery = IsAdmin ? query : query with { IsActive = true };
-        var result = await Sender.Send(safeQuery, cancellationToken);
+        var filterIsActive = IsAdmin ? isActive : true;
+        var query = new GetProductsQuery(page, pageSize, categoryId, brandId, searchTerm, filterIsActive);
+        var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -64,6 +70,22 @@ public sealed class ProductsController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(new DeleteProductCommand(id), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("images/upload")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<string>>> UploadImage(
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        using var stream = file.OpenReadStream();
+        var command = new Nexora.Application.Features.Products.Commands.UploadProductImage.UploadProductImageCommand(
+            stream,
+            file.FileName,
+            file.ContentType);
+
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 

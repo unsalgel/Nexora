@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -20,12 +20,27 @@ import { useCart } from '../context/CartContext';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { resolveImageUrl } from '../lib/imageUtils';
 
 interface ProductImageDto {
   id: string;
   imageUrl: string;
   isMain: boolean;
   displayOrder: number;
+}
+
+interface ProductVariantAttributeValueDto {
+  attributeName: string;
+  attributeValue: string;
+}
+
+interface ProductVariantDto {
+  id: string;
+  sku: string;
+  price: number;
+  stockQuantity: number;
+  isActive: boolean;
+  attributes: ProductVariantAttributeValueDto[];
 }
 
 interface ProductDto {
@@ -41,6 +56,7 @@ interface ProductDto {
   brandName: string;
   isActive: boolean;
   images: ProductImageDto[];
+  variants?: ProductVariantDto[];
 }
 
 interface ReviewDto {
@@ -113,12 +129,54 @@ export const ProductDetailPage: React.FC = () => {
   });
 
   const product = productData?.data;
+
+  // Son Gezilenler geçmişine kaydet (Trendyol / Hepsiburada mantığı)
+  React.useEffect(() => {
+    if (product) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('nexora_recent_views') || '[]');
+        const filtered = stored.filter((item: { id: string }) => item.id !== product.id);
+        const mainImg = product.images?.find(i => i.isMain)?.imageUrl || product.images?.[0]?.imageUrl || '';
+        const updated = [
+          {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            categoryName: product.categoryName,
+            brandName: product.brandName,
+            mainImageUrl: mainImg
+          },
+          ...filtered
+        ].slice(0, 8);
+        localStorage.setItem('nexora_recent_views', JSON.stringify(updated));
+      } catch {
+        // Safe fail
+      }
+    }
+  }, [product]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
   const reviews = reviewsData?.data?.items || [];
   const isFav = product ? checkIsFavorite(product.id) : false;
 
+  const variants = product?.variants || [];
+  const selectedVariant = variants.find(v => v.id === selectedVariantId) || null;
+
+  // Otomatik ilk aktif varyantı seçme
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariantId) {
+      const firstAvailable = variants.find(v => v.stockQuantity > 0) || variants[0];
+      setSelectedVariantId(firstAvailable.id);
+    }
+  }, [variants, selectedVariantId]);
+
+  const currentPrice = selectedVariant ? selectedVariant.price : (product?.price || 0);
+  const currentStock = selectedVariant ? selectedVariant.stockQuantity : (product?.stockQuantity || 0);
+  const currentSKU = selectedVariant ? selectedVariant.sku : (product?.sku || '');
+
   const handleAddToCart = async () => {
     if (product) {
-      const success = await addToCart(product.id, quantity);
+      const success = await addToCart(product.id, quantity, selectedVariantId || undefined);
       if (success) {
         setIsAddedToCart(true);
         setTimeout(() => setIsAddedToCart(false), 2500);
@@ -156,7 +214,7 @@ export const ProductDetailPage: React.FC = () => {
   const savings = oldPrice - product.price;
 
   const imageUrls = product.images.length > 0 
-    ? product.images.map(img => img.imageUrl) 
+    ? product.images.map(img => resolveImageUrl(img.imageUrl)) 
     : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80'];
 
   const averageRating = reviews.length > 0 
@@ -233,10 +291,17 @@ export const ProductDetailPage: React.FC = () => {
               <span className="bg-orange-50 text-orange-600 border border-orange-100 px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider">
                 {product.brandName}
               </span>
-              <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1">
+              <span className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 ${
+                currentStock > 0 
+                  ? 'bg-slate-100 text-slate-700' 
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+              }`}>
                 <Tag className="w-3.5 h-3.5" />
-                Stok Durumu: {product.stockQuantity > 0 ? `${product.stockQuantity} Adet` : 'Tükendi'}
+                Stok Durumu: {currentStock > 0 ? `${currentStock} Adet Kaldı` : 'Tükendi'}
               </span>
+              {currentSKU && (
+                <span className="text-[11px] text-slate-400 font-mono">SKU: {currentSKU}</span>
+              )}
             </div>
             
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
@@ -258,19 +323,65 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
+          {/* DİNAMİK VARYANT SEÇİMİ (Beden / Numara) */}
+          {variants.length > 0 && (
+            <div className="space-y-3 p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">
+                  {variants[0].attributes[0]?.attributeName || 'Seçenek'}:
+                </span>
+                {selectedVariant && (
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Seçilen: <strong className="text-orange-600">{selectedVariant.attributes.map(a => a.attributeValue).join(' - ')}</strong>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2.5">
+                {variants.map((v) => {
+                  const isSelected = selectedVariantId === v.id;
+                  const isOutOfStock = v.stockQuantity === 0;
+                  const label = v.attributes.map(a => a.attributeValue).join(' ') || v.sku;
+
+                  return (
+                    <button
+                      key={v.id}
+                      disabled={isOutOfStock}
+                      onClick={() => setSelectedVariantId(v.id)}
+                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/25 border-2 border-orange-500 ring-2 ring-orange-500/10'
+                          : isOutOfStock
+                          ? 'bg-slate-100 text-slate-400 border border-dashed border-slate-300 cursor-not-allowed line-through opacity-60'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{label}</span>
+                      {v.stockQuantity > 0 && v.stockQuantity <= 5 && !isSelected && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] px-1.5 py-0.2 rounded-full">
+                          Son {v.stockQuantity}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="border-t border-slate-200/80" />
 
           {/* Fiyat Kartı */}
           <div className="p-5 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-2xl sm:text-3xl font-bold text-slate-900">
-                {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                {currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
               </span>
               <span className="text-slate-400 line-through text-xs sm:text-sm font-medium">
-                {oldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                {(currentPrice * 1.25).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
               </span>
               <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
-                Kazancınız: {savings.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                Kazancınız: {(currentPrice * 0.25).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
               </span>
             </div>
           </div>
@@ -280,7 +391,7 @@ export const ProductDetailPage: React.FC = () => {
             <div className="flex items-center border border-slate-200 rounded-2xl bg-white p-1 self-start sm:self-auto shrink-0 shadow-sm">
               <button 
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors"
+                className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer"
               >
                 <Minus className="w-4 h-4" />
               </button>
@@ -288,8 +399,9 @@ export const ProductDetailPage: React.FC = () => {
                 {quantity}
               </span>
               <button 
-                onClick={() => setQuantity(q => q + 1)}
-                className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors"
+                onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
+                disabled={quantity >= currentStock}
+                className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer disabled:opacity-40"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -298,15 +410,15 @@ export const ProductDetailPage: React.FC = () => {
             <div className="flex-1 flex gap-3">
               <button
                 onClick={handleAddToCart}
-                disabled={product.stockQuantity === 0}
-                className={`flex-1 py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 ${
+                disabled={currentStock === 0}
+                className={`flex-1 py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   isAddedToCart 
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/10'
                     : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'
                 }`}
               >
                 <ShoppingBag className="w-4 h-4" />
-                <span>{isAddedToCart ? 'Sepete Eklendi!' : 'Sepete Ekle'}</span>
+                <span>{currentStock === 0 ? 'Tükendi' : isAddedToCart ? 'Sepete Eklendi!' : 'Sepete Ekle'}</span>
               </button>
             </div>
           </div>

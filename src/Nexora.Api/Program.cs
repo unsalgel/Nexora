@@ -161,6 +161,8 @@ app.UseCors("AllowAll");
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
+app.UseStaticFiles();
+
 app.UseRateLimiter();
 
 app.UseAuthentication();
@@ -172,6 +174,7 @@ try
 {
     Log.Information("Veritabanı kontrol ediliyor ve tohumlanıyor...");
     await DatabaseSeeder.SeedAsync(app);
+    await VariantSeeder.SeedVariantsAsync(app);
 
     Log.Information("Nexora API Başlatılıyor...");
     app.Run();

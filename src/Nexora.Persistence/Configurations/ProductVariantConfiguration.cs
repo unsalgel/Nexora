@@ -34,7 +34,7 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
             .HasDefaultValue(false);
 
         builder.HasOne(pv => pv.Product)
-            .WithMany()
+            .WithMany(p => p.Variants)
             .HasForeignKey(pv => pv.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
     }

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -18,8 +18,17 @@ import {
   Clock,
   CheckCircle2,
   Truck,
-  XCircle
+  XCircle,
+  ExternalLink,
+  Copy,
+  Check,
+  X,
+  Star
 } from 'lucide-react';
+import type { AddressDto } from '../types/address';
+import { TURKEY_CITIES } from '../data/turkeyLocations';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
+
 
 interface OrderItemDto {
   id: string;
@@ -42,6 +51,8 @@ interface OrderDto {
   paymentStatus: string;
   createdAtUtc: string;
   items: OrderItemDto[];
+  trackingNumber?: string | null;
+  carrier?: string | null;
 }
 
 export const ProfilePage: React.FC = () => {
@@ -63,6 +74,24 @@ export const ProfilePage: React.FC = () => {
 
   const [orders, setOrders] = useState<OrderDto[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Adres Yönetimi State'leri
+  const [addresses, setAddresses] = useState<AddressDto[]>([]);
+  const [isAddressesLoading, setIsAddressesLoading] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    title: '',
+    fullName: '',
+    phoneNumber: '',
+    city: '',
+    district: '',
+    detailedAddress: '',
+    postalCode: '',
+    isDefault: false
+  });
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -85,6 +114,10 @@ export const ProfilePage: React.FC = () => {
           lastName: claims.lastName,
           email: claims.email
         });
+        setNewAddress((prev) => ({
+          ...prev,
+          fullName: `${claims.firstName} ${claims.lastName}`.trim()
+        }));
       }
     } else {
       navigate('/login');
@@ -108,16 +141,89 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const fetchAddresses = async () => {
+    setIsAddressesLoading(true);
+    try {
+      const response = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');
+      if (response.data?.isSuccess && response.data.data) {
+        setAddresses(response.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsAddressesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'orders' && localStorage.getItem('accessToken')) {
       fetchOrders();
+    } else if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
+      fetchAddresses();
     }
   }, [activeTab]);
+
+  const handleCreateAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddressError(null);
+    if (!newAddress.title || !newAddress.fullName || !newAddress.phoneNumber || !newAddress.city || !newAddress.district || !newAddress.detailedAddress) {
+      setAddressError('Lütfen zorunlu alanları eksiksiz doldurun.');
+      return;
+    }
+
+    setIsSavingAddress(true);
+    try {
+      const res = await apiClient.post<ApiResponse<AddressDto>>('/addresses', newAddress);
+      if (res.data?.isSuccess) {
+        setIsAddressModalOpen(false);
+        setNewAddress({
+          title: '',
+          fullName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : '',
+          phoneNumber: '',
+          city: '',
+          district: '',
+          detailedAddress: '',
+          postalCode: '',
+          isDefault: false
+        });
+        await fetchAddresses();
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      setAddressError('Adres kaydedilirken bir hata oluştu.');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addressId: string) => {
+    try {
+      await apiClient.delete(`/addresses/${addressId}`);
+      await fetchAddresses();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addressId: string) => {
+    try {
+      await apiClient.put(`/addresses/${addressId}/default`);
+      await fetchAddresses();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     navigate('/login');
+  };
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const getStatusStepIndex = (status: string) => {
@@ -331,7 +437,7 @@ export const ProfilePage: React.FC = () => {
                       </div>
 
                       {!isCancelled ? (
-                        <div className="py-3 px-2">
+                        <div className="py-3 px-2 space-y-4">
                           <div className="grid grid-cols-4 relative">
                             <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 h-1 bg-slate-100 z-0" />
                             <div 
@@ -363,6 +469,54 @@ export const ProfilePage: React.FC = () => {
                               );
                             })}
                           </div>
+
+                          {/* Kargo Takip Kartı */}
+                          {order.trackingNumber && (
+                            <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/70 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shadow-blue-500/30 shrink-0">
+                                  <Truck className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-900">
+                                      {order.carrier || 'Kargo Firması'}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800">
+                                      Yolda
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-600">
+                                    <span>Takip No:</span>
+                                    <strong className="font-mono text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-blue-200/80">
+                                      {order.trackingNumber}
+                                    </strong>
+                                    <button
+                                      onClick={() => handleCopy(order.trackingNumber!)}
+                                      className="p-1 hover:bg-blue-100/60 rounded-md text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                                      title="Takip Kodu Kopyala"
+                                    >
+                                      {copiedCode === order.trackingNumber ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <a
+                                href={`https://www.google.com/search?q=${encodeURIComponent((order.carrier || 'kargo') + ' takip ' + order.trackingNumber)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white hover:bg-blue-600 text-blue-700 hover:text-white rounded-xl text-xs font-bold transition-all shadow-2xs border border-blue-200 cursor-pointer self-start sm:self-auto"
+                              >
+                                <span>Kargom Nerede</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2">
@@ -465,28 +619,95 @@ export const ProfilePage: React.FC = () => {
           )}
 
           {activeTab === 'addresses' && (
-            <div className="space-y-4 animate-in fade-in-50">
-              <div className="flex justify-between items-center">
-                <h2 className="text-base font-bold text-slate-900">Kayıtlı Adreslerim</h2>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-xl text-xs font-bold hover:bg-orange-500 hover:text-white transition-all cursor-pointer">
+            <div className="space-y-5 animate-in fade-in-50">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Kayıtlı Adreslerim</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    Siparişlerinizde hızlı teslimat için kayıtlı adreslerinizi yönetin
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsAddressModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+                >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Yeni Adres Ekle</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="border border-orange-200 bg-orange-50/20 rounded-2xl p-4 space-y-2 relative">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-orange-600" /> Ev Adresim
-                    </span>
-                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">Varsayılan</span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Atatürk Mah. Cumhuriyet Cad. No: 12 Daire: 4, Kadıköy / İstanbul
-                  </p>
+              {isAddressesLoading ? (
+                <div className="flex justify-center items-center py-16">
+                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                 </div>
-              </div>
+              ) : addresses.length === 0 ? (
+                <div className="bg-white rounded-3xl p-16 border border-slate-200/80 text-center space-y-3">
+                  <MapPin className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-xs text-slate-500 font-semibold">Henüz kayıtlı bir adresiniz bulunmamaktadır.</p>
+                  <button
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="mt-2 px-5 py-2.5 bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs hover:bg-orange-600 transition-all cursor-pointer"
+                  >
+                    Hemen Adres Ekle
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {addresses.map((addr) => (
+                    <div 
+                      key={addr.id}
+                      className={`rounded-3xl p-5 border transition-all relative flex flex-col justify-between space-y-3 ${
+                        addr.isDefault 
+                          ? 'border-orange-300 bg-orange-50/20 shadow-xs' 
+                          : 'border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-orange-500" /> {addr.title}
+                          </span>
+                          {addr.isDefault && (
+                            <span className="text-[10px] bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1">
+                              <Star className="w-3 h-3 fill-orange-500 text-orange-500" /> Varsayılan
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-xs font-semibold text-slate-800">
+                          {addr.fullName} • <span className="text-slate-500 font-mono">{addr.phoneNumber}</span>
+                        </div>
+
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                          {addr.detailedAddress}
+                        </p>
+
+                        <div className="text-[11px] font-bold text-slate-500">
+                          {addr.district} / {addr.city} {addr.postalCode ? `(${addr.postalCode})` : ''}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        {!addr.isDefault ? (
+                          <button
+                            onClick={() => handleSetDefaultAddress(addr.id)}
+                            className="text-slate-500 hover:text-orange-600 font-semibold text-[11px] cursor-pointer"
+                          >
+                            Varsayılan Yap
+                          </button>
+                        ) : <div />}
+
+                        <button
+                          onClick={() => handleDeleteAddress(addr.id)}
+                          className="text-rose-500 hover:text-rose-700 font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" /> Sil
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -527,7 +748,155 @@ export const ProfilePage: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* Yeni Adres Ekleme Modalı */}
+      {isAddressModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">Yeni Teslimat Adresi</h2>
+              </div>
+              <button
+                onClick={() => setIsAddressModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addressError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
+                {addressError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAddress} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Adres Başlığı *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Örn: Evim, İş Yeri, Yazlık"
+                    value={newAddress.title}
+                    onChange={(e) => setNewAddress({ ...newAddress, title: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Teslim Alacak Kişi (Ad Soyad) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Örn: Ahmet Yılmaz"
+                    value={newAddress.fullName}
+                    onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Telefon Numarası *</label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={11}
+                    placeholder="05XXXXXXXXX"
+                    value={newAddress.phoneNumber}
+                    onChange={(e) => setNewAddress({ ...newAddress, phoneNumber: e.target.value.replace(/\D/g, '') })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Posta Kodu</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    placeholder="Örn: 34710"
+                    value={newAddress.postalCode}
+                    onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <SearchableSelect
+                    label="İl *"
+                    required
+                    placeholder="İl Seçiniz..."
+                    options={TURKEY_CITIES.map((c) => c.name)}
+                    value={newAddress.city}
+                    onChange={(val) => setNewAddress({ ...newAddress, city: val, district: '' })}
+                  />
+                </div>
+
+                <div>
+                  <SearchableSelect
+                    label="İlçe *"
+                    required
+                    disabled={!newAddress.city}
+                    placeholder="İlçe Seçiniz..."
+                    options={TURKEY_CITIES.find((c) => c.name === newAddress.city)?.districts || []}
+                    value={newAddress.district}
+                    onChange={(val) => setNewAddress({ ...newAddress, district: val })}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Açık Adres (Cadde, Mahalle, Kapı No, Daire) *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Paketin sorunsuz teslim edilmesi için detaylı açık adresinizi giriniz..."
+                    value={newAddress.detailedAddress}
+                    onChange={(e) => setNewAddress({ ...newAddress, detailedAddress: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all leading-relaxed"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="isDefault"
+                    checked={newAddress.isDefault}
+                    onChange={(e) => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
+                    className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
+                  />
+                  <label htmlFor="isDefault" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                    Bu adresi varsayılan teslimat adresim olarak kaydet
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingAddress}
+                  className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {isSavingAddress ? 'Kaydediliyor...' : 'Adresi Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-

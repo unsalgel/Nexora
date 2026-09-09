@@ -48,6 +48,37 @@ public sealed class UpdateProductCommandHandler : IRequestHandler<UpdateProductC
         product.BrandId = request.BrandId;
         product.IsActive = request.IsActive;
 
+        if (!string.IsNullOrWhiteSpace(request.MainImageUrl))
+        {
+            var existingImages = await _context.ProductImages
+                .Where(pi => pi.ProductId == product.Id)
+                .ToListAsync(cancellationToken);
+
+            var matchedImage = existingImages.FirstOrDefault(pi => pi.ImageUrl == request.MainImageUrl);
+            if (matchedImage != null)
+            {
+                foreach (var img in existingImages)
+                {
+                    img.IsMain = (img.Id == matchedImage.Id);
+                }
+            }
+            else
+            {
+                foreach (var img in existingImages)
+                {
+                    img.IsMain = false;
+                }
+
+                _context.ProductImages.Add(new Nexora.Domain.Entities.ProductImage
+                {
+                    ProductId = product.Id,
+                    ImageUrl = request.MainImageUrl,
+                    IsMain = true,
+                    DisplayOrder = 0
+                });
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result<string>.Success("Ürün başarıyla güncellendi.");

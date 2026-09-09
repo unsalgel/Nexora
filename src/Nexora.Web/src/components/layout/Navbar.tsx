@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { decodeJwt } from '../../lib/jwt';
+import { apiClient } from '../../lib/apiClient';
+import type { ApiResponse } from '../../lib/apiClient';
+import { useQuery } from '@tanstack/react-query';
 import { NotificationDropdown } from './NotificationDropdown';
 import { 
   Search, 
@@ -29,16 +32,16 @@ export const Navbar: React.FC = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const categories = [
-    'Elektronik', 
-    'Moda & Giyim', 
-    'Ev, Yaşam & Mobilya', 
-    'Kozmetik & Kişisel Bakım', 
-    'Spor & Outdoor', 
-    'Anne, Bebek & Oyuncak', 
-    'Süpermarket', 
-    'Kitap & Kırtasiye'
-  ];
+  const { data: categoriesData } = useQuery<ApiResponse<{ id: string; name: string }[]>>({
+    queryKey: ['navbar-categories'],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<{ id: string; name: string }[]>>('/categories');
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 10
+  });
+
+  const categories = categoriesData?.data || [];
 
   const token = localStorage.getItem('accessToken');
   const isLoggedIn = !!token;
@@ -254,13 +257,13 @@ export const Navbar: React.FC = () => {
               <Layers className="w-4 h-4" />
               Tüm Kategoriler
             </li>
-            {categories.map((cat, idx) => (
+            {categories.map((cat) => (
               <li
-                key={idx}
-                onClick={() => navigate('/products')}
+                key={cat.id}
+                onClick={() => navigate(`/products?categoryId=${cat.id}`)}
                 className="hover:text-orange-600 cursor-pointer whitespace-nowrap transition-colors shrink-0"
               >
-                {cat}
+                {cat.name}
               </li>
             ))}
           </ul>
@@ -281,14 +284,14 @@ export const Navbar: React.FC = () => {
         <div className="md:hidden bg-white border-t border-slate-200 px-4 py-4 space-y-3 shadow-lg">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kategoriler</p>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {categories.map((cat, idx) => (
+            {categories.map((cat) => (
               <Link
-                key={idx}
-                to="/products"
+                key={cat.id}
+                to={`/products?categoryId=${cat.id}`}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 bg-slate-50 rounded-lg text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium text-xs"
+                className="p-2 bg-slate-50 rounded-lg text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium text-xs truncate"
               >
-                {cat}
+                {cat.name}
               </Link>
             ))}
           </div>

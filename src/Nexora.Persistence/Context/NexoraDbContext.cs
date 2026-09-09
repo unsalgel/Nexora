@@ -30,6 +30,7 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

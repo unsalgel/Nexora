@@ -10,4 +10,5 @@ public sealed record CreateProductCommand(
     decimal Price,
     int StockQuantity,
     Guid CategoryId,
-    Guid BrandId) : IRequest<Result<Guid>>;
+    Guid BrandId,
+    List<string>? ImageUrls = null) : IRequest<Result<Guid>>;

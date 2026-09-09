@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2, ImagePlus } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
@@ -89,6 +89,45 @@ export const ProductsPage: React.FC = () => {
   const [brandId, setBrandId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'Görsel boyutu 5 MB\'dan küçük olmalıdır.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsUploadingImage(true);
+    try {
+      const res = await apiClient.post<ApiResponse<string>>('/products/images/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data?.isSuccess && res.data.data) {
+        setImageUrl(res.data.data);
+        showToast('success', 'Görsel başarıyla yüklendi.');
+      } else {
+        showToast('error', res.data?.message || 'Görsel yüklenemedi.');
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      showToast('error', error.response?.data?.message || 'Görsel sunucuya yüklenirken hata oluştu.');
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
     queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand, statusFilter],
@@ -142,6 +181,7 @@ export const ProductsPage: React.FC = () => {
           categoryId,
           brandId,
           isActive,
+          mainImageUrl: imageUrl || null
         });
         return res.data;
       } else {
@@ -380,9 +420,12 @@ export const ProductsPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
                           <img
-                            src={product.mainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
+                            src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `http://localhost:5285${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
                             alt={product.name}
                             className="max-h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
+                            }}
                           />
                         </div>
                         <div className="min-w-0">
@@ -575,14 +618,85 @@ export const ProductsPage: React.FC = () => {
                   />
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Görsel URL</label>
+                    <label className="text-xs font-semibold text-slate-700">Ürün Görseli</label>
                     <input
-                      type="url"
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp"
+                      onChange={handleFileUpload}
+                      className="hidden"
                     />
+
+                    {imageUrl ? (
+                      <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center gap-3 group">
+                        <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 flex items-center justify-center">
+                          <img
+                            src={imageUrl.startsWith('http') ? imageUrl : `http://localhost:5285${imageUrl}`}
+                            alt="Önizleme"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-slate-800 block truncate">Görsel Yüklendi</span>
+                          <span className="text-[10px] text-emerald-600 font-medium">Yayında kullanılmaya hazır</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploadingImage}
+                            className="px-2 py-1 bg-white border border-slate-200 hover:border-orange-500 hover:text-orange-600 rounded-lg text-[10px] font-bold text-slate-600 transition-colors cursor-pointer"
+                          >
+                            Değiştir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImageUrl('')}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Görseli Kaldır"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) {
+                            const fakeEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                            handleFileUpload(fakeEvent);
+                          }
+                        }}
+                        className="border-2 border-dashed border-slate-200 hover:border-orange-500 bg-slate-50/70 hover:bg-orange-50/30 rounded-2xl p-3 text-center cursor-pointer transition-all flex items-center justify-center gap-2 group"
+                      >
+                        {isUploadingImage ? (
+                          <div className="flex items-center gap-2 text-orange-600 text-xs font-semibold">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Yükleniyor...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-7 h-7 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-orange-500 group-hover:border-orange-200 transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-orange-600 block transition-colors">
+                                Görsel Seç veya Sürükle
+                              </span>
+                              <span className="text-[10px] text-slate-400 block">PNG, JPG, WEBP (Maks 5MB)</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

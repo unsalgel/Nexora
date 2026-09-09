@@ -46,7 +46,9 @@ public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery
                 i.VariantSKU,
                 i.UnitPrice,
                 i.Quantity,
-                i.TotalPrice)).ToList());
+                i.TotalPrice)).ToList(),
+            order.TrackingNumber,
+            order.Carrier);
 
         return Result<OrderDto>.Success(dto);
     }

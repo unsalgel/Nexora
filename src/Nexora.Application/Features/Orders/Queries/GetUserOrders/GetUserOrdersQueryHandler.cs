@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -50,7 +50,9 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
                 i.VariantSKU,
                 i.UnitPrice,
                 i.Quantity,
-                i.TotalPrice)).ToList()
+                i.TotalPrice)).ToList(),
+            o.TrackingNumber,
+            o.Carrier
         )).ToList();
 
         var pagedResult = new PagedResult<OrderDto>(dtos, page, pageSize, totalCount);

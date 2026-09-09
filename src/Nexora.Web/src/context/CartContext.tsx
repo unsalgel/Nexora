@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
@@ -27,7 +27,7 @@ export interface Cart {
 interface CartContextType {
   cart: Cart | null;
   isLoading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<boolean>;
+  addToCart: (productId: string, quantity?: number, productVariantId?: string) => Promise<boolean>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => Promise<boolean>;
   clearCart: () => Promise<boolean>;
@@ -67,7 +67,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshCart();
   }, []);
 
-  const addToCart = async (productId: string, quantity: number = 1): Promise<boolean> => {
+  const addToCart = async (productId: string, quantity: number = 1, productVariantId?: string): Promise<boolean> => {
     if (!isLoggedIn()) {
       warning('Ürünü sepete eklemek için lütfen önce giriş yapın.');
       return false;
@@ -76,7 +76,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post<ApiResponse<string>>('/cart/items', {
         productId,
-        quantity
+        quantity,
+        productVariantId: productVariantId || null
       });
       if (response.data?.isSuccess) {
         await refreshCart();

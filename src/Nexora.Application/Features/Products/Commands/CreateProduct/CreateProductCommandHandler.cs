@@ -50,6 +50,27 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
         };
 
         _context.Products.Add(product);
+
+        if (request.ImageUrls != null && request.ImageUrls.Count > 0)
+        {
+            var isFirst = true;
+            for (var i = 0; i < request.ImageUrls.Count; i++)
+            {
+                var url = request.ImageUrls[i];
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    _context.ProductImages.Add(new ProductImage
+                    {
+                        ProductId = product.Id,
+                        ImageUrl = url.Trim(),
+                        IsMain = isFirst,
+                        DisplayOrder = i
+                    });
+                    isFirst = false;
+                }
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result<Guid>.Success(product.Id, "Ürün başarıyla oluşturuldu.");

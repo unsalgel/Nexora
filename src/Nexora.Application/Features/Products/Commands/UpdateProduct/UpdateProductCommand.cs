@@ -12,4 +12,5 @@ public sealed record UpdateProductCommand(
     int StockQuantity,
     Guid CategoryId,
     Guid BrandId,
-    bool IsActive) : IRequest<Result<string>>;
+    bool IsActive,
+    string? MainImageUrl = null) : IRequest<Result<string>>;

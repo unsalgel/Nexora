@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -67,7 +67,9 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
                     i.VariantSKU,
                     i.UnitPrice,
                     i.Quantity,
-                    i.TotalPrice)).ToList()
+                    i.TotalPrice)).ToList(),
+                o.TrackingNumber,
+                o.Carrier
             ))
             .ToListAsync(cancellationToken);
 

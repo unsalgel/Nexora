@@ -18,4 +18,5 @@ public sealed class Product : BaseEntity
     public bool IsDeleted { get; set; } = false;
 
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
+    public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
 }

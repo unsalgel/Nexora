@@ -1,8 +1,9 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { useToast } from './ToastContext';
+import { resolveImageUrl } from '../lib/imageUtils';
 
 export interface ProductItem {
   id: string;
@@ -55,7 +56,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           title: fav.productName,
           price: fav.productPrice,
           oldPrice: fav.productPrice * 1.25,
-          image: fav.productMainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'
+          image: resolveImageUrl(fav.productMainImageUrl)
         }));
         setFavorites(items);
       }

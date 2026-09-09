@@ -7,6 +7,7 @@ import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 import type { CouponValidationResultDto } from '../types/coupon';
 import type { AxiosError } from 'axios';
+import { resolveImageUrl } from '../lib/imageUtils';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export const CartPage: React.FC = () => {
               <div className="flex items-start gap-4 flex-1 min-w-0">
                 <Link to={`/products/${item.productId}`} className="w-20 h-20 rounded-xl bg-slate-50 border border-slate-100 p-2 shrink-0 flex items-center justify-center hover:opacity-85 transition-opacity">
                   <img 
-                    src={item.productImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'} 
+                    src={resolveImageUrl(item.productImageUrl)} 
                     alt={item.productName} 
                     className="max-h-full object-contain" 
                   />

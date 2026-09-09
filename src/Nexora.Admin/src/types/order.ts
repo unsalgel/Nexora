@@ -22,5 +22,6 @@ export interface AdminOrderDto {
   createdAtUtc: string;
   totalItemCount: number;
   items: OrderItemDto[];
+  trackingNumber?: string | null;
+  carrier?: string | null;
 }
-

@@ -12,4 +12,5 @@ public sealed record ProductDto(
     Guid BrandId,
     string BrandName,
     bool IsActive,
-    List<ProductImageDto> Images);
+    List<ProductImageDto> Images,
+    List<ProductVariantDto>? Variants = null);

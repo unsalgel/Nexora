@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<ILoginAttemptService, LoginAttemptService>();
         services.AddScoped<ICacheService, RedisCacheService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
         return services;
     }

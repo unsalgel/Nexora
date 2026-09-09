@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { resolveImageUrl } from '../lib/imageUtils';
 import { 
   ShoppingBag, 
   Heart, 
@@ -109,27 +110,66 @@ export const HomePage: React.FC = () => {
 
   const dbProducts = productsData?.data?.items || [];
 
-  const recentlyViewed = dbProducts.slice(0, 4).map((p, idx) => ({
+  // 1. Gerçek Son Gezilenler (localStorage) - Yalnızca veritabanında hala aktif olanlar gösterilir
+  const [localRecentViews, setLocalRecentViews] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('nexora_recent_views') || '[]');
+      if (Array.isArray(stored) && stored.length > 0) {
+        // Eğer veritabanı ürün listesi geldiyse, silinmiş/pasife alınmış olanları eliyoruz
+        if (dbProducts.length > 0) {
+          const activeIds = new Set(dbProducts.map(p => p.id));
+          const validViews = stored.filter((p: any) => activeIds.has(p.id));
+          
+          if (validViews.length !== stored.length) {
+            localStorage.setItem('nexora_recent_views', JSON.stringify(validViews));
+          }
+          setLocalRecentViews(validViews);
+        } else {
+          setLocalRecentViews(stored);
+        }
+      }
+    } catch {
+      // Safe fallback
+    }
+  }, [dbProducts]);
+
+  const recentlyViewed: HomeProductItem[] = localRecentViews.map((p, idx) => ({
     id: p.id,
-    title: p.name,
+    title: p.name || p.title,
     price: p.price,
-    oldPrice: p.price * 1.25,
-    rating: 4.7 + (idx * 0.1),
-    reviews: 120 + (idx * 15),
-    imageUrl: p.mainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80',
-    badge: idx % 2 === 0 ? 'AVANTAJLI' : 'SÜPER FİYAT',
-    coupon: idx % 2 === 0 ? 'Ek 200 TL Kupon' : 'Peşin Fiyatına Taksit'
+    oldPrice: p.price * 1.15,
+    rating: 4.8,
+    reviews: 142 + idx * 8,
+    imageUrl: resolveImageUrl(p.mainImageUrl || p.image || p.imageUrl),
+    badge: 'SON GEZDİĞİN',
+    coupon: 'Hızlı Teslimat'
   }));
 
-  const personalizedOffers = dbProducts.slice(4, 8).map((p, idx) => ({
+  // 2. Çok Satanlar / Flaş Fırsatlar (Katalogdaki popüler ürünler)
+  const bestSellers: HomeProductItem[] = dbProducts.slice(0, 4).map((p, idx) => ({
     id: p.id,
     title: p.name,
     price: p.price,
     oldPrice: p.price * 1.25,
-    rating: 4.5 + (idx * 0.1),
-    reviews: 80 + (idx * 12),
-    imageUrl: p.mainImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80',
-    badge: idx % 2 === 0 ? 'FIRSAT' : 'SANA ÖZEL',
+    rating: 4.9,
+    reviews: 320 + idx * 24,
+    imageUrl: resolveImageUrl(p.mainImageUrl),
+    badge: 'ÇOK SATAN',
+    coupon: 'Kupon Fırsatı'
+  }));
+
+  // 3. Sana Özel Seçilenler
+  const personalizedOffers: HomeProductItem[] = dbProducts.slice(4, 8).map((p, idx) => ({
+    id: p.id,
+    title: p.name,
+    price: p.price,
+    oldPrice: p.price * 1.2,
+    rating: 4.7,
+    reviews: 89 + idx * 11,
+    imageUrl: resolveImageUrl(p.mainImageUrl),
+    badge: 'SANA ÖZEL',
     coupon: 'Kargo Bedava'
   }));
 
@@ -142,8 +182,8 @@ export const HomePage: React.FC = () => {
           className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden card-shadow flex flex-col justify-between relative group"
         >
           {product.badge && (
-            <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black tracking-wider px-2 py-0.5 rounded-md shadow-sm uppercase">
-              ★ {product.badge}
+            <div className="absolute top-3 left-3 z-10 bg-slate-900 text-white text-[9px] font-black tracking-wider px-2 py-0.5 rounded-md shadow-sm uppercase">
+              {product.badge}
             </div>
           )}
 
@@ -207,7 +247,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="space-y-10 pb-16">
       
-      {/* Popüler Kategoriler */}
+      {/* 1. Popüler Kategoriler (Trendyol Stili Dairesel İkonlar) */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">Popüler Kategorileri Keşfet</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
@@ -231,54 +271,19 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Banner Reklam Vitrinleri */}
-      <section className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl p-8 sm:p-10 text-white flex flex-col justify-between min-h-[220px] shadow-lg shadow-orange-500/10 relative overflow-hidden group">
-          <div className="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
-          <div className="space-y-3 z-10">
-            <span className="bg-white/20 text-white text-[10px] font-extrabold tracking-wider px-3 py-1.5 rounded-lg uppercase">
-              MEGA İNDİRİM GÜNLERİ
-            </span>
-            <h3 className="text-xl sm:text-2xl font-bold tracking-tight max-w-md leading-tight">
-              Teknoloji & Modada %50'ye Varan İndirimler!
-            </h3>
-          </div>
-          <Link
-            to="/products"
-            className="self-start px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-colors z-10"
-          >
-            <span>Fırsatları Keşfet</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="md:col-span-4 bg-slate-900 rounded-3xl p-8 text-white flex flex-col justify-between min-h-[220px] shadow-lg relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl" />
-          <div className="space-y-3 z-10">
-            <span className="text-orange-400 text-[10px] font-extrabold tracking-wider block uppercase">
-              GÜNÜN FIRSATI
-            </span>
-            <h3 className="text-lg font-bold tracking-tight max-w-xs leading-snug">
-              Kablosuz Ses Sistemlerinde Özel Fiyatlar
-            </h3>
-          </div>
-          <Link
-            to="/products"
-            className="self-start px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-colors z-10"
-          >
-            <span>Hemen İncele</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Son Gezilen Ürünler (API) */}
-      {recentlyViewed.length > 0 && (
-        <section className="space-y-4">
+      {/* 2. Son Gezdiğin Ürünler (Yalnızca gerçekten gezilmiş ürün varsa gösterilir - Trendyol/Amazon Mantığı) */}
+      {localRecentViews.length > 0 && (
+        <section className="space-y-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-2xs animate-in fade-in duration-300">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Son Gezdiğin Ürünler</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-6 bg-orange-500 rounded-full" />
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Son Gezdiğin Ürünler</h2>
+                <p className="text-xs text-slate-500">İncelediğiniz ürünleri kaldığınız yerden takip edin</p>
+              </div>
+            </div>
             <Link to="/products" className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1">
-              <span>Tümünü Gör</span>
+              <span>Tüm Kataloğu İncele</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -286,11 +291,35 @@ export const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* Sana Özel Öneriler (API) */}
+      {/* 3. Çok Satan Fırsat Ürünleri (Hepsiburada / Trendyol Çok Satanlar) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-6 bg-amber-500 rounded-full" />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Günün Çok Satanları</h2>
+              <p className="text-xs text-slate-500">Kullanıcıların bu hafta en çok sipariş verdiği popüler ürünler</p>
+            </div>
+          </div>
+          <Link to="/products" className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1">
+            <span>Tümünü Gör</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        {renderProductGrid(bestSellers)}
+      </section>
+
+      {/* 4. Sana Özel Öneriler */}
       {personalizedOffers.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sana Özel Öneriler</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-6 bg-rose-500 rounded-full" />
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sana Özel Seçilenler</h2>
+                <p className="text-xs text-slate-500">Zevkine ve ilgine göre listelenen avantajlı modeller</p>
+              </div>
+            </div>
             <Link to="/products" className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1">
               <span>Tümünü Gör</span>
               <ChevronRight className="w-3.5 h-3.5" />

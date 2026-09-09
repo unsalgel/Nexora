@@ -40,6 +40,16 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         var oldStatus = order.Status;
         order.Status = request.NewStatus;
 
+        if (!string.IsNullOrWhiteSpace(request.TrackingNumber))
+        {
+            order.TrackingNumber = request.TrackingNumber.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Carrier))
+        {
+            order.Carrier = request.Carrier.Trim();
+        }
+
         if (request.NewStatus == OrderStatus.Cancelled && oldStatus != OrderStatus.Cancelled)
         {
             foreach (var item in order.Items)
@@ -55,11 +65,17 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             }
         }
 
+        var notificationMessage = $"{order.OrderNumber} numaralı siparişinizin durumu '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.";
+        if (request.NewStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(order.TrackingNumber))
+        {
+            notificationMessage += $" Kargo Firması: {order.Carrier ?? "Belirtilmedi"}, Takip No: {order.TrackingNumber}";
+        }
+
         _context.Notifications.Add(new DomainEntities.Notification
         {
             UserId = order.UserId,
             Title = "Sipariş Durumu Güncellendi",
-            Message = $"{order.OrderNumber} numaralı siparişinizin durumu '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.",
+            Message = notificationMessage,
             Type = NotificationType.OrderStatusUpdated,
             IsRead = false
         });

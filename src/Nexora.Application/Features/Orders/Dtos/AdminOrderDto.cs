@@ -1,4 +1,4 @@
-﻿namespace Nexora.Application.Features.Orders.Dtos;
+namespace Nexora.Application.Features.Orders.Dtos;
 
 public sealed record AdminOrderDto(
     Guid Id,
@@ -12,5 +12,8 @@ public sealed record AdminOrderDto(
     string PaymentStatus,
     DateTime CreatedAtUtc,
     int TotalItemCount,
-    List<OrderItemDto> Items);
+    List<OrderItemDto> Items,
+    string? TrackingNumber = null,
+    string? Carrier = null);
+
 

@@ -8,7 +8,9 @@ import type { CouponValidationResultDto } from '../types/coupon';
 import { TURKEY_CITIES } from '../data/turkeyLocations';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { validateLuhn, getCardBrand } from '../lib/cardValidation';
-import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle, Tag } from 'lucide-react';
+import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle, Tag, Plus, Check } from 'lucide-react';
+import type { AddressDto } from '../types/address';
+import { resolveImageUrl } from '../lib/imageUtils';
 
 interface OrderDto {
   id: string;
@@ -23,6 +25,11 @@ export const CheckoutPage: React.FC = () => {
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
+
+  // Kayıtlı Adresler
+  const [savedAddresses, setSavedAddresses] = useState<AddressDto[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | 'custom'>('custom');
+  const [isNewAddressFormOpen, setIsNewAddressFormOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -42,6 +49,34 @@ export const CheckoutPage: React.FC = () => {
     district: '',
     fullAddress: ''
   });
+
+  useEffect(() => {
+    const fetchUserAddresses = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      try {
+        const res = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');
+        if (res.data?.isSuccess && res.data.data && res.data.data.length > 0) {
+          const list = res.data.data;
+          setSavedAddresses(list);
+          const defaultAddr = list.find((a) => a.isDefault) || list[0];
+          setSelectedAddressId(defaultAddr.id);
+          setAddress({
+            fullName: defaultAddr.fullName,
+            phone: defaultAddr.phoneNumber,
+            city: defaultAddr.city,
+            district: defaultAddr.district,
+            fullAddress: defaultAddr.detailedAddress
+          });
+        } else {
+          setIsNewAddressFormOpen(true);
+        }
+      } catch {
+        setIsNewAddressFormOpen(true);
+      }
+    };
+    fetchUserAddresses();
+  }, []);
 
   const [card, setCard] = useState({
     number: '',
@@ -247,88 +282,174 @@ export const CheckoutPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-8 space-y-6">
           {step === 1 && (
-            <form onSubmit={handleNextStep} className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 space-y-6 shadow-xs">
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-orange-500" />
-                <span>Teslimat Adresi</span>
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Ad Soyad *</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={100}
-                    placeholder="Örn: Ahmet Yılmaz"
-                    value={address.fullName}
-                    onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                    className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Telefon Numarası *</label>
-                  <input
-                    type="tel"
-                    required
-                    maxLength={11}
-                    placeholder="05XXXXXXXXX"
-                    value={address.phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold font-mono focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <SearchableSelect
-                    label="İl"
-                    required
-                    placeholder="İl Seçiniz..."
-                    options={allCityNames}
-                    value={address.city}
-                    onChange={(val) => {
-                      setAddress({ ...address, city: val, district: '' });
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  <span>Teslimat Adresi Seçimi</span>
+                </h2>
+                {savedAddresses.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNewAddressFormOpen(!isNewAddressFormOpen);
+                      if (!isNewAddressFormOpen) {
+                        setSelectedAddressId('custom');
+                        setAddress({
+                          fullName: '',
+                          phone: '',
+                          city: '',
+                          district: '',
+                          fullAddress: ''
+                        });
+                      }
                     }}
-                  />
-                </div>
-
-                <div>
-                  <SearchableSelect
-                    label="İlçe"
-                    required
-                    disabled={!address.city}
-                    placeholder="İlçe Seçiniz..."
-                    options={availableDistricts}
-                    value={address.district}
-                    onChange={(val) => {
-                      setAddress({ ...address, district: val });
-                    }}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Açık Adres (Cadde, Mahalle, Sokak, No, Daire) *</label>
-                  <textarea
-                    rows={3}
-                    required
-                    maxLength={500}
-                    placeholder="Kargo görevlisinin paketi kolayca ulaştırabilmesi için detaylı adresinizi giriniz..."
-                    value={address.fullAddress}
-                    onChange={(e) => setAddress({ ...address, fullAddress: e.target.value })}
-                    className="w-full bg-slate-50/80 border border-slate-200 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:border-orange-500 focus:bg-white transition-all leading-relaxed"
-                  />
-                </div>
+                    className="flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{isNewAddressFormOpen ? 'Kayıtlı Adreslerime Dön' : 'Yeni Adres Gir'}</span>
+                  </button>
+                )}
               </div>
 
+              {/* Kayıtlı Adres Seçim Kartları */}
+              {savedAddresses.length > 0 && !isNewAddressFormOpen && (
+                <div className="space-y-4">
+                  <label className="text-xs font-bold text-slate-700 block">Kayıtlı Adreslerinizden Seçin:</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {savedAddresses.map((addr) => {
+                      const isSelected = selectedAddressId === addr.id;
+                      return (
+                        <div
+                          key={addr.id}
+                          onClick={() => {
+                            setSelectedAddressId(addr.id);
+                            setAddress({
+                              fullName: addr.fullName,
+                              phone: addr.phoneNumber,
+                              city: addr.city,
+                              district: addr.district,
+                              fullAddress: addr.detailedAddress
+                            });
+                          }}
+                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between space-y-2 ${
+                            isSelected
+                              ? 'border-orange-500 bg-orange-50/20 shadow-xs ring-2 ring-orange-500/10'
+                              : 'border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <MapPin className={`w-3.5 h-3.5 ${isSelected ? 'text-orange-600' : 'text-slate-400'}`} />
+                              {addr.title}
+                            </span>
+                            {isSelected && (
+                              <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px]">
+                                <Check className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-800">
+                            {addr.fullName} • <span className="text-slate-500 font-mono text-[11px]">{addr.phoneNumber}</span>
+                          </div>
+
+                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                            {addr.detailedAddress}
+                          </p>
+
+                          <div className="text-[11px] font-bold text-slate-400">
+                            {addr.district} / {addr.city}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Yeni / Manuel Adres Girişi */}
+              {(isNewAddressFormOpen || savedAddresses.length === 0) && (
+                <div className="space-y-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Ad Soyad *</label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={100}
+                        placeholder="Örn: Ahmet Yılmaz"
+                        value={address.fullName}
+                        onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+                        className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Telefon Numarası *</label>
+                      <input
+                        type="tel"
+                        required
+                        maxLength={11}
+                        placeholder="05XXXXXXXXX"
+                        value={address.phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold font-mono focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <SearchableSelect
+                        label="İl"
+                        required
+                        placeholder="İl Seçiniz..."
+                        options={allCityNames}
+                        value={address.city}
+                        onChange={(val) => {
+                          setAddress({ ...address, city: val, district: '' });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <SearchableSelect
+                        label="İlçe"
+                        required
+                        disabled={!address.city}
+                        placeholder="İlçe Seçiniz..."
+                        options={availableDistricts}
+                        value={address.district}
+                        onChange={(val) => {
+                          setAddress({ ...address, district: val });
+                        }}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Açık Adres (Cadde, Mahalle, Sokak, No, Daire) *</label>
+                      <textarea
+                        rows={3}
+                        required
+                        maxLength={500}
+                        placeholder="Kargo görevlisinin paketi kolayca ulaştırabilmesi için detaylı adresinizi giriniz..."
+                        value={address.fullAddress}
+                        onChange={(e) => setAddress({ ...address, fullAddress: e.target.value })}
+                        className="w-full bg-slate-50/80 border border-slate-200 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:border-orange-500 focus:bg-white transition-all leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
-                type="submit"
+                type="button"
+                onClick={handleNextStep}
                 className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
               >
                 <span>Ödeme Adımına Geç</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            </form>
+            </div>
           )}
 
           {step === 2 && (
@@ -480,7 +601,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
                       <img
-                        src={item.productImageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
+                        src={resolveImageUrl(item.productImageUrl)}
                         alt={item.productName}
                         className="max-h-full object-contain"
                       />
