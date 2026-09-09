@@ -21,4 +21,6 @@ public abstract class ApiControllerBase : ControllerBase
         }
         return userId;
     }
+
+    protected bool IsAdmin => User.IsInRole("Admin");
 }

@@ -18,7 +18,8 @@ public sealed class CategoriesController : ApiControllerBase
         bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetCategoriesQuery(isActive), cancellationToken);
+        var filterIsActive = IsAdmin ? isActive : true;
+        var result = await Sender.Send(new GetCategoriesQuery(filterIsActive), cancellationToken);
         return Ok(result);
     }
 

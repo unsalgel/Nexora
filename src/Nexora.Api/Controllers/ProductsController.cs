@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Products.Commands.AddProductImage;
@@ -17,10 +17,11 @@ public sealed class ProductsController : ApiControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<Result<PagedResult<ProductListDto>>>> GetProducts(
-        [FromQuery] GetProductsQuery query,
+        GetProductsQuery query,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(query, cancellationToken);
+        var safeQuery = IsAdmin ? query : query with { IsActive = true };
+        var result = await Sender.Send(safeQuery, cancellationToken);
         return Ok(result);
     }
 

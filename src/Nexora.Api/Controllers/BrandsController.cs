@@ -18,7 +18,8 @@ public sealed class BrandsController : ApiControllerBase
         bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetBrandsQuery(isActive), cancellationToken);
+        var filterIsActive = IsAdmin ? isActive : true;
+        var result = await Sender.Send(new GetBrandsQuery(filterIsActive), cancellationToken);
         return Ok(result);
     }
 
