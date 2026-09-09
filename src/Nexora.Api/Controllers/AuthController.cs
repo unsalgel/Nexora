@@ -27,7 +27,9 @@ public sealed class AuthController : ApiControllerBase
         LoginCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var safeCommand = command with { IpAddress = clientIp };
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 

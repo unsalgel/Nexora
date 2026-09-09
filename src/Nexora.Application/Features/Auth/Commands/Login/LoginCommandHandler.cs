@@ -42,11 +42,12 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
-            await _loginAttemptService.RecordFailedAttemptAsync(request.Email, cancellationToken);
+            await _loginAttemptService.RecordFailedAttemptAsync(request.Email, request.IpAddress, cancellationToken);
             throw new UnauthorizedException("E-posta adresi veya şifre hatalı.");
         }
 
-        await _loginAttemptService.ResetAttemptsAsync(request.Email, cancellationToken);
+        var failedAttemptsList = await _loginAttemptService.ResetAndGetAttemptsAsync(request.Email, cancellationToken) 
+            ?? new List<FailedLoginAttemptDto>();
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         var accessToken = _jwtProvider.GenerateAccessToken(user, roles);
@@ -66,7 +67,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         var tokenDto = new AuthTokenDto(
             accessToken,
             refreshTokenValue,
-            refreshToken.ExpiresAtUtc);
+            refreshToken.ExpiresAtUtc,
+            failedAttemptsList.Count,
+            failedAttemptsList);
 
         return Result<AuthTokenDto>.Success(tokenDto, "Giriş başarılı.");
     }

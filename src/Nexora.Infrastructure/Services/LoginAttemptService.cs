@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
 using Nexora.Application.Abstractions;
+using Nexora.Application.Features.Auth.Dtos;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Infrastructure.Services;
@@ -18,6 +19,7 @@ public sealed class LoginAttemptService : ILoginAttemptService
     {
         public int FailedCount { get; set; }
         public DateTime? LockedUntilUtc { get; set; }
+        public List<FailedLoginAttemptDto> Details { get; set; } = new();
     }
 
     private static string GetCacheKey(string email) => $"login_attempt:{email.Trim().ToLowerInvariant()}";
@@ -55,14 +57,14 @@ public sealed class LoginAttemptService : ILoginAttemptService
                 }
 
                 throw new TooManyRequestsException(
-                    $"Çok fazla başarısız şifre denemesi yaptınız. Güvenliğiniz için lütfen {timeStr} sonra tekrar deneyiniz.");
+                    $"Güvenliğiniz nedeniyle hesabınız geçici olarak korumaya alınmıştır. Lütfen {timeStr} sonra tekrar deneyiniz.");
             }
         }
 
         return Task.CompletedTask;
     }
 
-    public Task RecordFailedAttemptAsync(string email, CancellationToken cancellationToken = default)
+    public Task RecordFailedAttemptAsync(string email, string? ipAddress, CancellationToken cancellationToken = default)
     {
         var key = GetCacheKey(email);
 
@@ -74,6 +76,7 @@ public sealed class LoginAttemptService : ILoginAttemptService
             }
 
             state.FailedCount++;
+            state.Details.Add(new FailedLoginAttemptDto(DateTime.UtcNow, ipAddress));
 
             // Kademeli Katlamalı (Exponential) Kilitleme Mantığı:
             // 1-4 deneme: Uyarı verilir, kilitlenmez
@@ -104,10 +107,21 @@ public sealed class LoginAttemptService : ILoginAttemptService
         return Task.CompletedTask;
     }
 
-    public Task ResetAttemptsAsync(string email, CancellationToken cancellationToken = default)
+    public Task<List<FailedLoginAttemptDto>> ResetAndGetAttemptsAsync(string email, CancellationToken cancellationToken = default)
     {
         var key = GetCacheKey(email);
-        _memoryCache.Remove(key);
-        return Task.CompletedTask;
+        List<FailedLoginAttemptDto> attempts = new();
+
+        lock (Lock)
+        {
+            if (_memoryCache.TryGetValue<AttemptState>(key, out var state) && state != null)
+            {
+                attempts = new List<FailedLoginAttemptDto>(state.Details);
+            }
+
+            _memoryCache.Remove(key);
+        }
+
+        return Task.FromResult(attempts);
     }
 }

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
@@ -41,9 +41,16 @@ export const LoginPage: React.FC = () => {
         });
 
         if (response.data?.isSuccess) {
-          const { accessToken, refreshToken } = response.data.data;
+          const { accessToken, refreshToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
+
+          if (failedLoginAttempts && failedLoginAttempts > 0) {
+            sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({
+              failedCount: failedLoginAttempts,
+              details: failedAttemptDetails || []
+            }));
+          }
           
           await refreshFavorites();
           await refreshCart();
@@ -134,12 +141,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {errorMessage && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-700 text-xs font-semibold animate-in fade-in-50">
-              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
+
 
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in-50">
@@ -204,8 +206,12 @@ export const LoginPage: React.FC = () => {
                       required
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+                      onChange={(e) => { setPassword(e.target.value); setErrorMessage(null); }}
+                      className={`w-full bg-slate-50 border rounded-xl pl-11 pr-11 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-4 transition-all ${
+                        errorMessage 
+                          ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/15' 
+                          : 'border-slate-200 focus:border-orange-500 focus:ring-orange-500/15'
+                      }`}
                     />
                     <button
                       type="button"
@@ -215,6 +221,12 @@ export const LoginPage: React.FC = () => {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {errorMessage && (
+                    <div className="flex items-center gap-1.5 pt-1 text-rose-600 text-xs font-semibold animate-in fade-in-50">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
                 </div>
 
                 <button

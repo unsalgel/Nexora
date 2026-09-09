@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
@@ -6,9 +6,16 @@ import { AxiosError } from 'axios';
 import { decodeAdminJwt } from '../lib/jwt';
 import type { ApiResponse } from '../lib/apiClient';
 
+interface FailedLoginAttemptInfo {
+  attemptedAtUtc: string;
+  ipAddress?: string;
+}
+
 interface LoginResponseData {
   accessToken: string;
   refreshToken: string;
+  failedLoginAttempts?: number;
+  failedAttemptDetails?: FailedLoginAttemptInfo[];
 }
 
 export const AdminLoginPage: React.FC = () => {
@@ -31,12 +38,20 @@ export const AdminLoginPage: React.FC = () => {
       });
 
       if (response.data?.isSuccess && response.data.data) {
-        const { accessToken, refreshToken } = response.data.data;
+        const { accessToken, refreshToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
         const claims = decodeAdminJwt(accessToken);
 
         if (claims?.roles.includes('Admin')) {
           localStorage.setItem('adminAccessToken', accessToken);
           localStorage.setItem('adminRefreshToken', refreshToken);
+
+          if (failedLoginAttempts && failedLoginAttempts > 0) {
+            sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({
+              failedCount: failedLoginAttempts,
+              details: failedAttemptDetails || []
+            }));
+          }
+
           navigate('/');
         } else {
           setErrorMsg('Bu panele yalnızca Admin yetkisine sahip yöneticiler erişebilir.');
@@ -46,7 +61,8 @@ export const AdminLoginPage: React.FC = () => {
       }
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string; errors?: string[] }>;
-      setErrorMsg(error.response?.data?.message || 'Giriş bilgileri hatalı veya sunucuya ulaşılamıyor.');
+      const serverMessage = error.response?.data?.message;
+      setErrorMsg(serverMessage || 'E-posta adresi veya şifre hatalı.');
     } finally {
       setIsLoading(false);
     }
@@ -85,13 +101,6 @@ export const AdminLoginPage: React.FC = () => {
             </div>
           </div>
 
-          {errorMsg && (
-            <div className="bg-rose-50 border border-rose-300 text-rose-800 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-800">Yönetici E-Postası</label>
@@ -101,9 +110,13 @@ export const AdminLoginPage: React.FC = () => {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setErrorMsg(''); }}
                   placeholder="admin@nexora.com"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className={`w-full bg-slate-50 border rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all ${
+                    errorMsg 
+                      ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/15' 
+                      : 'border-slate-300 focus:border-orange-500 focus:ring-orange-500/20'
+                  }`}
                 />
               </div>
             </div>
@@ -116,9 +129,13 @@ export const AdminLoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setErrorMsg(''); }}
                   placeholder="••••••••"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className={`w-full bg-slate-50 border rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 transition-all ${
+                    errorMsg 
+                      ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/15' 
+                      : 'border-slate-300 focus:border-orange-500 focus:ring-orange-500/20'
+                  }`}
                 />
                 <button
                   type="button"
@@ -132,6 +149,12 @@ export const AdminLoginPage: React.FC = () => {
                   )}
                 </button>
               </div>
+              {errorMsg && (
+                <div className="flex items-center gap-1.5 pt-1 text-rose-600 text-xs font-semibold animate-in fade-in-50">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
             </div>
 
             <button

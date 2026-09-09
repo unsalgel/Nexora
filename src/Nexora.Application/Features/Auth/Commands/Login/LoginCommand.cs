@@ -6,4 +6,5 @@ namespace Nexora.Application.Features.Auth.Commands.Login;
 
 public sealed record LoginCommand(
     string Email,
-    string Password) : IRequest<Result<AuthTokenDto>>;
+    string Password,
+    string? IpAddress = null) : IRequest<Result<AuthTokenDto>>;
