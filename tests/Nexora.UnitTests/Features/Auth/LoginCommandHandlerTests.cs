@@ -14,6 +14,7 @@ public sealed class LoginCommandHandlerTests : IDisposable
     private readonly NexoraDbContext _context;
     private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly Mock<IJwtProvider> _jwtProviderMock;
+    private readonly Mock<ILoginAttemptService> _loginAttemptServiceMock;
     private readonly LoginCommandHandler _handler;
 
     public LoginCommandHandlerTests()
@@ -21,11 +22,13 @@ public sealed class LoginCommandHandlerTests : IDisposable
         _context = TestDbContextFactory.Create();
         _passwordHasherMock = new Mock<IPasswordHasher>();
         _jwtProviderMock = new Mock<IJwtProvider>();
+        _loginAttemptServiceMock = new Mock<ILoginAttemptService>();
 
         _handler = new LoginCommandHandler(
             _context,
             _passwordHasherMock.Object,
-            _jwtProviderMock.Object);
+            _jwtProviderMock.Object,
+            _loginAttemptServiceMock.Object);
     }
 
     public void Dispose()

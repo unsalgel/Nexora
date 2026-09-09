@@ -13,19 +13,24 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
+    private readonly ILoginAttemptService _loginAttemptService;
 
     public LoginCommandHandler(
         IApplicationDbContext context,
         IPasswordHasher passwordHasher,
-        IJwtProvider jwtProvider)
+        IJwtProvider jwtProvider,
+        ILoginAttemptService loginAttemptService)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
+        _loginAttemptService = loginAttemptService;
     }
 
     public async Task<Result<AuthTokenDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
+        await _loginAttemptService.CheckAttemptAsync(request.Email, cancellationToken);
+
         var user = await _context.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -36,7 +41,12 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
             throw new UnauthorizedException("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            await _loginAttemptService.RecordFailedAttemptAsync(request.Email, cancellationToken);
             throw new UnauthorizedException("E-posta adresi veya şifre hatalı.");
+        }
+
+        await _loginAttemptService.ResetAttemptsAsync(request.Email, cancellationToken);
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         var accessToken = _jwtProvider.GenerateAccessToken(user, roles);

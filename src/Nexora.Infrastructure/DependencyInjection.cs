@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nexora.Application.Abstractions;
 using Nexora.Infrastructure.Authentication;
@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(redisConnectionString));
 
+        services.AddMemoryCache();
+        services.AddSingleton<ILoginAttemptService, LoginAttemptService>();
         services.AddScoped<ICacheService, RedisCacheService>();
 
         return services;

@@ -107,7 +107,7 @@ builder.Services.AddRateLimiter(options =>
                 clientIp,
                 _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                 {
-                    PermitLimit = 5,
+                    PermitLimit = 20,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0
                 });
