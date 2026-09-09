@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2, ImagePlus } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';

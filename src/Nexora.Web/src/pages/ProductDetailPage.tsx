@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -211,7 +211,6 @@ export const ProductDetailPage: React.FC = () => {
 
   const discountText = "%25 İndirim";
   const oldPrice = product.price * 1.25;
-  const savings = oldPrice - product.price;
 
   const imageUrls = product.images.length > 0 
     ? product.images.map(img => resolveImageUrl(img.imageUrl)) 

@@ -26,34 +26,32 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var orders = await query
-            .Include(o => o.Items)
+        var dtos = await query
             .OrderByDescending(o => o.CreatedAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(o => new OrderDto(
+                o.Id,
+                o.OrderNumber,
+                o.UserId,
+                o.ShippingAddress,
+                o.TotalAmount,
+                o.Status.ToString(),
+                o.PaymentStatus.ToString(),
+                o.CreatedAtUtc,
+                o.Items.Select(i => new OrderItemDto(
+                    i.Id,
+                    i.ProductId,
+                    i.ProductName,
+                    i.ProductVariantId,
+                    i.VariantSKU,
+                    i.UnitPrice,
+                    i.Quantity,
+                    i.TotalPrice)).ToList(),
+                o.TrackingNumber,
+                o.Carrier
+            ))
             .ToListAsync(cancellationToken);
-
-        var dtos = orders.Select(o => new OrderDto(
-            o.Id,
-            o.OrderNumber,
-            o.UserId,
-            o.ShippingAddress,
-            o.TotalAmount,
-            o.Status.ToString(),
-            o.PaymentStatus.ToString(),
-            o.CreatedAtUtc,
-            o.Items.Select(i => new OrderItemDto(
-                i.Id,
-                i.ProductId,
-                i.ProductName,
-                i.ProductVariantId,
-                i.VariantSKU,
-                i.UnitPrice,
-                i.Quantity,
-                i.TotalPrice)).ToList(),
-            o.TrackingNumber,
-            o.Carrier
-        )).ToList();
 
         var pagedResult = new PagedResult<OrderDto>(dtos, page, pageSize, totalCount);
 

@@ -31,12 +31,14 @@ public sealed class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQue
             .OrderBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
+        var nameLookup = allCategories.ToDictionary(c => c.Id, c => c.Name);
+
         var dtos = allCategories.Select(c => new CategoryDto(
             c.Id,
             c.Name,
             c.Description,
             c.ParentCategoryId,
-            allCategories.FirstOrDefault(p => p.Id == c.ParentCategoryId)?.Name,
+            c.ParentCategoryId.HasValue && nameLookup.TryGetValue(c.ParentCategoryId.Value, out var parentName) ? parentName : null,
             c.IsActive,
             new List<CategoryDto>()))
             .ToList();

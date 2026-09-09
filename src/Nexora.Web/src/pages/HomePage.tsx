@@ -10,7 +10,6 @@ import {
   ShoppingBag, 
   Heart, 
   Star, 
-  ArrowRight, 
   Laptop,
   Shirt,
   Home,
@@ -39,6 +38,16 @@ interface HomeProductItem {
   imageUrl: string;
   badge?: string;
   coupon?: string;
+}
+
+interface RecentViewItem {
+  id: string;
+  name?: string;
+  title?: string;
+  price: number;
+  mainImageUrl?: string;
+  image?: string;
+  imageUrl?: string;
 }
 
 interface ProductDto {
@@ -111,7 +120,7 @@ export const HomePage: React.FC = () => {
   const dbProducts = productsData?.data?.items || [];
 
   // 1. Gerçek Son Gezilenler (localStorage) - Yalnızca veritabanında hala aktif olanlar gösterilir
-  const [localRecentViews, setLocalRecentViews] = useState<any[]>([]);
+  const [localRecentViews, setLocalRecentViews] = useState<RecentViewItem[]>([]);
 
   React.useEffect(() => {
     try {
@@ -120,7 +129,7 @@ export const HomePage: React.FC = () => {
         // Eğer veritabanı ürün listesi geldiyse, silinmiş/pasife alınmış olanları eliyoruz
         if (dbProducts.length > 0) {
           const activeIds = new Set(dbProducts.map(p => p.id));
-          const validViews = stored.filter((p: any) => activeIds.has(p.id));
+          const validViews = stored.filter((p: RecentViewItem) => activeIds.has(p.id));
           
           if (validViews.length !== stored.length) {
             localStorage.setItem('nexora_recent_views', JSON.stringify(validViews));
@@ -137,7 +146,7 @@ export const HomePage: React.FC = () => {
 
   const recentlyViewed: HomeProductItem[] = localRecentViews.map((p, idx) => ({
     id: p.id,
-    title: p.name || p.title,
+    title: p.name || p.title || 'Ürün',
     price: p.price,
     oldPrice: p.price * 1.15,
     rating: 4.8,

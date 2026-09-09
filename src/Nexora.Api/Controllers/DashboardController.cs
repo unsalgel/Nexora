@@ -11,7 +11,7 @@ public sealed class DashboardController : ApiControllerBase
 {
     [HttpGet("analytics")]
     public async Task<ActionResult<Result<SalesAnalyticsDto>>> GetSalesAnalytics(
-        [FromQuery] int days = 30,
+        int days = 30,
         CancellationToken cancellationToken = default)
     {
         var query = new GetSalesAnalyticsQuery(days);

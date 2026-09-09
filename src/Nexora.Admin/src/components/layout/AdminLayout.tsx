@@ -10,13 +10,9 @@ import {
   LogOut, 
   ExternalLink,
   ShieldCheck,
-  ShieldAlert,
-  Check,
   Store,
   Menu, 
-  X,
-  Clock,
-  Globe
+  X
 } from 'lucide-react';
 import { decodeAdminJwt } from '../../lib/jwt';
 
@@ -32,6 +28,7 @@ interface SecurityNoticeData {
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [securityNotice, setSecurityNotice] = useState<SecurityNoticeData | null>(() => {
     const stored = sessionStorage.getItem('pendingSecurityNotice');

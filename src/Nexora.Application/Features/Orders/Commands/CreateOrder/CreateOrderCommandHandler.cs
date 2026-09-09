@@ -131,7 +131,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         }
 
         var grandTotal = Math.Max(0, rawTotal - discountAmount);
-        var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+        var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
 
         var isPaymentSuccessful = await _paymentService.ProcessPaymentAsync(grandTotal, request.PaymentInfo, cancellationToken);
 
