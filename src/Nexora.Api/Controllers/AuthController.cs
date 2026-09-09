@@ -49,7 +49,9 @@ public sealed class AuthController : ApiControllerBase
         RevokeTokenCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var jti = command.Jti ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+        var commandWithJti = command with { Jti = jti };
+        var result = await Sender.Send(commandWithJti, cancellationToken);
         return Ok(result);
     }
 }

@@ -9,10 +9,12 @@ namespace Nexora.Application.Features.Auth.Commands.RevokeToken;
 public sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCommand, Result<string>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ITokenBlacklistService _blacklistService;
 
-    public RevokeTokenCommandHandler(IApplicationDbContext context)
+    public RevokeTokenCommandHandler(IApplicationDbContext context, ITokenBlacklistService blacklistService)
     {
         _context = context;
+        _blacklistService = blacklistService;
     }
 
     public async Task<Result<string>> Handle(RevokeTokenCommand request, CancellationToken cancellationToken)
@@ -21,11 +23,17 @@ public sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenComma
             .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, cancellationToken)
             ?? throw new NotFoundException("Refresh token bulunamadı.");
 
-        if (refreshToken.IsRevoked)
-            return Result<string>.Success("Oturum zaten kapatılmıştır.");
+        if (!refreshToken.IsRevoked)
+        {
+            refreshToken.IsRevoked = true;
+            await _context.SaveChangesAsync(cancellationToken);
+        }
 
-        refreshToken.IsRevoked = true;
-        await _context.SaveChangesAsync(cancellationToken);
+        // Eğer mevcut access token'ın JTI'ı iletilmişse, anında kara listeye al (kalan ömrü kadar - max 60 dk)
+        if (!string.IsNullOrWhiteSpace(request.Jti))
+        {
+            await _blacklistService.RevokeTokenAsync(request.Jti, TimeSpan.FromMinutes(60), cancellationToken);
+        }
 
         return Result<string>.Success("Oturum başarıyla kapatıldı.");
     }

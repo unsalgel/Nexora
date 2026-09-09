@@ -76,9 +76,24 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.Zero,
         ValidIssuer = jwtSettings?.Issuer,
         ValidAudience = jwtSettings?.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SecretKey ?? string.Empty))
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var blacklistService = context.HttpContext.RequestServices.GetRequiredService<Nexora.Application.Abstractions.ITokenBlacklistService>();
+            var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+
+            if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenRevokedAsync(jti, context.HttpContext.RequestAborted))
+            {
+                context.Fail("Bu oturum veya erişim anahtarı sonlandırılmıştır.");
+            }
+        }
     };
 });
 
