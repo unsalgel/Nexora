@@ -1,4 +1,6 @@
-﻿using Nexora.Api;
+using Microsoft.AspNetCore.RateLimiting;
+using Nexora.Api;
+using Nexora.Application.Common;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -54,12 +56,11 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Katman Servislerinin Tanıtılması (Composition Root)
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 
-// JWT Bearer Kimlik Doğrulama Ayarları
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
 
 builder.Services.AddAuthentication(options =>
@@ -83,6 +84,38 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+
+// Brute-force Koruması İçin Hız Sınırlaması (Rate Limiting - Global IP Bazlı)
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        var response = Result<string>.Failure(
+            "Çok fazla başarısız veya ardışık istekte bulundunuz. Lütfen 1 dakika sonra tekrar deneyiniz.");
+        await context.HttpContext.Response.WriteAsJsonAsync(response, cancellationToken: token);
+    };
+
+    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        if (httpContext.Request.Path.StartsWithSegments("/api/auth"))
+        {
+            var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
+            return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                clientIp,
+                _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+        }
+
+        return System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("unlimited");
+    });
+});
 
 // Swagger Yapılandırması (JWT Yetkilendirme Butonu ile)
 builder.Services.AddSwaggerGen(c =>
@@ -127,6 +160,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
