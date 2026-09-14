@@ -71,8 +71,6 @@ public sealed class AiChatService : IAiChatService
                 maxOutputTokens = 800
             }
         };
-
-        // Otomatik Yeniden Deneme (Retry): Google sunucusu 503 veya geçici aşırı yoğunluk verdiğinde 1s bekleyip tekrar dener
         const int maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -95,8 +93,6 @@ public sealed class AiChatService : IAiChatService
                     var statusCode = (int)response.StatusCode;
                     var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
                     _logger.LogWarning("Gemini API hata döndürdü. Deneme: {Attempt}/{MaxAttempts}, Durum: {StatusCode}, Hata: {Error}", attempt, maxAttempts, statusCode, errorContent);
-
-                    // 503 Service Unavailable veya 429 Too Many Requests durumunda kısa bekleme ve tekrar deneme
                     if ((statusCode == 503 || statusCode == 429 || statusCode >= 500) && attempt < maxAttempts)
                     {
                         await Task.Delay(1000 * attempt, cancellationToken);

@@ -25,17 +25,13 @@ export const useChat = (options?: UseChatOptions) => {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {
-      // Hata durumunda varsayılana dön
     }
     return INITIAL_MESSAGES;
   });
-
-  // Mesajlar değiştikçe localStorage'a kaydet
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {
-      // Depolama hatasını sessizce yoksay
     }
   }, [messages]);
 
@@ -45,7 +41,6 @@ export const useChat = (options?: UseChatOptions) => {
       return chatService.sendMessage({ message: userMessage, history });
     },
     onSuccess: (data) => {
-      // Mesaj frontend state'e eklendiği AN bildirim sesini çal (senkron)
       try {
         options?.onMessageReceived?.();
       } catch {}

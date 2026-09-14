@@ -60,8 +60,6 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         {
             return aiReply;
         }
-
-        // Yanıtta adı geçen ürünleri tespit et
         var mentionedProducts = products
             .Where(p => aiReply.Contains(p.Name, StringComparison.OrdinalIgnoreCase) ||
                         p.Name.Split(' ').Any(word => word.Length > 3 && aiReply.Contains(word, StringComparison.OrdinalIgnoreCase)))

@@ -9,24 +9,16 @@ interface FormatterOptions {
   onAddToCart?: (productId: string) => Promise<boolean>;
   addingProductId?: string | null;
 }
-
-// Hızlı öneri soruları (Quick Chips)
 const QUICK_SUGGESTIONS = [
   { label: '🔥 Popüler Ürünler', prompt: 'Mağazanızdaki en popüler ve çok satan ürünleri listeler misin?' },
   { label: '⌚ Akıllı Saatler', prompt: 'Akıllı saat modelleriniz nelerdir?' },
   { label: '🚚 Kargo Süresi', prompt: 'Siparişler ne zaman kargoya verilir ve kargo ücreti ne kadar?' },
   { label: '🔄 İade Koşulları', prompt: 'İade ve değişim süreciniz nasıl işliyor?' },
-];
-
-/**
- * AI yanıtlarındaki **kalın**, [Link Metni](/url) ve [PRODUCT_CARD|ID|AD|FIYAT|RESIM] kalıplarını zengin UI'a dönüştürür.
- */
-const renderFormattedContent = (content: string, options: FormatterOptions) => {
+];const renderFormattedContent = (content: string, options: FormatterOptions) => {
   const tokenRegex = /(\*\*.*?\*\*|\[.*?\]\(.*?\)|\[PRODUCT_CARD\|.*?\|.*?\|.*?\|.*?\])/g;
   const parts = content.split(tokenRegex);
 
   return parts.map((part, index) => {
-    // 1. Ürün Kartı: [PRODUCT_CARD|ID|URUN_ADI|FIYAT|RESIM_URL]
     const cardMatch = part.match(/^\[PRODUCT_CARD\|(.*?)\|(.*?)\|(.*?)\|(.*?)\]$/);
     if (cardMatch) {
       const [, id, title, price, rawImageUrl] = cardMatch;
@@ -39,7 +31,6 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
           key={index}
           className="my-3 p-2.5 bg-white rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all flex items-center gap-2.5 group w-full"
         >
-          {/* Ürün Görseli (Güvenilir fallback ve otomatik resim yükleme garantisi) */}
           <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
             <SafeImage
               src={cleanImg}
@@ -47,18 +38,13 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
             />
           </div>
-
-          {/* Ürün Bilgisi */}
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-semibold text-gray-900 truncate leading-snug" title={title}>
               {title}
             </h4>
             <p className="text-xs font-bold text-orange-600 whitespace-nowrap mt-0.5">{price}</p>
           </div>
-
-          {/* Aksiyon Butonları */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Doğrudan Sepete Ekle Butonu */}
             {options.onAddToCart && (
               <button
                 type="button"
@@ -79,8 +65,6 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
                 )}
               </button>
             )}
-
-            {/* İncele Butonu */}
             <Link
               to={`/products/${id}`}
               onClick={() => options.onCloseChat?.()}
@@ -95,8 +79,6 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
         </div>
       );
     }
-
-    // 2. Kalın Metin: **örnek**
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <strong key={index} className="font-semibold text-gray-900">
@@ -104,8 +86,6 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
         </strong>
       );
     }
-
-    // 3. Standart Link: [Metin](URL)
     const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
     if (linkMatch) {
       const [, linkText, linkUrl] = linkMatch;
@@ -127,8 +107,6 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
     return part;
   });
 };
-
-// Tekil global AudioContext (Kullanıcı ilk tıkladığında otomatik uyandırılır)
 let globalAudioCtx: AudioContext | null = null;
 
 const getAudioContext = (): AudioContext | null => {
@@ -147,8 +125,6 @@ const getAudioContext = (): AudioContext | null => {
     return null;
   }
 };
-
-// Sayfada herhangi bir tıklamada ses motorunu önceden yetkilendir ve uyandır
 if (typeof window !== 'undefined') {
   const unlockAudio = () => {
     getAudioContext();
@@ -159,20 +135,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('click', unlockAudio, { passive: true });
   window.addEventListener('touchstart', unlockAudio, { passive: true });
   window.addEventListener('keydown', unlockAudio, { passive: true });
-}
-
-/**
- * Web Audio API ile pürüzsüz, yumuşak ve kulağı dinlendiren modern bildirim tınısı (warm harmonic chime).
- */
-const playNotificationSound = () => {
+}const playNotificationSound = () => {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
 
     const playHarmonicChime = () => {
       const now = ctx.currentTime;
-
-      // 1. Ton - Yumuşak temel akor (659.25 Hz / E5)
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -187,8 +156,6 @@ const playNotificationSound = () => {
       gain1.connect(ctx.destination);
       osc1.start(now);
       osc1.stop(now + 0.28);
-
-      // 2. Ton - Parlak ve tatlı ikinci melodi (987.77 Hz / B5 -> 1046.50 Hz / C6)
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'sine';
@@ -225,23 +192,17 @@ export const ChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipsScrollRef = useRef<HTMLDivElement>(null);
-
-  // Otomatik aşağı kaydırma
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
-
-  // Açıldığında inputa odaklanma ve hoş geldin baloncuğunu kapatma
   useEffect(() => {
     if (isOpen) {
       setShowWelcomeBubble(false);
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
-
-  // Sayfa açıldıktan 2.5 saniye sonra kullanıcıyı davet eden akıllı hoş geldin baloncuğu
   useEffect(() => {
     const hasDismissed = sessionStorage.getItem('nexora_chat_bubble_dismissed');
     if (hasDismissed) return;
