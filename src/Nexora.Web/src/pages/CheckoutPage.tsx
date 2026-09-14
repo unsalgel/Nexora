@@ -1,3 +1,4 @@
+import { SafeImage } from '../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -10,7 +11,6 @@ import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { validateLuhn, getCardBrand } from '../lib/cardValidation';
 import { CreditCard, MapPin, CheckCircle2, ArrowRight, Lock, AlertCircle, Tag, Plus, Check } from 'lucide-react';
 import type { AddressDto } from '../types/address';
-import { resolveImageUrl } from '../lib/imageUtils';
 
 interface OrderDto {
   id: string;
@@ -600,8 +600,8 @@ export const CheckoutPage: React.FC = () => {
                 <div key={item.id} className="py-3 flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
-                      <img
-                        src={resolveImageUrl(item.productImageUrl)}
+                      <SafeImage
+                        src={item.productImageUrl}
                         alt={item.productName}
                         className="max-h-full object-contain"
                       />

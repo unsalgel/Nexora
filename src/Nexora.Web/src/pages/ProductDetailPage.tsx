@@ -1,3 +1,4 @@
+import { SafeImage } from '../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -236,7 +237,7 @@ export const ProductDetailPage: React.FC = () => {
         {/* SOL RESİM GALERİSİ */}
         <div className="lg:col-span-5 space-y-4">
           <div className="relative h-80 sm:h-[400px] bg-white rounded-3xl border border-slate-200/80 overflow-hidden p-6 flex items-center justify-center shadow-sm group">
-            <img
+            <SafeImage
               src={imageUrls[selectedImageIdx]}
               alt={product.name}
               className="max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
@@ -276,7 +277,7 @@ export const ProductDetailPage: React.FC = () => {
                     selectedImageIdx === idx ? 'border-orange-500 ring-2 ring-orange-500/10' : 'border-slate-200/80 hover:border-slate-300'
                   }`}
                 >
-                  <img src={img} alt="" className="max-h-full object-contain" />
+                  <SafeImage src={img} alt="" className="max-h-full object-contain" />
                 </button>
               ))}
             </div>

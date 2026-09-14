@@ -1,3 +1,4 @@
+import { SafeImage } from '../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -402,8 +403,8 @@ export const ProductsPage: React.FC = () => {
                   </button>
 
                   <div className="relative h-56 overflow-hidden bg-slate-50 flex items-center justify-center p-4">
-                    <img
-                      src={resolveImageUrl(product.mainImageUrl)}
+                    <SafeImage
+                      src={product.mainImageUrl}
                       alt={product.name}
                       className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />

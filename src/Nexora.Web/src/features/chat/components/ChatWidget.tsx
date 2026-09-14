@@ -1,3 +1,4 @@
+import { SafeImage } from '../../../components/common/SafeImage';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
@@ -28,43 +29,35 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
     // 1. Ürün Kartı: [PRODUCT_CARD|ID|URUN_ADI|FIYAT|RESIM_URL]
     const cardMatch = part.match(/^\[PRODUCT_CARD\|(.*?)\|(.*?)\|(.*?)\|(.*?)\]$/);
     if (cardMatch) {
-      const [, id, title, price, imageUrl] = cardMatch;
-      const hasImage = imageUrl && imageUrl !== 'none' && imageUrl.startsWith('http');
+      const [, id, title, price, rawImageUrl] = cardMatch;
+      const cleanImg = rawImageUrl && rawImageUrl.trim() !== 'none' && rawImageUrl.trim() !== '' ? rawImageUrl.trim() : null;
+      
       const isAdding = options.addingProductId === id;
 
       return (
         <div
           key={index}
-          className="my-3 p-2.5 bg-white rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all flex items-center space-x-2.5 group"
+          className="my-3 p-2.5 bg-white rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all flex items-center gap-2.5 group w-full"
         >
-          {/* Ürün Görseli veya Varsayılan İkon */}
-          <div className="w-13 h-13 rounded-lg bg-gray-50 border border-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
-            {hasImage ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            ) : (
-              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            )}
+          {/* Ürün Görseli (Güvenilir fallback ve otomatik resim yükleme garantisi) */}
+          <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
+            <SafeImage
+              src={cleanImg}
+              alt={title}
+              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+            />
           </div>
 
           {/* Ürün Bilgisi */}
-          <div className="flex-1 min-w-0 pr-1">
-            <h4 className="text-xs font-semibold text-gray-900 truncate leading-tight mb-1" title={title}>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-semibold text-gray-900 truncate leading-snug" title={title}>
               {title}
             </h4>
-            <p className="text-xs font-bold text-orange-600">{price}</p>
+            <p className="text-xs font-bold text-orange-600 whitespace-nowrap mt-0.5">{price}</p>
           </div>
 
           {/* Aksiyon Butonları */}
-          <div className="flex items-center space-x-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Doğrudan Sepete Ekle Butonu */}
             {options.onAddToCart && (
               <button
@@ -72,15 +65,15 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
                 title="Sepete Ekle"
                 disabled={isAdding}
                 onClick={() => options.onAddToCart!(id)}
-                className="p-1.5 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 text-orange-600 rounded-lg border border-orange-200 transition-colors shadow-xs disabled:opacity-50"
+                className="p-1.5 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 text-orange-600 rounded-lg border border-orange-200 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {isAdding ? (
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
                 )}
@@ -91,7 +84,7 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
             <Link
               to={`/products/${id}`}
               onClick={() => options.onCloseChat?.()}
-              className="px-2 py-1.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1 shadow-xs transition-colors"
+              className="px-2 py-1.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-medium rounded-lg flex items-center gap-1 shadow-xs transition-colors cursor-pointer whitespace-nowrap"
             >
               <span>İncele</span>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,8 +128,60 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
   });
 };
 
+/**
+ * Web Audio API ile harici dosya indirmeden berrak ve şık bir bildirim chime sesi çalar.
+ */
+const playNotificationSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+
+    // 1. Ton (Hafif ve berrak başlangıç)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now);
+    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+    gain1.gain.setValueAtTime(0.001, now);
+    gain1.gain.linearRampToValueAtTime(0.12, now + 0.02);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.25);
+
+    // 2. Ton (Tatlı ve yüksek harmoni)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.08);
+    osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.2);
+
+    gain2.gain.setValueAtTime(0.001, now + 0.08);
+    gain2.gain.linearRampToValueAtTime(0.15, now + 0.11);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.45);
+  } catch {
+    // Tarayıcı otomatik ses politikasında sessizce devam et
+  }
+};
+
 export const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showWelcomeBubble, setShowWelcomeBubble] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const { messages, sendMessage, isLoading, clearChat } = useChat();
@@ -145,19 +190,55 @@ export const ChatWidget: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const chipsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Otomatik aşağı kaydırma
+  const prevMessageCountRef = useRef(messages.length);
+
+  // Otomatik aşağı kaydırma ve asistan yeni mesaj yazdığında bildirim sesi çalma
   useEffect(() => {
+    if (messages.length > prevMessageCountRef.current) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant') {
+        playNotificationSound();
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
 
-  // Açıldığında inputa odaklanma
+  // Açıldığında inputa odaklanma ve hoş geldin baloncuğunu kapatma
   useEffect(() => {
     if (isOpen) {
+      setShowWelcomeBubble(false);
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
+
+  // Sayfa açıldıktan 2.5 saniye sonra kullanıcıyı davet eden akıllı hoş geldin baloncuğu
+  useEffect(() => {
+    const hasDismissed = sessionStorage.getItem('nexora_chat_bubble_dismissed');
+    if (hasDismissed) return;
+
+    const timer = setTimeout(() => {
+      setShowWelcomeBubble(true);
+      playNotificationSound();
+    }, 2200);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleDismissBubble = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowWelcomeBubble(false);
+    sessionStorage.setItem('nexora_chat_bubble_dismissed', 'true');
+  };
+
+  const handleOpenFromBubble = () => {
+    setShowWelcomeBubble(false);
+    sessionStorage.setItem('nexora_chat_bubble_dismissed', 'true');
+    setIsOpen(true);
+  };
 
     const scrollChips = (direction: 'left' | 'right') => {
     if (chipsScrollRef.current) {
@@ -185,10 +266,10 @@ export const ChatWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-sans">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
       {/* Sohbet Penceresi */}
       {isOpen && (
-        <div className="w-80 sm:w-96 h-[530px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-100 overflow-hidden mb-4 transition-all duration-300">
+        <div className="w-[calc(100vw-2rem)] sm:w-96 max-w-sm h-[530px] max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-100 overflow-hidden mb-3 transition-all duration-300">
           {/* Başlık Çubuğu */}
           <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-5 py-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
@@ -241,7 +322,7 @@ export const ChatWidget: React.FC = () => {
                 className={"flex " + (msg.role === 'user' ? 'justify-end' : 'justify-start')}
               >
                 <div
-                  className={"max-w-[88%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed " + (
+                  className={"max-w-[92%] sm:max-w-[88%] px-3.5 sm:px-4 py-2.5 rounded-2xl text-sm leading-relaxed " + (
                     msg.role === 'user'
                       ? 'bg-orange-500 text-white rounded-br-none shadow-sm'
                       : 'bg-white text-gray-800 rounded-bl-none border border-gray-100 shadow-sm'
@@ -347,11 +428,58 @@ export const ChatWidget: React.FC = () => {
         </div>
       )}
 
+      {/* Karşılama Baloncuğu (Sayfaya girildiğinde beliren akıllı ipucu) */}
+      {!isOpen && showWelcomeBubble && (
+        <div
+          onClick={handleOpenFromBubble}
+          className="mb-3 mr-1 bg-white text-slate-800 rounded-2xl p-3.5 shadow-2xl border border-orange-200/80 max-w-[270px] sm:max-w-xs cursor-pointer animate-in fade-in slide-in-from-bottom-3 duration-300 relative group/bubble hover:border-orange-400 transition-all"
+        >
+          <div className="flex items-start gap-2.5">
+            <div className="relative shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+            </div>
+
+            <div className="flex-1 pr-3">
+              <div className="flex items-center gap-1 mb-0.5">
+                <h4 className="text-xs font-bold text-slate-900">Nexora Asistan</h4>
+                <span className="text-[9px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.2 rounded-full">AI</span>
+              </div>
+              <p className="text-[12px] text-slate-600 leading-snug">
+                Merhaba! Aradığınız bir ürün var mı? Size nasıl yardımcı olabilirim? 👋
+              </p>
+            </div>
+
+            {/* Kapat Butonu */}
+            <button
+              type="button"
+              onClick={handleDismissBubble}
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"
+              title="Kapat"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Konuşma Balonu Oku (Aşağı işaret eden üçgen) */}
+          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white border-b border-r border-orange-200/80 transform rotate-45"></div>
+        </div>
+      )}
+
       {/* Yüzen Buton (Floating Button) */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="group bg-gradient-to-r from-orange-500 to-orange-600 text-white p-3.5 sm:p-4 rounded-full shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-orange-500/20"
+        onClick={() => {
+          setShowWelcomeBubble(false);
+          setIsOpen((prev) => !prev);
+        }}
+        className="group bg-gradient-to-r from-orange-500 to-orange-600 text-white p-3.5 sm:p-4 rounded-full shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-orange-500/20 relative"
         aria-label="Yapay Zeka Asistanı"
       >
         {isOpen ? (
