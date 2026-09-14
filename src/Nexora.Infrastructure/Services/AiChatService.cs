@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 
 namespace Nexora.Infrastructure.Services;
@@ -8,12 +9,14 @@ namespace Nexora.Infrastructure.Services;
 public sealed class AiChatService : IAiChatService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<AiChatService> _logger;
     private readonly string? _apiKey;
     private readonly string _endpoint;
 
-    public AiChatService(HttpClient httpClient, IConfiguration configuration)
+    public AiChatService(HttpClient httpClient, IConfiguration configuration, ILogger<AiChatService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
 
         _apiKey = configuration["AiSettings:ApiKey"]
                   ?? configuration["AI_API_KEY"]
@@ -38,58 +41,81 @@ public sealed class AiChatService : IAiChatService
             return "Nexora Asistan şu anda yapılandırılma aşamasındadır (AI API anahtarı henüz tanımlanmamış).";
         }
 
-        try
-        {
-            var requestUri = !string.IsNullOrWhiteSpace(_apiKey)
-                ? string.Format("{0}?key={1}", _endpoint, _apiKey)
-                : _endpoint;
+        var requestUri = !string.IsNullOrWhiteSpace(_apiKey)
+            ? $"{_endpoint}?key={_apiKey}"
+            : _endpoint;
 
-            var requestBody = new
+        var requestBody = new
+        {
+            systemInstruction = new
             {
-                systemInstruction = new
+                parts = new[]
                 {
+                    new { text = systemPrompt }
+                }
+            },
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
                     parts = new[]
                     {
-                        new { text = systemPrompt }
+                        new { text = userPrompt }
                     }
-                },
-                contents = new[]
-                {
-                    new
-                    {
-                        role = "user",
-                        parts = new[]
-                        {
-                            new { text = userPrompt }
-                        }
-                    }
-                },
-                generationConfig = new
-                {
-                    temperature = 0.3,
-                    maxOutputTokens = 800
                 }
-            };
-
-            var response = await _httpClient.PostAsJsonAsync(requestUri, requestBody, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
+            },
+            generationConfig = new
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                return "Şu anda yardımcı olamıyorum, lütfen daha sonra tekrar deneyin.";
+                temperature = 0.3,
+                maxOutputTokens = 800
             }
+        };
 
-            var apiResponse = await response.Content.ReadFromJsonAsync<AiApiResponse>(cancellationToken: cancellationToken);
-            var textPart = apiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
-
-            return !string.IsNullOrWhiteSpace(textPart)
-                ? textPart.Trim()
-                : "Üzgünüm, şu an yanıt oluşturulamadı.";
-        }
-        catch (Exception)
+        // Otomatik Yeniden Deneme (Retry): Google sunucusu 503 veya geçici aşırı yoğunluk verdiğinde 1s bekleyip tekrar dener
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            return "Yapay zeka servisine bağlanırken bir sorun oluştu. Lütfen biraz sonra tekrar deneyin.";
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(requestUri, requestBody, cancellationToken);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = await response.Content.ReadFromJsonAsync<AiApiResponse>(cancellationToken: cancellationToken);
+                    var textPart = apiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+                    if (!string.IsNullOrWhiteSpace(textPart))
+                    {
+                        return textPart.Trim();
+                    }
+                }
+                else
+                {
+                    var statusCode = (int)response.StatusCode;
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogWarning("Gemini API hata döndürdü. Deneme: {Attempt}/{MaxAttempts}, Durum: {StatusCode}, Hata: {Error}", attempt, maxAttempts, statusCode, errorContent);
+
+                    // 503 Service Unavailable veya 429 Too Many Requests durumunda kısa bekleme ve tekrar deneme
+                    if ((statusCode == 503 || statusCode == 429 || statusCode >= 500) && attempt < maxAttempts)
+                    {
+                        await Task.Delay(1000 * attempt, cancellationToken);
+                        continue;
+                    }
+                }
+            }
+            catch (Exception ex) when (attempt < maxAttempts)
+            {
+                _logger.LogWarning(ex, "Gemini API bağlantı hatası. Yeniden deneniyor... Deneme: {Attempt}/{MaxAttempts}", attempt, maxAttempts);
+                await Task.Delay(800 * attempt, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gemini API tüm denemelere rağmen yanıt veremedi.");
+            }
         }
+
+        return "Şu anda yapay zeka servisinde anlık bir yoğunluk yaşanıyor. Sorunuzu yanıtlayamadım ancak ürünlerimizle ilgili bilgi almak isterseniz yukarıdaki hazır seçenekleri kullanabilirsiniz.";
     }
 
     private sealed record AiApiResponse([property: JsonPropertyName("candidates")] List<Candidate>? Candidates);

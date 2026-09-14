@@ -12,7 +12,11 @@ const INITIAL_MESSAGES: ChatMessageItem[] = [
   },
 ];
 
-export const useChat = () => {
+interface UseChatOptions {
+  onMessageReceived?: () => void;
+}
+
+export const useChat = (options?: UseChatOptions) => {
   const [messages, setMessages] = useState<ChatMessageItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -41,6 +45,11 @@ export const useChat = () => {
       return chatService.sendMessage({ message: userMessage, history });
     },
     onSuccess: (data) => {
+      // Mesaj frontend state'e eklendiği AN bildirim sesini çal (senkron)
+      try {
+        options?.onMessageReceived?.();
+      } catch {}
+
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: data.reply },
