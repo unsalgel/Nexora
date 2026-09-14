@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nexora.Application.Abstractions;
 using Nexora.Infrastructure.Authentication;
@@ -21,7 +21,7 @@ public static class DependencyInjection
 
         // Redis Configuration
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        
+
         services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(redisConnectionString));
 
@@ -30,6 +30,9 @@ public static class DependencyInjection
         services.AddScoped<ICacheService, RedisCacheService>();
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+
+        services.AddHttpClient<IAiChatService, AiChatService>();
 
         return services;
     }

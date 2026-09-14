@@ -144,17 +144,22 @@ export const HomePage: React.FC = () => {
     }
   }, [dbProducts]);
 
-  const recentlyViewed: HomeProductItem[] = localRecentViews.map((p, idx) => ({
-    id: p.id,
-    title: p.name || p.title || 'Ürün',
-    price: p.price,
-    oldPrice: p.price * 1.15,
-    rating: 4.8,
-    reviews: 142 + idx * 8,
-    imageUrl: resolveImageUrl(p.mainImageUrl || p.image || p.imageUrl),
-    badge: 'SON GEZDİĞİN',
-    coupon: 'Hızlı Teslimat'
-  }));
+  const recentlyViewed: HomeProductItem[] = localRecentViews.map((p, idx) => {
+    // Eğer localStorage'daki resim boş veya kırık ise db'deki orijinal üründen al
+    const matchedDb = dbProducts.find(dp => dp.id === p.id);
+    const rawImg = p.mainImageUrl || p.image || p.imageUrl || matchedDb?.mainImageUrl;
+    return {
+      id: p.id,
+      title: p.name || p.title || matchedDb?.name || 'Ürün',
+      price: p.price,
+      oldPrice: p.price * 1.15,
+      rating: 4.8,
+      reviews: 142 + idx * 8,
+      imageUrl: resolveImageUrl(rawImg),
+      badge: 'SON GEZDİĞİN',
+      coupon: 'Hızlı Teslimat'
+    };
+  });
 
   // 2. Çok Satanlar / Flaş Fırsatlar (Katalogdaki popüler ürünler)
   const bestSellers: HomeProductItem[] = dbProducts.slice(0, 4).map((p, idx) => ({
@@ -205,7 +210,18 @@ export const HomePage: React.FC = () => {
           </button>
 
           <div className="relative h-44 overflow-hidden bg-slate-50 flex items-center justify-center p-4">
-            <img src={product.imageUrl} alt={product.title} className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300" />
+            <img
+              src={product.imageUrl}
+              alt={product.title}
+              loading="lazy"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.includes('unsplash')) {
+                  target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80';
+                }
+              }}
+              className="max-h-full w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+            />
           </div>
 
           <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5">

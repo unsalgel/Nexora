@@ -50,8 +50,7 @@ public static class DatabaseSeeder
         }
         else
         {
-            existingAdmin.PasswordHash = passwordHasher.Hash("Admin123*");
-            existingAdmin.IsActive = true;
+            // Admin zaten varsa her açılışta ağır hash işlemi yapma, sadece rol eksikse ekle
             if (!await context.UserRoles.AnyAsync(ur => ur.UserId == existingAdmin.Id && ur.RoleId == adminRoleId))
             {
                 await context.UserRoles.AddAsync(new UserRole
@@ -59,8 +58,8 @@ public static class DatabaseSeeder
                     UserId = existingAdmin.Id,
                     RoleId = adminRoleId
                 });
+                await context.SaveChangesAsync();
             }
-            await context.SaveChangesAsync();
         }
 
         // 2. Eğer Kategoriler ve Ürünler varsa tekrar ekleme

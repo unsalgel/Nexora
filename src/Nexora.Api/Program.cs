@@ -191,6 +191,24 @@ try
     await DatabaseSeeder.SeedAsync(app);
     await VariantSeeder.SeedVariantsAsync(app);
 
+    // Warm-Up (Soğuk Başlatmayı Önleme): İlk kullanıcı isteğinden önce EF Core ve DB bağlantısını ısıt
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<Nexora.Persistence.Context.NexoraDbContext>();
+            // Model haritasını derle ve TCP bağlantısını açık tut
+            await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
+                Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AsNoTracking(db.Products));
+            Log.Information("Veritabanı ve EF Core bağlantısı başarıyla ısıtıldı (Warm-up tamamlandı).");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Warm-up sırasında önemsiz uyarı.");
+        }
+    });
+
     Log.Information("Nexora API Başlatılıyor...");
     app.Run();
 }

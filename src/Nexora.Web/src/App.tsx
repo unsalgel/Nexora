@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './context/ToastContext';
@@ -7,6 +7,7 @@ import { CartProvider } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { ChatWidget } from './features/chat';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -27,6 +28,19 @@ const queryClient = new QueryClient({
 });
 
 export const App: React.FC = () => {
+  // Sekme Başlığında Kayan Yazı Efekti (Marquee Title)
+  useEffect(() => {
+    const originalTitle = "Nexora.com - Türkiye'nin Alışveriş Sitesi   ";
+    let title = originalTitle;
+
+    const interval = setInterval(() => {
+      title = title.substring(1) + title.substring(0, 1);
+      document.title = title;
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -53,6 +67,7 @@ export const App: React.FC = () => {
                   </Routes>
                 </main>
                 <Footer />
+          <ChatWidget />
               </div>
             </Router>
           </NotificationProvider>
