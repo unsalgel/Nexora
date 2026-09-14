@@ -128,54 +128,90 @@ const renderFormattedContent = (content: string, options: FormatterOptions) => {
   });
 };
 
+// Tekil global AudioContext (Kullanıcı ilk tıkladığında otomatik uyandırılır)
+let globalAudioCtx: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext | null => {
+  try {
+    if (!globalAudioCtx) {
+      const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        globalAudioCtx = new AudioCtxClass();
+      }
+    }
+    if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+      globalAudioCtx.resume().catch(() => {});
+    }
+    return globalAudioCtx;
+  } catch {
+    return null;
+  }
+};
+
+// Sayfada herhangi bir tıklamada ses motorunu önceden yetkilendir ve uyandır
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    getAudioContext();
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+}
+
 /**
- * Web Audio API ile harici dosya indirmeden berrak ve şık bir bildirim chime sesi çalar.
+ * Web Audio API ile harici dosya indirmeden yüksek netlikte bildirim sesi çalar.
  */
 const playNotificationSound = () => {
   try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
 
-    const ctx = new AudioContextClass();
+    const playTones = () => {
+      const now = ctx.currentTime;
+
+      // 1. Ton (Giriş melodisi - 659.25 Hz / E5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, now);
+      osc1.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+
+      gain1.gain.setValueAtTime(0.0001, now);
+      gain1.gain.linearRampToValueAtTime(0.25, now + 0.02);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.25);
+
+      // 2. Ton (Tatlı ve berrak tepe tınısı - 1318.51 Hz / E6)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now + 0.09);
+      osc2.frequency.exponentialRampToValueAtTime(1318.51, now + 0.2);
+
+      gain2.gain.setValueAtTime(0.0001, now + 0.09);
+      gain2.gain.linearRampToValueAtTime(0.3, now + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.09);
+      osc2.stop(now + 0.45);
+    };
+
     if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
+      ctx.resume().then(() => playTones()).catch(() => {});
+    } else {
+      playTones();
     }
-
-    const now = ctx.currentTime;
-
-    // 1. Ton (Hafif ve berrak başlangıç)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, now);
-    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-
-    gain1.gain.setValueAtTime(0.001, now);
-    gain1.gain.linearRampToValueAtTime(0.12, now + 0.02);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.25);
-
-    // 2. Ton (Tatlı ve yüksek harmoni)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(880, now + 0.08);
-    osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.2);
-
-    gain2.gain.setValueAtTime(0.001, now + 0.08);
-    gain2.gain.linearRampToValueAtTime(0.15, now + 0.11);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.45);
-  } catch {
-    // Tarayıcı otomatik ses politikasında sessizce devam et
+  } catch (err) {
+    console.error('Audio play error:', err);
   }
 };
 
