@@ -1,176 +1,160 @@
-# Nexora — Kurumsal E-Ticaret ve Yönetim Platformu
+# Nexora Kurumsal E-Ticaret ve Yönetim Platformu
 
-Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensiplerine tam uyumlu olarak geliştirilmiş; yüksek performanslı, ölçeklenebilir, kurumsal güvenlik standartlarına sahip tam kapsamlı (full-stack) bir e-ticaret platformudur.
+Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensipleri doğrultusunda geliştirilmiş, yüksek performans ve kurumsal güvenlik standartlarına sahip tam kapsamlı bir e-ticaret platformudur.
 
-Proje, hem son kullanıcı alışveriş deneyimini sunan müşteri vitrinini (`Nexora.Web`) hem de detaylı analitik, sipariş, envanter ve kupon yönetimini sağlayan idari portalı (`Nexora.Admin`) merkezi bir REST API (`Nexora.Api`) üzerinden yönetir.
+Platform; müşteri vitrini (`Nexora.Web`), yönetim portalı (`Nexora.Admin`) ve merkezi REST API servisinden (`Nexora.Api`) meydana gelmektedir.
 
 ---
 
-## Mimari Yapı ve Prensipler
+## Mimari Tasarım ve Prensipler
 
-Proje, katmanlar arası bağımlılıkların yalnızca içe doğru aktığı **Clean Architecture** prensiplerine göre yapılandırılmıştır:
+Proje, iş kurallarının ve çekirdek varlıkların dış bağımlılıklardan tamamen izole edildiği Clean Architecture prensipleriyle yapılandırılmıştır.
 
 ```
 Nexora/
 ├── src/
-│   ├── Nexora.Domain/         # Çekirdek Domain Varlıkları, Enum'lar, Değer Nesneleri, Hata Tipleri
-│   ├── Nexora.Application/    # CQRS (MediatR), DTO'lar, FluentValidation, Pipeline Behaviors
-│   ├── Nexora.Infrastructure/ # Güvenlik (JWT, BCrypt, Token Blacklist), Dış Servisler (Ödeme, Dosya Depolama)
-│   ├── Nexora.Persistence/    # EF Core 8, PostgreSQL Varlık Konfigürasyonları, DbContext, Migration'lar
+│   ├── Nexora.Domain/         # Çekirdek varlıklar, değer nesneleri, domain eventleri, hata tipleri
+│   ├── Nexora.Application/    # CQRS komut ve sorguları (MediatR), DTO'lar, FluentValidation kuralları
+│   ├── Nexora.Infrastructure/ # Güvenlik (JWT, BCrypt, Token Blacklist), Harici Entegrasyonlar (Yapay Zeka Asistanı, Ödeme, Depolama)
+│   ├── Nexora.Persistence/    # EF Core 8, PostgreSQL konfigürasyonları, DbContext, Migration ve Seeder yapıları
 │   ├── Nexora.Api/            # ASP.NET Core Web API, Controller'lar, Middleware'ler, Serilog, Rate Limiter
-│   ├── Nexora.Web/            # React + TypeScript + Vite + Tailwind CSS Müşteri Mağazası (Port 5173)
-│   └── Nexora.Admin/          # React + TypeScript + Vite + Tailwind CSS Yönetim Portalı (Port 5174)
+│   ├── Nexora.Web/            # React, TypeScript, Vite, Tailwind CSS Müşteri Vitrini (Port 5173)
+│   └── Nexora.Admin/          # React, TypeScript, Vite, Tailwind CSS İdari Yönetim Portalı (Port 5174)
 ├── docker-compose.yml         # PostgreSQL, Redis ve pgAdmin konteyner tanımları
 └── Nexora.sln
 ```
 
-### Temel Tasarım İlkeleri
+### Çekirdek İlkeler
 
-* **CQRS (Command Query Responsibility Segregation):** Veri yazma (Command) ve veri okuma (Query) operasyonları MediatR üzerinden birbirinden bağımsız şekilde yönetilir.
-* **Result Pattern:** Katmanlar arası operasyonel geri dönüşlerde kontrolsüz exception fırlatmak yerine öngörülebilir ve tip güvenli `Result<T>` deseni kullanılır.
-* **Zorunlu Performans ve Sorgu Optimizasyonu:** 
-  * Veritabanı sorgularında tüm tabloları gereksiz `Include` ilişkileriyle belleğe çekmek yasaktır.
-  * Tüm okuma işlemlerinde `AsNoTracking()` ve `.Select()` projeksiyonları kullanılır.
-  * Agregasyonlar, sayımlar ve gruplamalar veritabanı seviyesinde (`CountAsync`, `SumAsync`, `GroupBy`) çalıştırılır.
-  * Çoklu ilişkisel sorgularda Cartesian Product (kartezyen çarpım) patlamasını engellemek için küresel EF Core `AsSplitQuery()` davranışı aktiftir.
-* **Doğrulama Hattı:** İstek modelleri MediatR `ValidationBehavior` üzerinden FluentValidation kurallarından geçer; geçersiz istekler handler'a ulaşmadan engellenir.
+* **CQRS (Command Query Responsibility Segregation):** Veri yazma ve okuma operasyonları MediatR hattı üzerinden ayrıştırılmıştır.
+* **Result Deseni:** Katmanlar arası operasyonel geri dönüşlerde kontrolsüz istisna fırlatılması engellenmiş; tip güvenli `Result<T>` yapısı benimsenmiştir.
+* **Sorgu ve Veritabanı Optimizasyonu:**
+  * Okuma işlemlerinde `AsNoTracking()` ve doğrudan DTO seviyesinde `Select` projeksiyonu kullanılır.
+  * İlişkisel sorgularda kartezyen patlamaları önlemek amacıyla global düzeyde `AsSplitQuery()` davranışı yapılandırılmıştır.
+  * Toplam, ortalama ve adet hesaplamaları veritabanı motoru üzerinde çalıştırılır.
+* **Merkezi Doğrulama Hattı:** İstek modelleri MediatR `ValidationBehavior` üzerinden otomatik FluentValidation süzgecinden geçer; geçersiz parametreler handler katmanına ulaşmadan engellenir.
 
 ---
 
-## Teknoloji Yığını
+## Teknoloji Altyapısı
 
 ### Backend
 
 | Bileşen | Teknoloji / Kütüphane | Açıklama |
 |---|---|---|
-| Çalışma Zamanı | .NET 8 (LTS) | Modern, yüksek performanslı ASP.NET Core Web API |
-| Mimari Desenler | Clean Architecture, CQRS | MediatR 12 entegrasyonu ile gevşek bağlı modüler yapı |
-| Veritabanı | PostgreSQL 16 | İlişkisel veri modeli ve ACID uyumluluğu |
-| ORM | Entity Framework Core 8 | Code-First yaklaşımı, Fluent API ve optimize SQL projeksiyonları |
-| Dağıtık Önbellek | Redis 7 & InMemory | İki seviyeli (L1/L2) önbellekleme ve anlık kara liste kontrolü |
-| Kimlik ve Güvenlik | JWT (JWS + JTI) & BCrypt | 15 dk Access Token + 7 gün Refresh Token, saat toleransı sıfırlama, anlık token iptali |
-| Rate Limiting | ASP.NET Core RateLimiter | Auth endpoint'lerinde IP bazlı brute-force koruma mekanizması |
-| Doğrulama | FluentValidation | İstek seviyesinde güçlü ve kurallı veri doğrulaması |
-| Loglama | Serilog | Yapısal loglama; PostgreSQL, Günlük Dönen Dosya ve Konsol hedefleri |
-| API Dokümantasyonu | Swagger / OpenAPI | JWT Bearer entegrasyonlu interaktif API arayüzü |
+| Çalışma Zamanı | .NET 8 (LTS) | Yüksek başarımlı ASP.NET Core Web API |
+| Mimari Yapı | Clean Architecture, CQRS | MediatR 12 tabanlı gevşek bağlı modüler tasarım |
+| Veritabanı | PostgreSQL 16 | ACID uyumlu ilişkisel veri tabanı |
+| ORM | Entity Framework Core 8 | Code-First yaklaşımı, Fluent API modellemeleri |
+| Önbellek | Redis 7 & InMemory | İki seviyeli (L1/L2) dağıtık ve yerel önbellekleme mimarisi |
+| Kimlik Doğrulama | JWT (JWS + JTI) & BCrypt | 15 dk Access Token, 7 gün Refresh Token, anlık iptal ve saat toleransı sıfırlama |
+| Yapay Zeka Desteği | Google Gemini API (REST) | RAG mimarisiyle zenginleştirilmiş akıllı müşteri asistanı servisi |
+| Hız Sınırlama | ASP.NET Core RateLimiter | Uç noktalarda IP tabanlı istek sınırlama ve kaba kuvvet koruması |
+| Doğrulama | FluentValidation | İstek gövdeleri için kural tabanlı doğrulama altyapısı |
+| Loglama | Serilog | Yapılandırılmış loglama; PostgreSQL, günlük dosya ve konsol çıktıları |
+| API Arayüzü | Swagger / OpenAPI | JWT Bearer entegrasyonuna sahip interaktif test dokümantasyonu |
 
 ### Frontend (Web & Admin)
 
 | Bileşen | Teknoloji / Kütüphane | Açıklama |
 |---|---|---|
-| Çekirdek | React + TypeScript | Tip güvenli bileşen mimarisi (Strict Mode, `any` yasak) |
-| Geliştirme Aracı | Vite | Anlık HMR ve optimize üretim paketi |
-| Stil Altyapısı | Tailwind CSS v4 | Modern, esnek ve utility-first kurumsal tasarım sistemi |
-| Sunucu Durumu | TanStack React Query v5 | Akıllı veri önbellekleme, arka plan senkronizasyonu |
-| HTTP İstemcisi | Axios | Merkezi interceptor'lar ile sessiz 401 token yenileme |
-| İkon Seti | Lucide React | Tutarlı ve hafif SVG ikon kütüphanesi |
+| Çekirdek | React + TypeScript | Tip güvenli bileşen mimarisi (Strict Mode standardı) |
+| Geliştirme Aracı | Vite | Hızlı HMR döngüsü ve optimize üretim paketlemesi |
+| Tasarım Altyapısı | Tailwind CSS v4 | Kurumsal ve tutarlı tasarım sistemi |
+| Durum Yönetimi | TanStack React Query v5 | Sunucu durumu, arka plan senkronizasyonu ve önbellek yönetimi |
+| HTTP İstemcisi | Axios | Merkezi interceptor'lar üzerinden otomatik 401 token yenileme |
+| İkon Seti | Lucide React | Optimize vektörel ikon kütüphanesi |
 
 ---
 
-## Modül Kapsamı ve Kurumsal Özellikler
+## Modül Kapsamı ve İşlevsel Özellikler
 
-### 1. İleri Düzey Kimlik Doğrulama ve Güvenlik (Auth & Security)
-* **Rol Tabanlı Yetkilendirme:** Müşteri (`Customer`) ve Yönetici (`Admin`) rolleri.
-* **Kademeli Hesap Kilitleme & Brute-Force Koruması:** 
-  - Hatalı girişlerde artan bekleme süreleri, 10 ve üzeri başarısız denemede hesabı 24 saat otomatik kilitleme.
-  - Global IP bazlı ASP.NET Core Rate Limiter koruması.
-* **Anlık Güvenlik Uyarısı:** Giriş sonrası önceki başarısız denemeleri tarih, saat ve IP bazında gösteren güvenlik bilgilendirme penceresi.
-* **Anlık Token İptali (Instant Token Revocation):**
-  - Üretilen her Access Token'a benzersiz `jti` (JWT ID) atanır.
-  - Kullanıcı çıkış yaptığında token'lar `ITokenBlacklistService` üzerinden hem MemoryCache hem Redis'e işlenir.
-  - `JwtBearerEvents.OnTokenValidated` kancası ile iptal edilen token'lar anında reddedilir.
-  - `ClockSkew = TimeSpan.Zero` ayarı ile gizli 5 dakikalık tolerans sıfırlanmış, kesin süre kuralı getirilmiştir.
+### 1. Yapay Zeka Müşteri Asistanı (AI Support & RAG)
+* **RAG (Retrieval-Augmented Generation) Mimarisi:** Veritabanındaki güncel katalog verileri, stok adetleri, fiyatlar ve mağaza kuralları (14 gün iade, 500 TL üzeri ücretsiz kargo, teslimat süreleri) asistan modeline dinamik bağlam olarak aktarılır.
+* **Etkileşimli Ürün Kartları:** Asistan yanıtlarında önerilen ürünler resim, fiyat, doğrudan tek tıkla sepete ekleme ve ürün detayına yönlendirme butonlarıyla zenginleştirilmiş kart bileşenleri olarak sunulur.
+* **Akıllı Karşılama ve Sesli Bildirim:** Ziyaretçiyi karşılayan interaktif davet balonu ve asistan yanıtlarıyla eş zamanlı çalışan Web Audio API tabanlı harmonik bildirim tonu.
+* **Dayanıklılık ve Yeniden Deneme Mekanizması:** API seviyesinde anlık servis kesintileri veya yoğunluklara karşı üstel gecikmeli (exponential backoff) otomatik yeniden deneme döngüsü.
 
-### 2. İdari Satış ve Performans Analitiği (Dashboard)
-* Optimize SQL sorgularıyla platform genelinde ciro, toplam sipariş ve Ortalama Sepet Tutarı (AOV) hesaplaması.
-* 7, 14 ve 30 günlük filtrelerle günlük ciro ve sipariş trend grafiği.
-* Kategori bazlı hasılat dağılımı ve yüzde oranları.
-* Sipariş durum dağılımı (Beklemede, Hazırlanıyor, Kargoda, Teslim Edildi, İptal).
-* Kritik stok eşiğine (30 adet ve altı) düşen ürünler için anlık uyarı listesi.
+### 2. Kimlik Denetimi ve Güvenlik Altyapısı (Auth & Security)
+* **Rol Hiyerarşisi:** Müşteri (`Customer`) ve Yönetici (`Admin`) yetkilendirmesi.
+* **Kademeli Hesap Kilitleme:** Hatalı girişlerde artan bekleme süreleri ve 10 başarısız denemede 24 saat otomatik hesap dondurma.
+* **Anlık Token İptali (Token Revocation):**
+  * Her token için benzersiz `jti` üretilir; çıkış işlemlerinde token hem Redis hem MemoryCache kara listesine alınır.
+  * `JwtBearerEvents.OnTokenValidated` kancası ile geçersiz kılınan token'lar anında reddedilir.
+  * `ClockSkew = TimeSpan.Zero` tanımlamasıyla varsayılan 5 dakikalık tolerans süresi kaldırılarak kesin süre denetimi sağlanmıştır.
+* **Güvenlik Geçmişi Bilgilendirmesi:** Giriş esnasında kullanıcının önceki başarısız denemelerini tarih, saat ve IP adresleriyle özetleyen bilgilendirme modalı.
 
-### 3. Sipariş, Adres ve Ödeme Yönetimi (Orders & Checkout)
-* **Adres Yönetimi:** İl ve ilçe seçicili, varsayılan adres belirleme destekli dinamik teslimat adresi tanımlama.
-* **Ödeme Altyapısı:** Luhn algoritması denetimi, otomatik kart sağlayıcı tespiti (Visa, Mastercard, Troy, Amex) ve 3D etkileşimli kart görselleştirmesi.
-* **İdari Sipariş Takibi:** Sipariş numarası, müşteri adı, e-posta ve teslimat adresine göre filtreleme ve sayfalama.
-* **Durum Güncelleme:** Tek tıkla sipariş durumu akışı (Ödendi -> Hazırlanıyor -> Kargoda -> Teslim Edildi -> İptal).
-* **Yeni Sipariş Göstergesi:** Son 24 saat içinde gelen siparişlerde otomatik parıldayan "YENİ" rozeti.
+### 3. Satış, Sipariş ve Ödeme Akışı (Orders & Checkout)
+* **Dinamik Adres Yönetimi:** İl ve ilçe seçicili, varsayılan adres tanımlama ve teslimat adresi doğrulama modülü.
+* **Ödeme Güvenliği:** Kart numaraları için Luhn algoritması kontrolü, BIN üzerinden sağlayıcı tespiti (Visa, Mastercard, Troy, Amex) ve 3D etkileşimli kart önizlemesi.
+* **İdari Sipariş Yönetimi:** Sipariş kodu, müşteri unvanı, e-posta ve teslimat adresine göre filtrelenebilen, sayfalama destekli sipariş takip tablosu.
+* **Durum Değişim Döngüsü:** Sipariş durumlarının (Ödendi, Hazırlanıyor, Kargoda, Teslim Edildi, İptal) tek tıkla güncellenmesi.
 
-### 4. Katalog, Görsel ve Envanter Yönetimi
-* **Gerçek Görsel Yükleme Pipeline'ı:** 
-  - `IFileStorageService` ve `LocalFileStorageService` ile 5MB boyut ve MIME/dosya format doğrulaması.
-  - Sürükle-bırak destekli görsel yükleme alanı, önizleme ve harici URL desteği.
-* **Varyant Yönetimi:** Beden, renk ve numara kombinasyonları; SKU, stok ve fiyat takibi.
-* **Gelişmiş Vitrin:** Silinen veya pasife alınan ürünlerin ana sayfa "Son Gezilenler" listesinden otomatik ayıklanması.
-* **Yumuşak Durum (Soft State):** Ürün, kategori veya markayı kalıcı silmeden satıştan çekebilen aktif/pasif anahtarları.
+### 4. Katalog, Stok ve Çoklu Görsel Yönetimi
+* **Görsel Depolama Hattı:** `IFileStorageService` üzerinden 5MB dosya boyutu ve MIME tipi denetimi yapılan yerel depolama altyapısı; sürükle-bırak desteği ve harici CDN URL entegrasyonu.
+* **Güvenli Görsel Gösterimi (SafeImage):** Eksik veya ulaşılamayan görseller için otomatik çift kademeli yedekleme (fallback) sistemi.
+* **Varyant ve Envanter:** Beden, renk ve numara varyantları; SKU, stok adedi ve fiyat takibi.
+* **Kritik Stok Takibi:** Stoğu 30 adedin altına inen ürünler için yönetim panelinde anlık uyarı listesi.
 
 ### 5. Kupon ve Promosyon Motoru
-* Yüzdelik (%) veya Sabit Tutar (TL) indirim tipleri.
-* Kupon kullanım kotası, son kullanma tarihi ve minimum sepet tutarı kuralları.
-* Checkout sırasında anlık kupon doğrulama ve sepet indirim hesaplaması.
-* Kupon kullanım limitini gösteren canlı doluluk çubuğu.
-
-### 6. Müşteri Deneyimi ve Etkileşim
-* Favori ürün listesi oluşturma ve profil sayfası entegrasyonu.
-* Satın alınan ürünlere 1-5 yıldız değerlendirme ve yorum ekleme.
-* Ekranı kilitlemeyen popover menüsü ile sipariş ve işlem bildirimleri (`NotificationDropdown`).
-* Ürün, marka ve SKU bazında arama yapabilen küresel katalog arama motoru.
+* Yüzdelik (%) ve Sabit Tutar (TL) indirim modelleri.
+* Kupon kullanım kotası, minimum sepet tutarı ve geçerlilik tarihi kısıtları.
+* Sepet ve ödeme aşamalarında anlık kupon doğrulama ve sepet indirimi hesaplaması.
 
 ---
 
-## Kurulum ve Çalıştırma
+## Kurulum ve Dağıtım Adımları
 
-### 1. Ön Koşullar
+### 1. Gereksinimler
 * .NET 8 SDK
-* Node.js 20+ ve npm
+* Node.js (v20 veya üzeri) ve npm
 * Docker Desktop
 
-### 2. Altyapı Servislerini Başlatma
-Proje kök dizinindeki Docker Compose dosyası ile PostgreSQL ve Redis servislerini başlatın:
+### 2. Veritabanı ve Önbellek Servislerinin Başlatılması
+Proje kök dizininde bulunan Docker Compose konfigürasyonunu çalıştırın:
 
 ```bash
 docker compose up -d
 ```
 
-Servis Bağlantı Noktaları:
+Bağlantı Noktaları:
 * PostgreSQL: `localhost:5432`
 * Redis: `localhost:6379`
 * pgAdmin: `localhost:5050`
 
-### 3. Backend API'yi Çalıştırma
+### 3. Backend API Servisinin Çalıştırılması
 ```bash
 dotnet restore
 dotnet run --project src/Nexora.Api
 ```
 
 * API Adresi: `http://localhost:5285`
-* Swagger Dokümantasyonu: `http://localhost:5285/swagger`
+* Swagger Arayüzü: `http://localhost:5285/swagger`
 
-### 4. Müşteri Web Uygulamasını Çalıştırma (Nexora.Web)
+### 4. Müşteri Vitrin Uygulamasının Başlatılması (Nexora.Web)
 ```bash
 cd src/Nexora.Web
 npm install
 npm run dev
 ```
 
-* Web Mağazası: `http://localhost:5173`
+* Web Arayüzü: `http://localhost:5173`
 
-### 5. Yönetim Portalını Çalıştırma (Nexora.Admin)
+### 5. İdari Yönetim Portalının Başlatılması (Nexora.Admin)
 ```bash
 cd src/Nexora.Admin
 npm install
 npm run dev
 ```
 
-* Yönetim Paneli: `http://localhost:5174`
-* Varsayılan Yönetici Bilgileri: `admin@nexora.com` / `Admin123*`
+* Yönetim Arayüzü: `http://localhost:5174`
+* Varsayılan Yönetici Hesabı: `admin@nexora.com` / `Admin123*`
 
 ---
 
-## Kod Standartları ve Kalite Güvencesi
+## Kodlama Standartları ve Kalite Kriterleri
 
-Projeye katkı sağlanırken `.agent/RULES.md` ve `.agent/skills/nexora-development/SKILL.md` kurallarına tam uyum zorunludur:
-* Katman sorumlulukları kesinlikle korunmalı, Controller'larda iş mantığı yer almamalıdır.
-* Gereksiz veya ağır paket bağımlılıkları eklenmemelidir.
-* `[ApiController]` altında `[FromQuery]` gibi gereksiz attribute'lar kullanılmamalıdır.
-* TypeScript tarafında `any` tipi kesinlikle yasaktır; tüm veri transfer nesneleri kesin tiplendirilmelidir.
-* Derleme ve üretim paketleme adımlarında sıfır uyarı ve sıfır hata prensibi esastır.
+* Katmanlı mimari kuralları eksiksiz uygulanmalı, Controller sınıfları yalnızca istek karşılama ve yönlendirme ile sınırlandırılmalıdır.
+* Veritabanı sorgularında performans öncelikli tutulmalı; projeksiyon ve filtrelemeler veritabanı motoru üzerinde çalıştırılmalıdır.
+* TypeScript tarafında tip gevşekliğine (`any`) izin verilmez; katı tip denetimi zorunludur.
+* Derleme, paketleme ve çalışma zamanı adımlarında hata ve uyarı bulunmamalıdır.
