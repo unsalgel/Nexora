@@ -165,6 +165,16 @@ export const ProfilePage: React.FC = () => {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    const handleOrderChange = () => {
+      if (localStorage.getItem('accessToken')) {
+        fetchOrders();
+      }
+    };
+    window.addEventListener('nexora:order-status-changed', handleOrderChange);
+    return () => window.removeEventListener('nexora:order-status-changed', handleOrderChange);
+  }, []);
+
   const handleCreateAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddressError(null);

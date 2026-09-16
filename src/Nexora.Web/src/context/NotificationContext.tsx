@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { NotificationDto } from '../types/notification';
+import { useToast } from './ToastContext';
 
 interface NotificationContextType {
   notifications: NotificationDto[];
@@ -20,6 +22,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const { info } = useToast();
 
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -51,6 +54,43 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }, 60000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    let connection: HubConnection | null = null;
+
+    try {
+      connection = new HubConnectionBuilder()
+        .withUrl('http://localhost:5285/hubs/app', {
+          accessTokenFactory: () => localStorage.getItem('accessToken') || ''
+        })
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.Information)
+        .build();
+
+      connection.on('OrderStatusChanged', (payload: {
+        orderId: string;
+        orderNumber: string;
+        newStatus: string;
+        newStatusText: string;
+        message: string;
+      }) => {
+        fetchNotifications();
+        info(payload.message || `#${payload.orderNumber} numaralı siparişinizin durumu güncellendi: ${payload.newStatusText}`);
+        window.dispatchEvent(new CustomEvent('nexora:order-status-changed', { detail: payload }));
+      });
+
+      connection.start().catch(() => {});
+    } catch {}
+
+    return () => {
+      if (connection) {
+        connection.stop().catch(() => {});
+      }
+    };
+  }, [fetchNotifications, info]);
 
   const markAsRead = async (id: string) => {
     try {

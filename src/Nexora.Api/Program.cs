@@ -1,25 +1,25 @@
-using Microsoft.AspNetCore.RateLimiting;
-using Nexora.Api;
-using Nexora.Application.Common;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Nexora.Api.Middlewares;
+using Nexora.Api;
 using Nexora.Api.Hubs;
+using Nexora.Api.Middlewares;
 using Nexora.Api.Services;
-using Nexora.Application.Abstractions;
 using Nexora.Application;
+using Nexora.Application.Abstractions;
+using Nexora.Application.Common;
 using Nexora.Infrastructure;
 using Nexora.Infrastructure.Authentication;
 using Nexora.Persistence;
+using Nexora.Persistence.Context;
 using Serilog;
 using Serilog.Events;
-using Serilog.Sinks.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS Politikası (Frontend Erişimi İçin)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -31,19 +31,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Serilog Yapılandırması (PostgreSQL DB + Günlük Dosya + Konsol)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
-
-var columnWriters = new Dictionary<string, ColumnWriterBase>
-{
-    { "message", new RenderedMessageColumnWriter() },
-    { "message_template", new MessageTemplateColumnWriter() },
-    { "level", new LevelColumnWriter(true, NpgsqlTypes.NpgsqlDbType.Varchar) },
-    { "timestamp_utc", new TimestampColumnWriter(NpgsqlTypes.NpgsqlDbType.TimestampTz) },
-    { "exception", new ExceptionColumnWriter() },
-    { "properties", new LogEventSerializedColumnWriter() }
-};
-
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -51,15 +38,9 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .WriteTo.File("logs/nexora-.log", rollingInterval: RollingInterval.Day)
-    .WriteTo.PostgreSQL(
-        connectionString: connectionString,
-        tableName: "Logs",
-        columnOptions: columnWriters,
-        needAutoCreateTable: true)
     .CreateLogger();
 
 builder.Host.UseSerilog();
-
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -90,13 +71,23 @@ builder.Services.AddAuthentication(options =>
     {
         OnTokenValidated = async context =>
         {
-            var blacklistService = context.HttpContext.RequestServices.GetRequiredService<Nexora.Application.Abstractions.ITokenBlacklistService>();
+            var blacklistService = context.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
             var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
 
             if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenRevokedAsync(jti, context.HttpContext.RequestAborted))
             {
                 context.Fail("Bu oturum veya erişim anahtarı sonlandırılmıştır.");
             }
+        },
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
         }
     };
 });
@@ -107,8 +98,6 @@ builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationSer
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-
-// Brute-force Koruması İçin Hız Sınırlaması (Rate Limiting - Global IP Bazlı)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -139,7 +128,6 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// Swagger Yapılandırması (JWT Yetkilendirme Butonu ile)
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Nexora API", Version = "v1" });
@@ -172,7 +160,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// HTTP İstek Hattı (Pipeline) Yapılandırması
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -180,13 +167,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
-
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-
 app.UseStaticFiles();
-
 app.UseRateLimiter();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -199,16 +182,13 @@ try
     await DatabaseSeeder.SeedAsync(app);
     await VariantSeeder.SeedVariantsAsync(app);
 
-    // Warm-Up (Soğuk Başlatmayı Önleme): İlk kullanıcı isteğinden önce EF Core ve DB bağlantısını ısıt
     _ = Task.Run(async () =>
     {
         try
         {
             using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<Nexora.Persistence.Context.NexoraDbContext>();
-            // Model haritasını derle ve TCP bağlantısını açık tut
-            await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
-                Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AsNoTracking(db.Products));
+            var db = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+            await db.Products.AsNoTracking().AnyAsync();
             Log.Information("Veritabanı ve EF Core bağlantısı başarıyla ısıtıldı (Warm-up tamamlandı).");
         }
         catch (Exception ex)
@@ -228,11 +208,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-
-
-
-
-
-
-

@@ -11,10 +11,14 @@ namespace Nexora.Application.Features.Orders.Commands.UpdateOrderStatus;
 public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, Result<string>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService _notificationService;
 
-    public UpdateOrderStatusCommandHandler(IApplicationDbContext context)
+    public UpdateOrderStatusCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -81,6 +85,19 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.PublishToUserAsync(
+            order.UserId,
+            "OrderStatusChanged",
+            new
+            {
+                orderId = order.Id,
+                orderNumber = order.OrderNumber,
+                newStatus = order.Status.ToString(),
+                newStatusText = GetStatusTurkishText(order.Status),
+                message = notificationMessage
+            },
+            cancellationToken);
 
         return Result<string>.Success($"Sipariş durumu başarıyla '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.");
     }
