@@ -23,7 +23,6 @@ public sealed class AddProductImageCommandHandler : IRequestHandler<AddProductIm
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Görsel eklenecek ürün bulunamadı.");
 
-        // Eğer bu görsel ana görsel yapılıyorsa, diğer görsellerin IsMain özelliğini kaldırıyoruz.
         if (request.IsMain)
         {
             foreach (var img in product.Images)

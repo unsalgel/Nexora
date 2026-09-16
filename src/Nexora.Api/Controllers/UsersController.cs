@@ -14,10 +14,10 @@ public sealed class UsersController : ApiControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<Result<PagedResult<UserDto>>>> GetUsers(
-        [FromQuery] string? searchTerm,
-        [FromQuery] bool? isActive,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        string? searchTerm,
+        bool? isActive,
+        int page = 1,
+        int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         var query = new GetUsersQuery(searchTerm, isActive, page, pageSize);
@@ -36,7 +36,7 @@ public sealed class UsersController : ApiControllerBase
     [HttpPut("{id:guid}/status")]
     public async Task<ActionResult<Result<bool>>> UpdateUserStatus(
         Guid id,
-        [FromBody] bool isActive,
+        bool isActive,
         CancellationToken cancellationToken = default)
     {
         var command = new UpdateUserStatusCommand(id, isActive);
@@ -47,7 +47,7 @@ public sealed class UsersController : ApiControllerBase
     [HttpPut("{id:guid}/roles")]
     public async Task<ActionResult<Result<bool>>> UpdateUserRoles(
         Guid id,
-        [FromBody] List<string> roles,
+        List<string> roles,
         CancellationToken cancellationToken = default)
     {
         var command = new UpdateUserRolesCommand(id, roles);

@@ -59,36 +59,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
-    let connection: HubConnection | null = null;
+    let isCancelled = false;
+    const connection = new HubConnectionBuilder()
+      .withUrl('http://localhost:5285/hubs/app', {
+        accessTokenFactory: () => localStorage.getItem('accessToken') || ''
+      })
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Warning)
+      .build();
 
-    try {
-      connection = new HubConnectionBuilder()
-        .withUrl('http://localhost:5285/hubs/app', {
-          accessTokenFactory: () => localStorage.getItem('accessToken') || ''
-        })
-        .withAutomaticReconnect()
-        .configureLogging(LogLevel.Information)
-        .build();
+    connection.on('OrderStatusChanged', (payload: {
+      orderId: string;
+      orderNumber: string;
+      newStatus: string;
+      newStatusText: string;
+      message: string;
+    }) => {
+      if (isCancelled) return;
+      fetchNotifications();
+      info(payload.message || `#${payload.orderNumber} numaralı siparişinizin durumu güncellendi: ${payload.newStatusText}`);
+      window.dispatchEvent(new CustomEvent('nexora:order-status-changed', { detail: payload }));
+    });
 
-      connection.on('OrderStatusChanged', (payload: {
-        orderId: string;
-        orderNumber: string;
-        newStatus: string;
-        newStatusText: string;
-        message: string;
-      }) => {
-        fetchNotifications();
-        info(payload.message || `#${payload.orderNumber} numaralı siparişinizin durumu güncellendi: ${payload.newStatusText}`);
-        window.dispatchEvent(new CustomEvent('nexora:order-status-changed', { detail: payload }));
-      });
-
-      connection.start().catch(() => {});
-    } catch {}
+    connection.start().catch(() => {});
 
     return () => {
-      if (connection) {
-        connection.stop().catch(() => {});
-      }
+      isCancelled = true;
+      connection.off('OrderStatusChanged');
+      connection.stop().catch(() => {});
     };
   }, [fetchNotifications, info]);
 

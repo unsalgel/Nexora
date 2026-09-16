@@ -19,8 +19,6 @@ public sealed class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, Result
     {
         var query = _context.Users
             .AsNoTracking()
-            .Include(u => u.UserRoles)
-                .ThenInclude(ur => ur.Role)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -39,33 +37,21 @@ public sealed class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, Result
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var users = await query
+        var items = await query
             .OrderByDescending(u => u.CreatedAtUtc)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(u => new
-            {
+            .Select(u => new UserDto(
                 u.Id,
                 u.FirstName,
                 u.LastName,
                 u.Email,
                 u.IsActive,
-                Roles = u.UserRoles.Select(ur => ur.Role.Name).ToList(),
-                OrderCount = _context.Orders.Count(o => o.UserId == u.Id),
+                u.UserRoles.Select(ur => ur.Role.Name).ToList(),
+                _context.Orders.Count(o => o.UserId == u.Id),
                 u.CreatedAtUtc
-            })
+            ))
             .ToListAsync(cancellationToken);
-
-        var items = users.Select(u => new UserDto(
-            u.Id,
-            u.FirstName,
-            u.LastName,
-            u.Email,
-            u.IsActive,
-            u.Roles,
-            u.OrderCount,
-            u.CreatedAtUtc
-        )).ToList();
 
         var pagedResult = new PagedResult<UserDto>(items, request.Page, request.PageSize, totalCount);
 

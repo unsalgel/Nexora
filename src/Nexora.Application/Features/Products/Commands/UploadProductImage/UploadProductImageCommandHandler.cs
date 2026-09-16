@@ -4,7 +4,6 @@ using Nexora.Application.Common;
 
 namespace Nexora.Application.Features.Products.Commands.UploadProductImage;
 
-// Ürün görseli yükleme komutu işleyicisi
 public sealed class UploadProductImageCommandHandler : IRequestHandler<UploadProductImageCommand, Result<string>>
 {
     private readonly IFileStorageService _fileStorageService;

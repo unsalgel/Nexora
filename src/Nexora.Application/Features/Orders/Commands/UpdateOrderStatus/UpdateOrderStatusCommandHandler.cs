@@ -23,11 +23,17 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
     {
-        var order = await _context.Orders
-            .Include(o => o.Items)
-                .ThenInclude(i => i.Product)
-            .Include(o => o.Items)
-                .ThenInclude(i => i.ProductVariant)
+        var query = _context.Orders.AsQueryable();
+        if (request.NewStatus == OrderStatus.Cancelled)
+        {
+            query = query
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.ProductVariant);
+        }
+
+        var order = await query
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new NotFoundException("Sipariş bulunamadı.");
 
@@ -39,6 +45,11 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         if (order.Status == OrderStatus.Delivered)
         {
             throw new ConflictException("Teslim edilmiş bir siparişin durumu değiştirilemez.");
+        }
+
+        if (order.Status == request.NewStatus && string.IsNullOrWhiteSpace(request.TrackingNumber) && string.IsNullOrWhiteSpace(request.Carrier))
+        {
+            return Result<string>.Success($"Sipariş durumu zaten '{GetStatusTurkishText(request.NewStatus)}'.");
         }
 
         var oldStatus = order.Status;
