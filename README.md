@@ -50,8 +50,9 @@ Nexora/
 | Kimlik Doğrulama | JWT (JWS + JTI) & BCrypt | 15 dk Access Token, 7 gün Refresh Token, anlık iptal ve saat toleransı sıfırlama |
 | Yapay Zeka Desteği | Google Gemini API (REST) | RAG mimarisiyle zenginleştirilmiş akıllı müşteri asistanı servisi |
 | Hız Sınırlama | ASP.NET Core RateLimiter | Uç noktalarda IP tabanlı istek sınırlama ve kaba kuvvet koruması |
+| Gerçek Zamanlı İletişim | ASP.NET Core SignalR | Anlık sipariş bildirimleri ve site ayarları senkronizasyonu |
 | Doğrulama | FluentValidation | İstek gövdeleri için kural tabanlı doğrulama altyapısı |
-| Loglama | Serilog | Yapılandırılmış loglama; PostgreSQL, günlük dosya ve konsol çıktıları |
+| Loglama | Serilog | Yapılandırılmış loglama; Console ve günlük dönen dosya çıktıları |
 | API Arayüzü | Swagger / OpenAPI | JWT Bearer entegrasyonuna sahip interaktif test dokümantasyonu |
 
 ### Frontend (Web & Admin)
@@ -100,6 +101,20 @@ Nexora/
 * Yüzdelik (%) ve Sabit Tutar (TL) indirim modelleri.
 * Kupon kullanım kotası, minimum sepet tutarı ve geçerlilik tarihi kısıtları.
 * Sepet ve ödeme aşamalarında anlık kupon doğrulama ve sepet indirimi hesaplaması.
+
+### 6. Kullanıcı & Rol Yönetimi (Users & Roles)
+* Admin paneli üzerinden tüm müşterilerin ve yöneticilerin aranması, filtrelenmesi ve sayfalanması.
+* Kullanıcı hesap durumunun (Aktif/Pasif) tek tıkla güncellenmesi.
+* Dinamik rol atama ve kaldırma mekanizması.
+
+### 7. Ürün Değerlendirme ve Yorum Yönetimi (Reviews)
+* Müşterilerin satın aldıkları ürünlere 1-5 puan arası değerlendirme ve yorum ekleyebilmesi.
+* Ürün detayında gerçek zamanlı puan ortalaması ve yorum listeleme.
+* Admin panelinde yorumları puan ve metne göre arama, filtreleme ve moderasyon (silme).
+
+### 8. Gerçek Zamanlı Bildirim & Ayarlar (SignalR Real-time Hub)
+* Sipariş durumu değiştiğinde müşteriye anlık SignalR bildirimi ve bildirim çanı senkronizasyonu.
+* Site ayarları (duyuru metni, iletişim bilgileri vb.) güncellendiğinde tüm aktif kullanıcılarda anında yansıyan canlı güncelleme altyapısı.
 
 ---
 
