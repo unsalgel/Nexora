@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 
@@ -36,6 +37,8 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [liveSettings, setLiveSettings] = useState<SiteSettings | null>(null);
+
   const { data, isLoading, refetch } = useQuery<ApiResponse<SiteSettings>>({
     queryKey: ['site-settings'],
     queryFn: async () => {
@@ -46,7 +49,31 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refetchOnWindowFocus: true
   });
 
-  const settings = data?.data || defaultSettings;
+  const settings = liveSettings || data?.data || defaultSettings;
+
+  useEffect(() => {
+    let connection: HubConnection | null = null;
+
+    try {
+      connection = new HubConnectionBuilder()
+        .withUrl('http://localhost:5285/hubs/app')
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.None)
+        .build();
+
+      connection.on('SiteSettingsUpdated', (updatedSettings: SiteSettings) => {
+        setLiveSettings(updatedSettings);
+      });
+
+      connection.start().catch(() => {});
+    } catch {}
+
+    return () => {
+      if (connection) {
+        connection.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const rawTitle = (settings.siteTitle || 'Nexora - Alışverişin Yeni Adresi').trim() + '   ';

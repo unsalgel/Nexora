@@ -10,10 +10,14 @@ namespace Nexora.Application.Features.Settings.Commands.UpdateSiteSettings;
 public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettingsCommand, Result<SiteSettingsDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService _notificationService;
 
-    public UpdateSiteSettingsCommandHandler(IApplicationDbContext context)
+    public UpdateSiteSettingsCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<SiteSettingsDto>> Handle(UpdateSiteSettingsCommand request, CancellationToken cancellationToken)
@@ -58,6 +62,8 @@ public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSit
             request.AnnouncementText,
             request.IsAnnouncementActive
         );
+
+        await _notificationService.PublishToAllAsync("SiteSettingsUpdated", dto, cancellationToken);
 
         return Result<SiteSettingsDto>.Success(dto, "Site ayarları başarıyla güncellendi.");
     }

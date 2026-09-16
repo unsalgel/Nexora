@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nexora.Api.Middlewares;
+using Nexora.Api.Hubs;
+using Nexora.Api.Services;
+using Nexora.Application.Abstractions;
 using Nexora.Application;
 using Nexora.Infrastructure;
 using Nexora.Infrastructure.Authentication;
@@ -97,6 +100,9 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -184,6 +190,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<AppHub>("/hubs/app");
 
 try
 {
