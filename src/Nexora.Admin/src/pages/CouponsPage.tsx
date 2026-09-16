@@ -3,6 +3,7 @@ import {
   Ticket, 
   Plus, 
   Trash2, 
+  Edit2,
   Search, 
   CheckCircle2, 
   Clock, 
@@ -27,6 +28,7 @@ export const CouponsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingCoupon, setEditingCoupon] = useState<CouponDto | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -97,35 +99,60 @@ export const CouponsPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      const payload: CreateCouponDto = {
-        code: formData.code.trim().toUpperCase(),
-        discountType: formData.discountType === 'Percentage' ? 1 : 2,
-        discountValue: Number(formData.discountValue),
-        minimumOrderAmount: Number(formData.minimumOrderAmount),
-        maximumDiscountAmount: formData.maximumDiscountAmount !== '' ? Number(formData.maximumDiscountAmount) : null,
-        totalUsageLimit: Number(formData.totalUsageLimit),
-        expirationDateUtc: new Date(`${formData.expirationDate}T23:59:59Z`).toISOString()
-      };
+      const expirationDateUtc = new Date(`${formData.expirationDate}T23:59:59Z`).toISOString();
 
-      const response = await apiClient.post<ApiResponse<CouponDto>>('/coupons', payload);
+      if (editingCoupon) {
+        const updatePayload = {
+          id: editingCoupon.id,
+          code: formData.code.trim().toUpperCase(),
+          discountType: formData.discountType === 'Percentage' ? 1 : 2,
+          discountValue: Number(formData.discountValue),
+          minimumOrderAmount: Number(formData.minimumOrderAmount),
+          maximumDiscountAmount: formData.maximumDiscountAmount !== '' ? Number(formData.maximumDiscountAmount) : null,
+          totalUsageLimit: Number(formData.totalUsageLimit),
+          expirationDateUtc,
+          isActive: editingCoupon.isActive
+        };
 
-      if (response.data?.isSuccess && response.data.data) {
-        setCoupons(prev => [response.data.data, ...prev]);
-        setSuccessMessage('Kupon başarıyla oluşturuldu.');
-        setIsModalOpen(false);
-        setFormData({
-          code: '',
-          discountType: 'Percentage',
-          discountValue: 10,
-          minimumOrderAmount: 200,
-          maximumDiscountAmount: 100,
-          totalUsageLimit: 100,
-          expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
+        const response = await apiClient.put<ApiResponse<CouponDto>>(`/coupons/${editingCoupon.id}`, updatePayload);
+
+        if (response.data?.isSuccess && response.data.data) {
+          setCoupons(prev => prev.map(c => c.id === editingCoupon.id ? response.data.data : c));
+          showToast('success', `'${formData.code}' kuponu başarıyla güncellendi.`);
+          setIsModalOpen(false);
+          setEditingCoupon(null);
+        }
+      } else {
+        const payload: CreateCouponDto = {
+          code: formData.code.trim().toUpperCase(),
+          discountType: formData.discountType === 'Percentage' ? 1 : 2,
+          discountValue: Number(formData.discountValue),
+          minimumOrderAmount: Number(formData.minimumOrderAmount),
+          maximumDiscountAmount: formData.maximumDiscountAmount !== '' ? Number(formData.maximumDiscountAmount) : null,
+          totalUsageLimit: Number(formData.totalUsageLimit),
+          expirationDateUtc
+        };
+
+        const response = await apiClient.post<ApiResponse<CouponDto>>('/coupons', payload);
+
+        if (response.data?.isSuccess && response.data.data) {
+          setCoupons(prev => [response.data.data, ...prev]);
+          showToast('success', 'Kupon başarıyla oluşturuldu.');
+          setIsModalOpen(false);
+          setFormData({
+            code: '',
+            discountType: 'Percentage',
+            discountValue: 10,
+            minimumOrderAmount: 200,
+            maximumDiscountAmount: 100,
+            totalUsageLimit: 100,
+            expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          });
+        }
       }
     } catch (err: unknown) {
       const axiosError = err as AxiosError<ApiResponse<unknown>>;
-      const msg = axiosError.response?.data?.message || 'Kupon oluşturulurken bir hata oluştu.';
+      const msg = axiosError.response?.data?.message || (editingCoupon ? 'Kupon güncellenirken bir hata oluştu.' : 'Kupon oluşturulurken bir hata oluştu.');
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
@@ -202,7 +229,7 @@ export const CouponsPage: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-transform active:scale-95 cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>Yeni Kupon Oluştur</span>
+          <span>{editingCoupon ? 'Kuponu Düzenle' : 'Yeni Kupon Oluştur'}</span>
         </button>
       </div>
 
@@ -387,11 +414,14 @@ export const CouponsPage: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <ToggleSwitch
-                            checked={coupon.isActive}
-                            isLoading={togglingCouponId === coupon.id}
-                            onChange={(newVal) => handleToggleCouponStatus(coupon, newVal)}
-                          />
+                          <div title={isExpired ? 'Süresi dolmuş kupon aktifleştirilemez' : undefined}>
+                            <ToggleSwitch
+                              checked={coupon.isActive}
+                              disabled={isExpired}
+                              isLoading={togglingCouponId === coupon.id}
+                              onChange={(newVal) => handleToggleCouponStatus(coupon, newVal)}
+                            />
+                          </div>
                           {isExpired && (
                             <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-bold">
                               Süresi Doldu
@@ -406,13 +436,35 @@ export const CouponsPage: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => setCouponToDelete({ id: coupon.id, code: coupon.code })}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Kuponu Sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingCoupon(coupon);
+                              setFormData({
+                                code: coupon.code,
+                                discountType: coupon.discountType === 'Percentage' ? 'Percentage' : 'FixedAmount',
+                                discountValue: coupon.discountValue,
+                                minimumOrderAmount: coupon.minimumOrderAmount,
+                                maximumDiscountAmount: coupon.maximumDiscountAmount ?? '',
+                                totalUsageLimit: coupon.totalUsageLimit,
+                                expirationDate: coupon.expirationDateUtc.split('T')[0]
+                              });
+                              setErrorMessage(null);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
+                            title="Kuponu Düzenle"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setCouponToDelete({ id: coupon.id, code: coupon.code })}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Kuponu Sil"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -553,7 +605,7 @@ export const CouponsPage: React.FC = () => {
                   className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Kuponu Kaydet</span>
+                  <span>{editingCoupon ? 'Değişiklikleri Kaydet' : 'Kuponu Kaydet'}</span>
                 </button>
               </div>
 

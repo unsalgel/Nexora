@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Tag, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { Tag, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
@@ -41,6 +41,48 @@ export const BrandsPage: React.FC = () => {
   const [name, setName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('error', 'Lütfen geçerli bir görsel dosyası seçin (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'Görsel boyutu 5 MB\'dan küçük olmalıdır.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsUploadingLogo(true);
+    try {
+      const res = await apiClient.post<ApiResponse<string>>('/products/images/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data?.isSuccess && res.data.data) {
+        setLogoUrl(res.data.data);
+        showToast('success', 'Marka logosu başarıyla yüklendi.');
+      } else {
+        showToast('error', res.data?.message || 'Logo yüklenemedi.');
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string }>;
+      showToast('error', error.response?.data?.message || 'Logo yüklenirken hata oluştu.');
+    } finally {
+      setIsUploadingLogo(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const [brandToDelete, setBrandToDelete] = useState<{ id: string; name: string } | null>(null);
   const [togglingBrandId, setTogglingBrandId] = useState<string | null>(null);
@@ -343,17 +385,81 @@ export const BrandsPage: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Logo URL
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Marka Logosu
                 </label>
                 <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleFileUpload}
+                  className="hidden"
                 />
+
+                {logoUrl ? (
+                  <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center gap-3 group">
+                    <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 flex items-center justify-center p-1">
+                      <img
+                        src={logoUrl.startsWith('http') ? logoUrl : `http://localhost:5285${logoUrl}`}
+                        alt="Önizleme"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-8">
+                      <p className="text-xs font-medium text-slate-900 truncate">{logoUrl}</p>
+                      <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Logo seçildi</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingLogo}
+                      className="w-full border-2 border-dashed border-slate-200 hover:border-orange-500/50 hover:bg-orange-50/20 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {isUploadingLogo ? (
+                        <>
+                          <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                          <span className="text-xs font-semibold text-slate-600">Logo yükleniyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                            <Upload className="w-4 h-4" />
+                          </div>
+                          <div className="text-center">
+                            <span className="text-xs font-bold text-orange-600 hover:underline">Görsel Seç</span>
+                            <span className="text-xs text-slate-500"> veya buraya sürükleyin</span>
+                            <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WEBP (Maks. 5 MB)</p>
+                          </div>
+                        </>
+                      )}
+                    </button>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                      <div className="relative flex justify-center text-[10px] uppercase text-slate-400 font-bold"><span className="bg-white px-2">veya URL ile</span></div>
+                    </div>
+                    <input
+                      type="url"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://example.com/logo.png"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+                    />
+                  </div>
+                )}
               </div>
 
               {editingBrand && (

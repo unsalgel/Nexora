@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Coupons.Commands.CreateCoupon;
 using Nexora.Application.Features.Coupons.Commands.DeleteCoupon;
+using Nexora.Application.Features.Coupons.Commands.UpdateCoupon;
+using Nexora.Application.Features.Coupons.Commands.UpdateCouponStatus;
 using Nexora.Application.Features.Coupons.Dtos;
 using Nexora.Application.Features.Coupons.Queries.GetAllCoupons;
 using Nexora.Application.Features.Coupons.Queries.ValidateCoupon;
@@ -39,6 +41,22 @@ public sealed class CouponsController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<CouponDto>>> UpdateCoupon(
+        Guid id,
+        UpdateCouponCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        if (id != command.Id)
+        {
+            return BadRequest(Result<CouponDto>.Failure("İstek kimliği ile kupon kimliği uyuşmuyor."));
+        }
+
+        var result = await Sender.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPut("{id:guid}/status")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> UpdateCouponStatus(
@@ -46,7 +64,7 @@ public sealed class CouponsController : ApiControllerBase
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new Nexora.Application.Features.Coupons.Commands.UpdateCouponStatus.UpdateCouponStatusCommand(id, isActive), cancellationToken);
+        var result = await Sender.Send(new UpdateCouponStatusCommand(id, isActive), cancellationToken);
         return Ok(result);
     }
 

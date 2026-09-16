@@ -7,6 +7,7 @@ import {
   Tag, 
   ShoppingBag, 
   Ticket,
+  MessageSquareQuote,
   LogOut, 
   ExternalLink,
   ShieldCheck,
@@ -63,6 +64,7 @@ export const AdminLayout: React.FC = () => {
     { name: 'Markalar', path: '/brands', icon: Tag },
     { name: 'Siparişler', path: '/orders', icon: ShoppingBag },
     { name: 'Kupon Yönetimi', path: '/coupons', icon: Ticket },
+    { name: 'Yorumlar', path: '/reviews', icon: MessageSquareQuote },
   ];
 
   const closeMenu = () => setIsMobileMenuOpen(false);
