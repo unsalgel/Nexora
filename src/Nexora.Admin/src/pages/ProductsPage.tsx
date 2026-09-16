@@ -8,6 +8,7 @@ import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { ToastContainer } from '../components/ui/Toast';
+import { uploadImage } from '../lib/uploadService';
 import type { ToastMessage } from '../components/ui/Toast';
 
 interface ProductListItemDto {

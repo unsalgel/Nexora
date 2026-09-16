@@ -14,13 +14,13 @@ public sealed class ReviewsController : ApiControllerBase
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<PagedResult<AdminReviewDto>>>> GetAll(
-        [FromQuery] string? search,
+        [FromQuery] string? searchTerm,
         [FromQuery] int? rating,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetAllReviewsQuery(search, rating, page, pageSize);
+        var query = new GetAllReviewsQuery(searchTerm, rating, page, pageSize);
         var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
     }

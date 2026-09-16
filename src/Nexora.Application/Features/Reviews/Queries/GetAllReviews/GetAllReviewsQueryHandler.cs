@@ -23,14 +23,14 @@ public sealed class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQue
             .Include(r => r.User)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
-            var search = request.Search.Trim().ToLower();
+            var search = request.SearchTerm.Trim().ToLower();
             query = query.Where(r => 
-                r.Product.Name.ToLower().Contains(search) ||
-                (r.User.FirstName + " " + r.User.LastName).ToLower().Contains(search) ||
-                r.User.Email.ToLower().Contains(search) ||
-                (r.Comment != null && r.Comment.ToLower().Contains(search)));
+                r.Product.Name.ToLower().Contains(search.ToLower()) ||
+                (r.User.FirstName + " " + r.User.LastName).ToLower().Contains(search.ToLower()) ||
+                r.User.Email.ToLower().Contains(search.ToLower()) ||
+                (r.Comment != null && r.Comment.ToLower().Contains(search.ToLower())));
         }
 
         if (request.Rating.HasValue && request.Rating.Value > 0)

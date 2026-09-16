@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Star, 
-  Search, 
-  Trash2, 
-  AlertCircle, 
-  CheckCircle2, 
-  Filter, 
-  ChevronLeft, 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
   ChevronRight,
-  MessageSquareQuote
+  Filter,
+  MessageSquareQuote,
+  Search,
+  Star,
+  Trash2
 } from 'lucide-react';
+import React, { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
 
 interface Review {
@@ -54,7 +54,7 @@ export const ReviewsPage: React.FC = () => {
         page: currentPage.toString(),
         pageSize: '10',
       });
-      if (searchTerm) params.append('search', searchTerm);
+      if (searchTerm) params.append('searchTerm', searchTerm);
       if (selectedRating) params.append('rating', selectedRating.toString());
 
       const res = await apiClient.get<ReviewsResponse>(`/reviews?${params.toString()}`);
@@ -85,11 +85,10 @@ export const ReviewsPage: React.FC = () => {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-4 h-4 ${
-              star <= rating
+            className={`w-4 h-4 ${star <= rating
                 ? 'text-amber-400 fill-amber-400'
                 : 'text-slate-200'
-            }`}
+              }`}
           />
         ))}
       </div>
@@ -116,11 +115,10 @@ export const ReviewsPage: React.FC = () => {
 
       {actionMessage && (
         <div
-          className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium border animate-in fade-in duration-200 ${
-            actionMessage.type === 'success'
+          className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium border animate-in fade-in duration-200 ${actionMessage.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
+            }`}
         >
           {actionMessage.type === 'success' ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -228,11 +226,10 @@ export const ReviewsPage: React.FC = () => {
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <button
                         onClick={() => setDeleteConfirmId(review.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Yorumu Sil"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Sil
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>

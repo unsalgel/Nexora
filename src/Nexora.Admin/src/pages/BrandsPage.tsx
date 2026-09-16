@@ -7,6 +7,7 @@ import type { ApiResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { ToastContainer } from '../components/ui/Toast';
+import { uploadImage } from '../lib/uploadService';
 import type { ToastMessage } from '../components/ui/Toast';
 
 interface BrandDto {
@@ -48,39 +49,19 @@ export const BrandsPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      showToast('error', 'Lütfen geçerli bir görsel dosyası seçin (PNG, JPG, WEBP).');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('error', 'Görsel boyutu 5 MB\'dan küçük olmalıdır.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
     setIsUploadingLogo(true);
-    try {
-      const res = await apiClient.post<ApiResponse<string>>('/products/images/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    const result = await uploadImage(file);
+    setIsUploadingLogo(false);
 
-      if (res.data?.isSuccess && res.data.data) {
-        setLogoUrl(res.data.data);
-        showToast('success', 'Marka logosu başarıyla yüklendi.');
-      } else {
-        showToast('error', res.data?.message || 'Logo yüklenemedi.');
-      }
-    } catch (err: unknown) {
-      const error = err as AxiosError<{ message?: string }>;
-      showToast('error', error.response?.data?.message || 'Logo yüklenirken hata oluştu.');
-    } finally {
-      setIsUploadingLogo(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    if (result.isSuccess && result.url) {
+      setLogoUrl(result.url);
+      showToast('success', 'Marka logosu başarıyla yüklendi.');
+    } else {
+      showToast('error', result.errorMessage || 'Logo yüklenemedi.');
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 

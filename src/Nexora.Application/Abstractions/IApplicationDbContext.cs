@@ -26,6 +26,7 @@ public interface IApplicationDbContext
     DbSet<Review> Reviews { get; }
     DbSet<Coupon> Coupons { get; }
     DbSet<UserAddress> UserAddresses { get; }
+    DbSet<Setting> Settings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

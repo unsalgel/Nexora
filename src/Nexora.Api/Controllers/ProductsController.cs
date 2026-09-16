@@ -73,22 +73,6 @@ public sealed class ProductsController : ApiControllerBase
         return Ok(result);
     }
 
-    [HttpPost("images/upload")]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<Result<string>>> UploadImage(
-        IFormFile file,
-        CancellationToken cancellationToken = default)
-    {
-        using var stream = file.OpenReadStream();
-        var command = new Nexora.Application.Features.Products.Commands.UploadProductImage.UploadProductImageCommand(
-            stream,
-            file.FileName,
-            file.ContentType);
-
-        var result = await Sender.Send(command, cancellationToken);
-        return Ok(result);
-    }
-
     [HttpPost("{id:guid}/images")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<Guid>>> AddProductImage(

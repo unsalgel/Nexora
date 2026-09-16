@@ -51,13 +51,12 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
-          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-            window.location.href = '/login';
-          }
+          window.location.href = '/login';
         }
       } else {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
@@ -77,6 +76,6 @@ export interface PagedResponse<T> {
   pageSize: number;
   totalCount: number;
   totalPages: number;
-  hasNextPage: boolean;
   hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }

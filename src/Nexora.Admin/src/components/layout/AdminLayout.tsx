@@ -8,6 +8,8 @@ import {
   ShoppingBag, 
   Ticket,
   MessageSquareQuote,
+  Users,
+  Settings as SettingsIcon,
   LogOut, 
   ExternalLink,
   ShieldCheck,
@@ -65,6 +67,8 @@ export const AdminLayout: React.FC = () => {
     { name: 'Siparişler', path: '/orders', icon: ShoppingBag },
     { name: 'Kupon Yönetimi', path: '/coupons', icon: Ticket },
     { name: 'Yorumlar', path: '/reviews', icon: MessageSquareQuote },
+    { name: 'Kullanıcılar', path: '/users', icon: Users },
+    { name: 'Site Ayarları', path: '/settings', icon: SettingsIcon },
   ];
 
   const closeMenu = () => setIsMobileMenuOpen(false);

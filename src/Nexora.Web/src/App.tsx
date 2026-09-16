@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { CartProvider } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { ChatWidget } from './features/chat';
@@ -46,6 +47,7 @@ export const App: React.FC = () => {
       <ToastProvider>
         <FavoritesProvider>
           <CartProvider>
+            <SettingsProvider>
             <NotificationProvider>
             <Router>
               <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white font-sans overflow-x-hidden">
@@ -71,6 +73,7 @@ export const App: React.FC = () => {
               </div>
             </Router>
           </NotificationProvider>
+          </SettingsProvider>
           </CartProvider>
         </FavoritesProvider>
       </ToastProvider>

@@ -1,7 +1,9 @@
 ﻿import React from 'react';
+import { useSettings } from '../../context/SettingsContext';
 import { Truck, ShieldCheck, RotateCcw, Headset, CreditCard } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const { settings } = useSettings();
   return (
     <footer className="bg-white border-t border-slate-200 mt-16 text-slate-600">
       
@@ -14,7 +16,7 @@ export const Footer: React.FC = () => {
             </div>
             <div>
               <h4 className="text-sm font-bold text-slate-900">Ücretsiz & Hızlı Kargo</h4>
-              <p className="text-xs text-slate-500">150 TL üzeri kargo bedava</p>
+              <p className="text-xs text-slate-500">{settings.freeShippingThreshold} TL üzeri kargo bedava</p>
             </div>
           </div>
 

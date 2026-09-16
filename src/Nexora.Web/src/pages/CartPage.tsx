@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Ticket, ShoppingBag, ArrowLeft, Check, X, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
+import { useSettings } from '../context/SettingsContext';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
 import type { CouponValidationResultDto } from '../types/coupon';
@@ -13,6 +14,7 @@ export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { cart, isLoading, updateQuantity, removeFromCart } = useCart();
   const { showToast } = useToast();
+  const { settings } = useSettings();
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
@@ -20,7 +22,8 @@ export const CartPage: React.FC = () => {
 
   const cartItems = cart?.items || [];
   const cartGrandTotal = cart?.grandTotal || 0;
-  const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
+  const isFreeShipping = cartGrandTotal >= settings.freeShippingThreshold || cartGrandTotal === 0;
+  const shippingFee = isFreeShipping ? 0 : settings.shippingCost;
   const discountAmount = appliedCoupon ? appliedCoupon.calculatedDiscountAmount : 0;
   const payableTotal = Math.max(0, cartGrandTotal + shippingFee - discountAmount);
 

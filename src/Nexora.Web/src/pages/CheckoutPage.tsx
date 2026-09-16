@@ -2,6 +2,7 @@ import { SafeImage } from '../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useSettings } from '../context/SettingsContext';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
@@ -19,6 +20,7 @@ interface OrderDto {
 
 export const CheckoutPage: React.FC = () => {
   const { cart, clearCart, refreshCart } = useCart();
+  const { settings } = useSettings();
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -210,7 +212,8 @@ export const CheckoutPage: React.FC = () => {
   const cardBrand = getCardBrand(card.number);
   const cartItems = cart?.items || [];
   const cartGrandTotal = cart?.grandTotal || 0;
-  const shippingFee = cartGrandTotal > 500 || cartGrandTotal === 0 ? 0 : 39.90;
+  const isFreeShipping = cartGrandTotal >= settings.freeShippingThreshold || cartGrandTotal === 0;
+  const shippingFee = isFreeShipping ? 0 : settings.shippingCost;
   const discountAmount = appliedCoupon ? appliedCoupon.calculatedDiscountAmount : 0;
   const payableTotal = Math.max(0, cartGrandTotal + shippingFee - discountAmount);
 
