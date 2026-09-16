@@ -27,6 +27,7 @@ public interface IApplicationDbContext
     DbSet<Coupon> Coupons { get; }
     DbSet<UserAddress> UserAddresses { get; }
     DbSet<Setting> Settings { get; }
+    DbSet<Log> Logs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

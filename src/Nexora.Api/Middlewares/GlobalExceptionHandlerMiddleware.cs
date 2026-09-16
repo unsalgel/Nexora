@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Text.Json;
 using FluentValidation;
+using Nexora.Application.Abstractions;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Api.Middlewares;
@@ -17,7 +19,7 @@ public sealed class GlobalExceptionHandlerMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IDbLogger dbLogger)
     {
         try
         {
@@ -26,6 +28,22 @@ public sealed class GlobalExceptionHandlerMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Bir hata oluştu: {Message}", ex.Message);
+
+            var userEmail = context.User?.FindFirst(ClaimTypes.Email)?.Value 
+                ?? context.User?.FindFirst("email")?.Value 
+                ?? "Anonim";
+
+            var endpoint = $"{context.Request.Method} {context.Request.Path}";
+            var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Bilinmiyor";
+
+            await dbLogger.LogErrorAsync(
+                source: "GlobalExceptionHandler",
+                ex: ex,
+                endpoint: endpoint,
+                userEmail: userEmail,
+                clientIp: clientIp,
+                cancellationToken: context.RequestAborted);
+
             await HandleExceptionAsync(context, ex);
         }
     }

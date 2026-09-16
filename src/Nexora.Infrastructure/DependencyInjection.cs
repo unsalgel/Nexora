@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ICacheService, RedisCacheService>();
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IDbLogger, DbLogger>();
 
 
         services.AddHttpClient<IAiChatService, AiChatService>();

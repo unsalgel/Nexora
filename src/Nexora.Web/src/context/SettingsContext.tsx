@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse } from '../lib/apiClient';
@@ -37,6 +37,7 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [liveSettings, setLiveSettings] = useState<SiteSettings | null>(null);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<SiteSettings>>({
@@ -58,14 +59,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       connection = new HubConnectionBuilder()
         .withUrl('http://localhost:5285/hubs/app')
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.None)
+        .configureLogging(LogLevel.Information)
         .build();
 
       connection.on('SiteSettingsUpdated', (updatedSettings: SiteSettings) => {
         setLiveSettings(updatedSettings);
+        queryClient.setQueryData(['site-settings'], { isSuccess: true, data: updatedSettings });
       });
 
-      connection.start().catch(() => {});
+      connection.start().catch((err) => {
+        console.warn('SignalR connection failed:', err);
+      });
     } catch {}
 
     return () => {
@@ -73,7 +77,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         connection.stop().catch(() => {});
       }
     };
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     const rawTitle = (settings.siteTitle || 'Nexora - Alışverişin Yeni Adresi').trim() + '   ';

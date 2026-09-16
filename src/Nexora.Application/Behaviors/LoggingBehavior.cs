@@ -1,6 +1,7 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nexora.Application.Abstractions;
 
 namespace Nexora.Application.Behaviors;
 
@@ -8,10 +9,14 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     where TRequest : IRequest<TResponse>
 {
     private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
+    private readonly IDbLogger _dbLogger;
 
-    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
+    public LoggingBehavior(
+        ILogger<LoggingBehavior<TRequest, TResponse>> logger,
+        IDbLogger dbLogger)
     {
         _logger = logger;
+        _dbLogger = dbLogger;
     }
 
     public async Task<TResponse> Handle(
@@ -36,6 +41,12 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
             {
                 _logger.LogWarning("Yavaş İstek Algılandı: {RequestName} ({ElapsedMilliseconds}ms sürede tamamlandı)",
                     requestName, elapsedMilliseconds);
+
+                await _dbLogger.LogWarningAsync(
+                    source: requestName,
+                    message: $"Yavaş İstek Algılandı ({elapsedMilliseconds}ms sürede tamamlandı)",
+                    durationMs: elapsedMilliseconds,
+                    cancellationToken: cancellationToken);
             }
             else
             {
@@ -51,6 +62,11 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
             _logger.LogError(ex, "İşlem Sırasında Hata Oluştu: {RequestName} ({ElapsedMilliseconds}ms)",
                 requestName, timer.ElapsedMilliseconds);
+
+            await _dbLogger.LogErrorAsync(
+                source: requestName,
+                ex: ex,
+                cancellationToken: cancellationToken);
 
             throw;
         }
