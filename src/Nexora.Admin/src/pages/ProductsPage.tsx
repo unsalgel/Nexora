@@ -102,26 +102,17 @@ export const ProductsPage: React.FC = () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     setIsUploadingImage(true);
     try {
-      const res = await apiClient.post<ApiResponse<string>>('/products/images/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      if (res.data?.isSuccess && res.data.data) {
-        setImageUrl(res.data.data);
+      const result = await uploadImage(file);
+      if (result.isSuccess && result.url) {
+        setImageUrl(result.url);
         showToast('success', 'Görsel başarıyla yüklendi.');
       } else {
-        showToast('error', res.data?.message || 'Görsel yüklenemedi.');
+        showToast('error', result.errorMessage || 'Görsel yüklenemedi.');
       }
-    } catch (err: unknown) {
-      const error = err as AxiosError<{ message?: string }>;
-      showToast('error', error.response?.data?.message || 'Görsel sunucuya yüklenirken hata oluştu.');
+    } catch {
+      showToast('error', 'Görsel yüklenirken beklenmeyen bir hata oluştu.');
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {

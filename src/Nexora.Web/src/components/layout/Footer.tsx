@@ -46,7 +46,7 @@ export const Footer: React.FC = () => {
             </div>
             <div>
               <h4 className="text-sm font-bold text-slate-900">7/24 Canlı Destek</h4>
-              <p className="text-xs text-slate-500">Her zaman yanınızdayız</p>
+              <p className="text-xs text-slate-500">{settings.contactEmail}</p>
             </div>
           </div>
         </div>

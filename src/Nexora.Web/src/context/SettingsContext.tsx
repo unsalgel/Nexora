@@ -42,15 +42,22 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const res = await apiClient.get<ApiResponse<SiteSettings>>('/settings');
       return res.data;
     },
-    staleTime: 1000 * 60 * 5
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const settings = data?.data || defaultSettings;
 
   useEffect(() => {
-    if (settings.siteTitle) {
-      document.title = settings.siteTitle;
-    }
+    const rawTitle = (settings.siteTitle || 'Nexora - Alışverişin Yeni Adresi').trim() + '   ';
+    let currentTitle = rawTitle;
+
+    const interval = setInterval(() => {
+      currentTitle = currentTitle.substring(1) + currentTitle.substring(0, 1);
+      document.title = currentTitle;
+    }, 250);
+
+    return () => clearInterval(interval);
   }, [settings.siteTitle]);
 
   return (

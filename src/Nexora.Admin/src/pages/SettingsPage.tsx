@@ -80,6 +80,7 @@ export const SettingsPage: React.FC = () => {
     e.preventDefault();
     saveMutation.mutate({
       ...formData,
+      isAnnouncementActive: Boolean(formData.isAnnouncementActive),
       freeShippingThreshold: Number(formData.freeShippingThreshold),
       shippingCost: Number(formData.shippingCost)
     });
