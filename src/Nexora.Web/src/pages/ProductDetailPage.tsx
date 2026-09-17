@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Star, 
   Heart, 
-  ShoppingBag, 
   Truck, 
   ShieldCheck, 
   RotateCcw, 
@@ -14,8 +13,7 @@ import {
   ChevronRight,
   Share2,
   Tag,
-  MessageSquare,
-  Zap
+  MessageSquare
 } from 'lucide-react';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -428,10 +426,9 @@ export const ProductDetailPage: React.FC = () => {
                 type="button"
                 onClick={handleBuyNow}
                 disabled={currentStock === 0 || isBuyingNow}
-                className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border-2 border-amber-500/80 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center border-2 border-amber-500/80 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Sepete ekleyip doğrudan ödeme adımına geç"
               >
-                <Zap className="w-4 h-4 fill-white" />
                 <span>{isBuyingNow ? 'Yönlendiriliyor...' : 'Şimdi Al'}</span>
               </button>
 
@@ -439,13 +436,12 @@ export const ProductDetailPage: React.FC = () => {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={currentStock === 0}
-                className={`flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                   isAddedToCart 
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/10'
                     : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'
                 }`}
               >
-                <ShoppingBag className="w-4 h-4" />
                 <span>{currentStock === 0 ? 'Tükendi' : isAddedToCart ? 'Sepete Eklendi!' : 'Sepete Ekle'}</span>
               </button>
             </div>
