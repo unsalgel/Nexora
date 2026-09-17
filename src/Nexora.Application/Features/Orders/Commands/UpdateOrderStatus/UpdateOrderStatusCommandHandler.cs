@@ -86,15 +86,16 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             notificationMessage += $" Kargo Firması: {order.Carrier ?? "Belirtilmedi"}, Takip No: {order.TrackingNumber}";
         }
 
-        _context.Notifications.Add(new DomainEntities.Notification
+        var notification = new DomainEntities.Notification
         {
             UserId = order.UserId,
             Title = "Sipariş Durumu Güncellendi",
             Message = notificationMessage,
             Type = NotificationType.OrderStatusUpdated,
             IsRead = false
-        });
+        };
 
+        _context.Notifications.Add(notification);
         await _context.SaveChangesAsync(cancellationToken);
 
         await _notificationService.PublishToUserAsync(
@@ -102,11 +103,15 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             "OrderStatusChanged",
             new
             {
+                notificationId = notification.Id,
                 orderId = order.Id,
                 orderNumber = order.OrderNumber,
+                title = notification.Title,
+                message = notificationMessage,
+                type = "Order",
                 newStatus = order.Status.ToString(),
                 newStatusText = GetStatusTurkishText(order.Status),
-                message = notificationMessage
+                createdAtUtc = notification.CreatedAtUtc
             },
             cancellationToken);
 

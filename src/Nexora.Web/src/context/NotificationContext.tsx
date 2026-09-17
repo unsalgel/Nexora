@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
+import { HubConnectionBuilder, HubConnection, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { NotificationDto } from '../types/notification';
@@ -62,21 +62,45 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     let isCancelled = false;
     const connection = new HubConnectionBuilder()
       .withUrl('http://localhost:5285/hubs/app', {
-        accessTokenFactory: () => localStorage.getItem('accessToken') || ''
+        accessTokenFactory: () => localStorage.getItem('accessToken') || '',
+        transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents
       })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build();
 
     connection.on('OrderStatusChanged', (payload: {
+      notificationId?: string;
       orderId: string;
       orderNumber: string;
+      title?: string;
+      message: string;
+      type?: string;
       newStatus: string;
       newStatusText: string;
-      message: string;
+      createdAtUtc?: string;
     }) => {
       if (isCancelled) return;
-      fetchNotifications();
+
+      // Anlık sıfır gecikmeli state güncellemesi (HTTP GET çağrısı yapmadan)
+      if (payload.notificationId) {
+        const newNotification: NotificationDto = {
+          id: payload.notificationId,
+          userId: '',
+          title: payload.title || 'Sipariş Durumu Güncellendi',
+          message: payload.message,
+          type: payload.type || 'Order',
+          isRead: false,
+          readAtUtc: null,
+          createdAtUtc: payload.createdAtUtc || new Date().toISOString()
+        };
+
+        setNotifications(prev => {
+          if (prev.some(n => n.id === newNotification.id)) return prev;
+          return [newNotification, ...prev];
+        });
+      }
+
       info(payload.message || `#${payload.orderNumber} numaralı siparişinizin durumu güncellendi: ${payload.newStatusText}`);
       window.dispatchEvent(new CustomEvent('nexora:order-status-changed', { detail: payload }));
     });
