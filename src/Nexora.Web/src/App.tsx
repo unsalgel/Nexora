@@ -50,6 +50,7 @@ export const App: React.FC = () => {
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/favorites" element={<ProfilePage />} />
                         <Route path="/orders" element={<ProfilePage />} />
+                        <Route path="/addresses" element={<ProfilePage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         <Route path="*" element={<HomePage />} />

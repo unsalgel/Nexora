@@ -12,6 +12,10 @@ import {
   Search, 
   ShoppingBag, 
   User, 
+  Package,
+  MapPin,
+  LogOut,
+  ChevronDown,
   Heart, 
   Bell,
   Menu, 
@@ -28,6 +32,18 @@ export const Navbar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { cartCount } = useCart();
   const { unreadCount, isOpen: isNotificationOpen, setIsOpen: setIsNotificationOpen } = useNotifications();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const { settings } = useSettings();
   const navigate = useNavigate();
   const categoryScrollRef = useRef<HTMLUListElement>(null);
@@ -141,25 +157,96 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-3">
-            <Link
-              to={isLoggedIn ? "/profile" : "/login"}
-              className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5"
-            >
-              <User className="w-5 h-5 text-slate-600" />
-              <div className="hidden lg:flex flex-col text-left leading-tight">
-                {isLoggedIn ? (
-                  <>
+            {isLoggedIn ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <User className="w-5 h-5 text-slate-600" />
+                  <div className="hidden lg:flex flex-col text-left leading-tight">
                     <span className="text-[11px] text-slate-400 font-normal">Hesabım</span>
                     <span className="text-xs font-bold text-slate-800 truncate max-w-[100px]">{userName || 'Kullanıcı'}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[11px] text-slate-400 font-normal">Giriş Yap</span>
-                    <span className="text-xs font-bold text-slate-800">veye Üye Ol</span>
-                  </>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
+                </button>
+
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in-50 slide-in-from-top-2">
+                    <div className="px-4 py-2.5 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-800 truncate">{userName || 'Kullanıcı'}</p>
+                      <p className="text-[11px] text-slate-400">Üye Hesabı</p>
+                    </div>
+
+                    <div className="py-1">
+                      <Link
+                        to="/orders"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/60 transition-colors"
+                      >
+                        <Package className="w-4 h-4 text-orange-500" />
+                        <span>Siparişlerim</span>
+                      </Link>
+
+                      <Link
+                        to="/addresses"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/60 transition-colors"
+                      >
+                        <MapPin className="w-4 h-4 text-emerald-500" />
+                        <span>Kayıtlı Adreslerim</span>
+                      </Link>
+
+                      <Link
+                        to="/favorites"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/60 transition-colors"
+                      >
+                        <Heart className="w-4 h-4 text-rose-500" />
+                        <span>Favorilerim</span>
+                      </Link>
+
+                      <Link
+                        to="/profile?tab=account"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-orange-600 hover:bg-orange-50/60 transition-colors"
+                      >
+                        <User className="w-4 h-4 text-blue-500" />
+                        <span>Hesap Bilgilerim</span>
+                      </Link>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          localStorage.removeItem('accessToken');
+                          localStorage.removeItem('refreshToken');
+                          window.location.href = '/login';
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Çıkış Yap</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-            </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="p-2 sm:px-3 text-slate-700 hover:text-orange-600 hover:bg-orange-50/70 rounded-xl transition-colors font-medium text-sm flex items-center gap-1.5"
+              >
+                <User className="w-5 h-5 text-slate-600" />
+                <div className="hidden lg:flex flex-col text-left leading-tight">
+                  <span className="text-[11px] text-slate-400 font-normal">Giriş Yap</span>
+                  <span className="text-xs font-bold text-slate-800">veya Üye Ol</span>
+                </div>
+              </Link>
+            )}
 
             {isLoggedIn && (
               <div className="relative">

@@ -70,6 +70,16 @@ export const ProfilePage: React.FC = () => {
     return 'orders';
   };
   const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(getInitialTab);
+
+  useEffect(() => {
+    if (location.pathname === '/addresses') {
+      setActiveTab('addresses');
+    } else if (location.pathname === '/orders') {
+      setActiveTab('orders');
+    } else if (location.pathname === '/favorites') {
+      setActiveTab('favorites');
+    }
+  }, [location.pathname]);
   const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
   const { addToCart } = useCart();
   const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
