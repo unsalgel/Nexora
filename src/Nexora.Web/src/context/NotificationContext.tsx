@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { HubConnectionBuilder, HubConnection, LogLevel, HttpTransportType } from '@microsoft/signalr';
+import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { NotificationDto } from '../types/notification';
