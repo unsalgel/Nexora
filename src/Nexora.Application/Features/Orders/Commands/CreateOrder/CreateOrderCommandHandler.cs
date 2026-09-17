@@ -14,11 +14,16 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 {
     private readonly IApplicationDbContext _context;
     private readonly IPaymentService _paymentService;
+    private readonly IEmailService _emailService;
 
-    public CreateOrderCommandHandler(IApplicationDbContext context, IPaymentService paymentService)
+    public CreateOrderCommandHandler(
+        IApplicationDbContext context,
+        IPaymentService paymentService,
+        IEmailService emailService)
     {
         _context = context;
         _paymentService = paymentService;
+        _emailService = emailService;
     }
 
     public async Task<Result<OrderDto>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -219,6 +224,22 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 i.UnitPrice,
                 i.Quantity,
                 i.TotalPrice)).ToList());
+
+        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.UserId, cancellationToken);
+        if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+        {
+            var userName = $"{user.FirstName} {user.LastName}".Trim();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendOrderConfirmationEmailAsync(dto, user.Email, userName, CancellationToken.None);
+                }
+                catch
+                {
+                }
+            });
+        }
 
         return Result<OrderDto>.Success(dto, "Siparişiniz başarıyla oluşturuldu.");
     }

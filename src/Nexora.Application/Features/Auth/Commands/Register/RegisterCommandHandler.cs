@@ -11,11 +11,16 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
 {
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IEmailService _emailService;
 
-    public RegisterCommandHandler(IApplicationDbContext context, IPasswordHasher passwordHasher)
+    public RegisterCommandHandler(
+        IApplicationDbContext context,
+        IPasswordHasher passwordHasher,
+        IEmailService emailService)
     {
         _context = context;
         _passwordHasher = passwordHasher;
+        _emailService = emailService;
     }
 
     public async Task<Result<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -47,6 +52,18 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
+
+        var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendWelcomeEmailAsync(user.Email, registeredUserName, CancellationToken.None);
+            }
+            catch
+            {
+            }
+        });
 
         return Result<string>.Success("Kayıt başarıyla tamamlandı.");
     }

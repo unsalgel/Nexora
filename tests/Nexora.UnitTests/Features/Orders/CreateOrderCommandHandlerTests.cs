@@ -14,14 +14,16 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
 {
     private readonly NexoraDbContext _context;
     private readonly Mock<IPaymentService> _paymentServiceMock;
+    private readonly Mock<IEmailService> _emailServiceMock;
     private readonly CreateOrderCommandHandler _handler;
 
     public CreateOrderCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
         _paymentServiceMock = new Mock<IPaymentService>();
+        _emailServiceMock = new Mock<IEmailService>();
 
-        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object);
+        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object, _emailServiceMock.Object);
     }
 
     public void Dispose()

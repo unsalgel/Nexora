@@ -12,13 +12,16 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
 {
     private readonly IApplicationDbContext _context;
     private readonly IRealTimeNotificationService _notificationService;
+    private readonly IEmailService _emailService;
 
     public UpdateOrderStatusCommandHandler(
         IApplicationDbContext context,
-        IRealTimeNotificationService notificationService)
+        IRealTimeNotificationService notificationService,
+        IEmailService emailService)
     {
         _context = context;
         _notificationService = notificationService;
+        _emailService = emailService;
     }
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -114,6 +117,29 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
                 createdAtUtc = notification.CreatedAtUtc
             },
             cancellationToken);
+
+        var orderUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.UserId, cancellationToken);
+        if (orderUser != null && !string.IsNullOrWhiteSpace(orderUser.Email))
+        {
+            var customerName = $"{orderUser.FirstName} {orderUser.LastName}".Trim();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendOrderStatusChangedEmailAsync(
+                        orderUser.Email,
+                        customerName,
+                        order.OrderNumber,
+                        GetStatusTurkishText(order.Status),
+                        order.TrackingNumber,
+                        order.Carrier,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                }
+            });
+        }
 
         return Result<string>.Success($"Sipariş durumu başarıyla '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.");
     }

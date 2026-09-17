@@ -14,6 +14,8 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.AddScoped<IEmailService, SmtpEmailService>();
 
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
