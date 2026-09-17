@@ -474,16 +474,29 @@ export const CheckoutPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={shouldSaveAddress}
-                          onChange={(e) => setShouldSaveAddress(e.target.checked)}
-                          className="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer accent-orange-500"
-                        />
-                        <span>Bu adresi sonraki siparişlerim için kayıtlı adreslerime ekle</span>
-                      </label>
+                    <div className="sm:col-span-2 pt-1">
+                      <div
+                        onClick={() => setShouldSaveAddress(!shouldSaveAddress)}
+                        className="group flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 hover:bg-orange-50/40 border border-slate-200/80 hover:border-orange-200 transition-all cursor-pointer select-none"
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                            shouldSaveAddress
+                              ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/30 ring-2 ring-orange-500/20'
+                              : 'bg-white border-2 border-slate-300 group-hover:border-orange-400'
+                          }`}
+                        >
+                          {shouldSaveAddress && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-800 group-hover:text-orange-950 transition-colors">
+                            Bu adresi sonraki siparişlerim için kayıtlı adreslerime ekle
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-400">
+                            Gelecek siparişlerinizde adres bilgilerini tekrar yazmadan tek tıkla seçebilirsiniz
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
