@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle, KeyRound, X, Sparkles } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import { useFavorites } from '../context/FavoritesContext';
@@ -20,6 +20,16 @@ export const LoginPage: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +111,70 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleSendResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotError(null);
+    setForgotSuccess(null);
+    setForgotLoading(true);
+
+    try {
+      const res = await apiClient.post('/auth/forgot-password', { email: forgotEmail.trim() });
+      if (res.data?.isSuccess) {
+        setForgotSuccess(res.data?.message || 'Sıfırlama kodu gönderildi.');
+        setForgotStep(2);
+      } else {
+        setForgotError(res.data?.message || 'Kod gönderilemedi.');
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      setForgotError(error.response?.data?.message || 'Şifre sıfırlama kodu gönderilirken hata oluştu.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetCode.trim() || !newPassword.trim()) return;
+    setForgotError(null);
+    setForgotSuccess(null);
+    setForgotLoading(true);
+
+    try {
+      const res = await apiClient.post('/auth/reset-password', {
+        email: forgotEmail.trim(),
+        code: resetCode.trim(),
+        newPassword: newPassword
+      });
+
+      if (res.data?.isSuccess) {
+        setForgotSuccess('Şifreniz başarıyla sıfırlandı! Artık yeni şifrenizle giriş yapabilirsiniz.');
+        setTimeout(() => {
+          setShowForgotModal(false);
+          setForgotStep(1);
+          setResetCode('');
+          setNewPassword('');
+          setForgotSuccess(null);
+          setIdentity(forgotEmail);
+          setStep(2);
+        }, 2000);
+      } else {
+        setForgotError(res.data?.message || 'Şifre sıfırlanamadı.');
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      const apiErrors = error.response?.data?.errors;
+      if (apiErrors && apiErrors.length > 0) {
+        setForgotError(apiErrors[0]);
+      } else {
+        setForgotError(error.response?.data?.message || 'Şifre güncellenirken bir hata oluştu.');
+      }
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[75vh] flex items-center justify-center py-10 px-4">
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
@@ -140,8 +214,6 @@ export const LoginPage: React.FC = () => {
               <span>{activeTab === 'login' ? 'Giriş başarılı! Profilinize yönlendiriliyorsunuz...' : 'Üyelik başarıyla oluşturuldu! Giriş yapabilirsiniz...'}</span>
             </div>
           )}
-
-
 
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in-50">
@@ -194,9 +266,19 @@ export const LoginPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-700 block">Şifre</label>
                     {activeTab === 'login' && (
-                      <a href="#" className="text-[11px] font-bold text-orange-600 hover:text-orange-700 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotEmail(identity);
+                          setForgotStep(1);
+                          setForgotError(null);
+                          setForgotSuccess(null);
+                          setShowForgotModal(true);
+                        }}
+                        className="text-[11px] font-bold text-orange-600 hover:text-orange-700 transition-colors"
+                      >
                         Şifremi Unuttum
-                      </a>
+                      </button>
                     )}
                   </div>
                   <div className="relative flex items-center">
@@ -255,6 +337,132 @@ export const LoginPage: React.FC = () => {
         </div>
 
       </div>
+
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="relative bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-6 text-white text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="absolute right-4 top-4 p-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="w-12 h-12 mx-auto bg-white/20 rounded-2xl flex items-center justify-center mb-3 shadow-inner backdrop-blur-md">
+                <KeyRound className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-lg font-black tracking-tight">Şifremi Unuttum</h3>
+              <p className="text-xs text-orange-100 font-medium mt-1">
+                {forgotStep === 1 
+                  ? 'E-posta adresinize 6 haneli doğrulama kodu göndereceğiz.' 
+                  : 'E-postanıza gelen doğrulama kodunu ve yeni şifrenizi girin.'}
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-4">
+              {forgotSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-700 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{forgotSuccess}</span>
+                </div>
+              )}
+
+              {forgotError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-700 text-xs font-semibold">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{forgotError}</span>
+                </div>
+              )}
+
+              {forgotStep === 1 ? (
+                <form onSubmit={handleSendResetCode} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">Kayıtlı E-Posta Adresi</label>
+                    <div className="relative flex items-center">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-4" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="ornek@domain.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <span>{forgotLoading ? 'Kod Gönderiliyor...' : 'Doğrulama Kodu Gönder'}</span>
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">6 Haneli Doğrulama Kodu</label>
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        placeholder="123456"
+                        value={resetCode}
+                        onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center tracking-widest text-lg font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">Yeni Şifre</label>
+                    <div className="relative flex items-center">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-4" />
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        placeholder="En az 6 karakter"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-4 text-slate-400 hover:text-slate-600"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <span>{forgotLoading ? 'Şifre Yenileniyor...' : 'Şifremi Sıfırla ve Kaydet'}</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="w-full py-2 text-slate-500 hover:text-slate-700 font-semibold text-xs"
+                  >
+                    Kodu Tekrar Gönder
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

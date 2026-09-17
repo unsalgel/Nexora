@@ -28,6 +28,7 @@ public interface IApplicationDbContext
     DbSet<UserAddress> UserAddresses { get; }
     DbSet<Setting> Settings { get; }
     DbSet<Log> Logs { get; }
+    DbSet<PasswordResetCode> PasswordResetCodes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

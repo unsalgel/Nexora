@@ -7,6 +7,9 @@ using Nexora.Application.Features.Auth.Commands.RefreshToken;
 using Nexora.Application.Features.Auth.Commands.Register;
 using Nexora.Application.Features.Auth.Commands.RevokeToken;
 
+using Nexora.Application.Features.Auth.Commands.ForgotPassword;
+using Nexora.Application.Features.Auth.Commands.ResetPassword;
+
 namespace Nexora.Api.Controllers;
 
 public sealed class AuthController : ApiControllerBase
@@ -52,6 +55,26 @@ public sealed class AuthController : ApiControllerBase
         var jti = command.Jti ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
         var commandWithJti = command with { Jti = jti };
         var result = await Sender.Send(commandWithJti, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Result<string>>> ForgotPassword(
+        ForgotPasswordCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Sender.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Result<string>>> ResetPassword(
+        ResetPasswordCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 }

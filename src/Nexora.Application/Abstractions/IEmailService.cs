@@ -18,4 +18,6 @@ public interface IEmailService
         string? trackingNumber,
         string? carrier,
         CancellationToken cancellationToken = default);
+
+    Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default);
 }

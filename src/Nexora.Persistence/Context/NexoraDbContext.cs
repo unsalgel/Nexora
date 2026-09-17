@@ -33,6 +33,7 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
     public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Log> Logs => Set<Log>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
