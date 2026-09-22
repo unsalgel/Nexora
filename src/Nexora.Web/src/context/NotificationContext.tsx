@@ -105,11 +105,46 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       window.dispatchEvent(new CustomEvent('nexora:order-status-changed', { detail: payload }));
     });
 
+    connection.on('OrderCreated', (payload: {
+      notificationId?: string;
+      orderId: string;
+      orderNumber: string;
+      title?: string;
+      message: string;
+      type?: string;
+      totalAmount?: number;
+      createdAtUtc?: string;
+    }) => {
+      if (isCancelled) return;
+
+      if (payload.notificationId) {
+        const newNotification: NotificationDto = {
+          id: payload.notificationId,
+          userId: '',
+          title: payload.title || 'Siparişiniz Alındı',
+          message: payload.message,
+          type: payload.type || 'Order',
+          isRead: false,
+          readAtUtc: null,
+          createdAtUtc: payload.createdAtUtc || new Date().toISOString()
+        };
+
+        setNotifications(prev => {
+          if (prev.some(n => n.id === newNotification.id)) return prev;
+          return [newNotification, ...prev];
+        });
+      }
+
+      info(payload.message || `#${payload.orderNumber} numaralı siparişiniz başarıyla alındı.`);
+      window.dispatchEvent(new CustomEvent('nexora:order-created', { detail: payload }));
+    });
+
     connection.start().catch(() => {});
 
     return () => {
       isCancelled = true;
       connection.off('OrderStatusChanged');
+      connection.off('OrderCreated');
       connection.stop().catch(() => {});
     };
   }, [fetchNotifications, info]);

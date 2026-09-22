@@ -16,17 +16,20 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     private readonly IApplicationDbContext _context;
     private readonly IPaymentService _paymentService;
     private readonly IEmailService _emailService;
+    private readonly IRealTimeNotificationService _notificationService;
     private readonly ILogger<CreateOrderCommandHandler> _logger;
 
     public CreateOrderCommandHandler(
         IApplicationDbContext context,
         IPaymentService paymentService,
         IEmailService emailService,
+        IRealTimeNotificationService notificationService,
         ILogger<CreateOrderCommandHandler> logger)
     {
         _context = context;
         _paymentService = paymentService;
         _emailService = emailService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -199,16 +202,47 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         _context.Orders.Add(order);
         _context.CartItems.RemoveRange(cart.Items);
 
-        _context.Notifications.Add(new DomainEntities.Notification
+        var notification = new DomainEntities.Notification
         {
             UserId = request.UserId,
             Title = "Siparişiniz Alındı",
             Message = $"{orderNumber} numaralı siparişiniz başarıyla oluşturuldu. Ödenen Tutar: {grandTotal:N2} TL",
             Type = NotificationType.OrderCreated,
             IsRead = false
-        });
+        };
+
+        _context.Notifications.Add(notification);
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Kullanıcıya sipariş alındı anlık bildirimini ilet
+        await _notificationService.PublishToUserAsync(
+            order.UserId,
+            "OrderCreated",
+            new
+            {
+                notificationId = notification.Id,
+                orderId = order.Id,
+                orderNumber = order.OrderNumber,
+                title = notification.Title,
+                message = notification.Message,
+                type = "Order",
+                totalAmount = grandTotal,
+                createdAtUtc = notification.CreatedAtUtc
+            },
+            cancellationToken);
+
+        // Yönetim paneli veya dinleyen istemciler için yeni sipariş olayını yayınla
+        await _notificationService.PublishToAllAsync(
+            "ReceiveNewOrder",
+            new
+            {
+                orderId = order.Id,
+                orderNumber = order.OrderNumber,
+                totalAmount = grandTotal,
+                createdAtUtc = order.CreatedAtUtc
+            },
+            cancellationToken);
 
         var dto = new OrderDto(
             order.Id,

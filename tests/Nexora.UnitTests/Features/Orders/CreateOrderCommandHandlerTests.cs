@@ -8,6 +8,7 @@ using Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
 using Nexora.Persistence.Context;
 using Nexora.UnitTests.Common;
+using DomainCart = Nexora.Domain.Entities.Cart;
 
 namespace Nexora.UnitTests.Features.Orders;
 
@@ -16,6 +17,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     private readonly NexoraDbContext _context;
     private readonly Mock<IPaymentService> _paymentServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<IRealTimeNotificationService> _notificationServiceMock;
     private readonly CreateOrderCommandHandler _handler;
 
     public CreateOrderCommandHandlerTests()
@@ -23,9 +25,10 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         _context = TestDbContextFactory.Create();
         _paymentServiceMock = new Mock<IPaymentService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _notificationServiceMock = new Mock<IRealTimeNotificationService>();
         var loggerMock = new Mock<ILogger<CreateOrderCommandHandler>>();
 
-        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object, _emailServiceMock.Object, loggerMock.Object);
+        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object, _emailServiceMock.Object, _notificationServiceMock.Object, loggerMock.Object);
     }
 
     public void Dispose()
@@ -56,7 +59,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var cart = new Cart
+        var cart = new DomainCart
         {
             Id = Guid.NewGuid(),
             UserId = userId
@@ -98,7 +101,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         };
         _context.Products.Add(product);
 
-        var cart = new Cart
+        var cart = new DomainCart
         {
             Id = Guid.NewGuid(),
             UserId = userId
