@@ -239,6 +239,47 @@ public sealed class SmtpEmailService : IEmailService
         await SendEmailAsync(to, emailSubject, html, cancellationToken);
     }
 
+    public async Task SendEmailVerificationCodeEmailAsync(string to, string userName, string verificationCode, CancellationToken cancellationToken = default)
+    {
+        var html = $@"
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }}
+    .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }}
+    .header {{ background: linear-gradient(135deg, #0284c7, #0ea5e9); padding: 32px 24px; text-align: center; color: #ffffff; }}
+    .content {{ padding: 32px 28px; color: #334155; line-height: 1.6; font-size: 14px; text-align: center; }}
+    .code-box {{ display: inline-block; background-color: #f0f9ff; border: 2px dashed #0284c7; border-radius: 16px; padding: 18px 36px; margin: 24px auto; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #0284c7; font-family: 'Courier New', Courier, monospace; }}
+    .footer {{ padding: 20px; text-align: center; font-size: 11px; color: #94a3b8; background-color: #f8fafc; border-top: 1px solid #f1f5f9; }}
+  </style>
+</head>
+<body>
+  <div class='container'>
+    <div class='header'>
+      <h1 style='margin:0; font-size:24px; font-weight:800;'>E-Posta Doğrulama Kodu ✉️</h1>
+    </div>
+    <div class='content'>
+      <p style='text-align: left;'>Merhaba <strong>{userName}</strong>,</p>
+      <p style='text-align: left;'>Nexora'ya kaydolduğunuz için teşekkür ederiz. Hesabınızı güvenle aktifleştirmek için aşağıdaki 6 haneli doğrulama kodunu kullanabilirsiniz:</p>
+      
+      <div class='code-box'>
+        {verificationCode}
+      </div>
+
+      <p style='font-size: 13px; color: #64748b; margin-top: 12px;'>Bu kod <strong>15 dakika</strong> boyunca geçerlidir.</p>
+    </div>
+    <div class='footer'>
+      © 2026 Nexora E-Ticaret Platformu.
+    </div>
+  </div>
+</body>
+</html>";
+
+        await SendEmailAsync(to, "Nexora E-Posta Doğrulama Kodunuz ✉️", html, cancellationToken);
+    }
+
     public async Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default)
     {
         var html = $@"

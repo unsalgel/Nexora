@@ -57,19 +57,31 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
+        var verificationCode = Random.Shared.Next(100000, 999999).ToString();
+        var emailVerification = new EmailVerificationCode
+        {
+            UserId = user.Id,
+            Code = verificationCode,
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false
+        };
+
+        _context.EmailVerificationCodes.Add(emailVerification);
+        await _context.SaveChangesAsync(cancellationToken);
+
         var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
         _ = Task.Run(async () =>
         {
             try
             {
-                await _emailService.SendWelcomeEmailAsync(user.Email, registeredUserName, CancellationToken.None);
+                await _emailService.SendEmailVerificationCodeEmailAsync(user.Email, registeredUserName, verificationCode, CancellationToken.None);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Hoşgeldin e-postası gönderilemedi. UserId: {UserId}", user.Id);
+                _logger.LogError(ex, "E-posta doğrulama kodu gönderilemedi. UserId: {UserId}", user.Id);
             }
         });
 
-        return Result<string>.Success("Kayıt başarıyla tamamlandı.");
+        return Result<string>.Success("Kayıt başarıyla tamamlandı. Lütfen e-posta adresinize gönderilen 6 haneli doğrulama kodunu onaylayınız.");
     }
 }

@@ -8,6 +8,7 @@ using Nexora.Application.Features.Auth.Commands.Register;
 using Nexora.Application.Features.Auth.Commands.RevokeToken;
 using Nexora.Application.Features.Auth.Commands.ForgotPassword;
 using Nexora.Application.Features.Auth.Commands.ResetPassword;
+using Nexora.Application.Features.Auth.Commands.VerifyEmail;
 
 namespace Nexora.Api.Controllers;
 
@@ -32,6 +33,16 @@ public sealed class AuthController : ApiControllerBase
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var safeCommand = command with { IpAddress = clientIp };
         var result = await Sender.Send(safeCommand, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Result<string>>> VerifyEmail(
+        VerifyEmailCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 

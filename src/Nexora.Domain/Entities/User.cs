@@ -7,9 +7,11 @@ public sealed class User : BaseEntity
     public string Email { get; set; } = default!;
     public string PasswordHash { get; set; } = default!;
     public bool IsActive { get; set; } = true;
+    public bool IsEmailConfirmed { get; set; } = false;
 
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<UserAddress> Addresses { get; set; } = new List<UserAddress>();
     public ICollection<PasswordResetCode> PasswordResetCodes { get; set; } = new List<PasswordResetCode>();
+    public ICollection<EmailVerificationCode> EmailVerificationCodes { get; set; } = new List<EmailVerificationCode>();
 }
