@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
@@ -11,11 +12,16 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
 {
     private readonly IApplicationDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly ILogger<ForgotPasswordCommandHandler> _logger;
 
-    public ForgotPasswordCommandHandler(IApplicationDbContext context, IEmailService emailService)
+    public ForgotPasswordCommandHandler(
+        IApplicationDbContext context,
+        IEmailService emailService,
+        ILogger<ForgotPasswordCommandHandler> logger)
     {
         _context = context;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
@@ -61,8 +67,9 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
             {
                 await _emailService.SendPasswordResetCodeEmailAsync(user.Email, userName, resetCode, CancellationToken.None);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Şifre sıfırlama e-postası gönderilemedi. UserId: {UserId}", user.Id);
             }
         });
 

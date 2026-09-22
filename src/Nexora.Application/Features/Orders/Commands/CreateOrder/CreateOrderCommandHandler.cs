@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Orders.Dtos;
@@ -15,15 +16,18 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     private readonly IApplicationDbContext _context;
     private readonly IPaymentService _paymentService;
     private readonly IEmailService _emailService;
+    private readonly ILogger<CreateOrderCommandHandler> _logger;
 
     public CreateOrderCommandHandler(
         IApplicationDbContext context,
         IPaymentService paymentService,
-        IEmailService emailService)
+        IEmailService emailService,
+        ILogger<CreateOrderCommandHandler> logger)
     {
         _context = context;
         _paymentService = paymentService;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<Result<OrderDto>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -235,8 +239,9 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 {
                     await _emailService.SendOrderConfirmationEmailAsync(dto, user.Email, userName, CancellationToken.None);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogError(ex, "Sipariş onay e-postası gönderilemedi. OrderId: {OrderId}", order.Id);
                 }
             });
         }

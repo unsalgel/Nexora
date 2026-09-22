@@ -6,7 +6,6 @@ using Nexora.Application.Features.Auth.Commands.Login;
 using Nexora.Application.Features.Auth.Commands.RefreshToken;
 using Nexora.Application.Features.Auth.Commands.Register;
 using Nexora.Application.Features.Auth.Commands.RevokeToken;
-
 using Nexora.Application.Features.Auth.Commands.ForgotPassword;
 using Nexora.Application.Features.Auth.Commands.ResetPassword;
 

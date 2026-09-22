@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using DomainEntities = Nexora.Domain.Entities;
@@ -13,15 +14,18 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
     private readonly IApplicationDbContext _context;
     private readonly IRealTimeNotificationService _notificationService;
     private readonly IEmailService _emailService;
+    private readonly ILogger<UpdateOrderStatusCommandHandler> _logger;
 
     public UpdateOrderStatusCommandHandler(
         IApplicationDbContext context,
         IRealTimeNotificationService notificationService,
-        IEmailService emailService)
+        IEmailService emailService,
+        ILogger<UpdateOrderStatusCommandHandler> logger)
     {
         _context = context;
         _notificationService = notificationService;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -135,8 +139,9 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
                         order.Carrier,
                         CancellationToken.None);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogError(ex, "Sipariş durum güncelleme e-postası gönderilemedi. OrderId: {OrderId}", order.Id);
                 }
             });
         }

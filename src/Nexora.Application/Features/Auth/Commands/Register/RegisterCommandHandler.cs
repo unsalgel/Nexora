@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
@@ -12,15 +13,18 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
+    private readonly ILogger<RegisterCommandHandler> _logger;
 
     public RegisterCommandHandler(
         IApplicationDbContext context,
         IPasswordHasher passwordHasher,
-        IEmailService emailService)
+        IEmailService emailService,
+        ILogger<RegisterCommandHandler> logger)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -60,8 +64,9 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
             {
                 await _emailService.SendWelcomeEmailAsync(user.Email, registeredUserName, CancellationToken.None);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Hoşgeldin e-postası gönderilemedi. UserId: {UserId}", user.Id);
             }
         });
 

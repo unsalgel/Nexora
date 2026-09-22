@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Orders.Commands.CreateOrder;
@@ -22,8 +23,9 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         _context = TestDbContextFactory.Create();
         _paymentServiceMock = new Mock<IPaymentService>();
         _emailServiceMock = new Mock<IEmailService>();
+        var loggerMock = new Mock<ILogger<CreateOrderCommandHandler>>();
 
-        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object, _emailServiceMock.Object);
+        _handler = new CreateOrderCommandHandler(_context, _paymentServiceMock.Object, _emailServiceMock.Object, loggerMock.Object);
     }
 
     public void Dispose()
