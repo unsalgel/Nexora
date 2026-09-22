@@ -189,6 +189,17 @@ public sealed class SmtpEmailService : IEmailService
                 </div>"
             : "";
 
+        var isCancelled = string.Equals(newStatusText, "İptal Edildi", StringComparison.OrdinalIgnoreCase);
+        var headerGradient = isCancelled
+            ? "linear-gradient(135deg, #e11d48, #be123c)"
+            : "linear-gradient(135deg, #2563eb, #3b82f6)";
+        var headerTitle = isCancelled ? "Siparişiniz İptal Edildi" : "Sipariş Durumunuz Güncellendi 📦";
+        var statusColor = isCancelled ? "#e11d48" : "#ea580c";
+        var buttonBg = isCancelled ? "#e11d48" : "#2563eb";
+        var emailSubject = isCancelled 
+            ? $"Siparişiniz İptal Edildi (#{orderNumber})" 
+            : $"Sipariş Durumu: {newStatusText} (#{orderNumber}) 📦";
+
         var html = $@"
 <!DOCTYPE html>
 <html>
@@ -197,7 +208,7 @@ public sealed class SmtpEmailService : IEmailService
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }}
     .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }}
-    .header {{ background: linear-gradient(135deg, #2563eb, #3b82f6); padding: 28px 24px; text-align: center; color: #ffffff; }}
+    .header {{ background: {headerGradient}; padding: 28px 24px; text-align: center; color: #ffffff; }}
     .content {{ padding: 28px; color: #334155; line-height: 1.6; font-size: 14px; }}
     .footer {{ padding: 20px; text-align: center; font-size: 11px; color: #94a3b8; background-color: #f8fafc; border-top: 1px solid #f1f5f9; }}
   </style>
@@ -205,17 +216,17 @@ public sealed class SmtpEmailService : IEmailService
 <body>
   <div class='container'>
     <div class='header'>
-      <h1 style='margin:0; font-size:22px; font-weight:800;'>Sipariş Durumunuz Güncellendi 📦</h1>
+      <h1 style='margin:0; font-size:22px; font-weight:800;'>{headerTitle}</h1>
       <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{orderNumber}</p>
     </div>
     <div class='content'>
       <p>Sayın <strong>{userName}</strong>,</p>
-      <p><strong>#{orderNumber}</strong> numaralı siparişinizin durumu <strong style='color:#ea580c; font-size:15px;'>'{newStatusText}'</strong> olarak güncellenmiştir.</p>
+      <p><strong>#{orderNumber}</strong> numaralı siparişinizin durumu <strong style='color:{statusColor}; font-size:15px;'>'{newStatusText}'</strong> olarak güncellenmiştir.</p>
       
       {trackingSection}
 
       <div style='text-align: center; margin-top: 24px;'>
-        <a href='http://localhost:5173/orders' style='display:inline-block; background-color:#2563eb; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Sipariş Detaylarını Gör</a>
+        <a href='http://localhost:5173/orders' style='display:inline-block; background-color:{buttonBg}; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Sipariş Detaylarını Gör</a>
       </div>
     </div>
     <div class='footer'>
@@ -225,7 +236,7 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, $"Sipariş Durumu: {newStatusText} (#{orderNumber}) 📦", html, cancellationToken);
+        await SendEmailAsync(to, emailSubject, html, cancellationToken);
     }
 
     public async Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default)

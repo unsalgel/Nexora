@@ -187,15 +187,24 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             Items = orderItems
         };
 
+        var lowStockAlerts = new List<(Guid ProductId, string ProductName, Guid? VariantId, string? VariantSku, int RemainingStock)>();
         foreach (var item in cart.Items)
         {
+            int remainingStock;
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
                 item.ProductVariant.StockQuantity -= item.Quantity;
+                remainingStock = item.ProductVariant.StockQuantity;
             }
             else
             {
                 item.Product.StockQuantity -= item.Quantity;
+                remainingStock = item.Product.StockQuantity;
+            }
+
+            if (remainingStock <= 5)
+            {
+                lowStockAlerts.Add((item.ProductId, item.Product.Name, item.ProductVariantId, item.ProductVariant?.SKU, remainingStock));
             }
         }
 
@@ -243,6 +252,22 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 createdAtUtc = order.CreatedAtUtc
             },
             cancellationToken);
+
+        // Kritik stok kontrolü (kalan stok <= 5 ise admin/sistem geneline bildir)
+        foreach (var alert in lowStockAlerts)
+        {
+            await _notificationService.PublishToAllAsync(
+                "LowStockAlert",
+                new
+                {
+                    productId = alert.ProductId,
+                    productName = alert.ProductName,
+                    productVariantId = alert.VariantId,
+                    variantSku = alert.VariantSku,
+                    remainingStock = alert.RemainingStock
+                },
+                cancellationToken);
+        }
 
         var dto = new OrderDto(
             order.Id,

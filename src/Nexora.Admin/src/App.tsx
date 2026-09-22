@@ -13,6 +13,7 @@ import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
+import { AdminNotificationProvider } from './context/AdminNotificationContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,9 +27,10 @@ const queryClient = new QueryClient({
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<AdminLoginPage />} />
+      <AdminNotificationProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<AdminLoginPage />} />
           
           <Route element={<AdminRoute />}>
             <Route element={<AdminLayout />}>
@@ -47,6 +49,7 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      </AdminNotificationProvider>
     </QueryClientProvider>
   );
 };

@@ -148,4 +148,68 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         var updatedProduct = _context.Products.Find(product.Id);
         updatedProduct!.StockQuantity.Should().Be(8);
     }
+
+    [Fact]
+    public async Task Handle_WhenStockDropsToCriticalLevel_PublishesLowStockAlert()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var category = new Category { Id = Guid.NewGuid(), Name = "Elektronik" };
+        var brand = new Brand { Id = Guid.NewGuid(), Name = "Logitech" };
+        _context.Categories.Add(category);
+        _context.Brands.Add(brand);
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Kablosuz Mouse",
+            SKU = "LOGI-MOU-01",
+            Price = 600m,
+            StockQuantity = 6, // 2 sipariş verilince 4 kalacak (<= 5 kritik)
+            CategoryId = category.Id,
+            BrandId = brand.Id,
+            IsActive = true
+        };
+        _context.Products.Add(product);
+
+        var cart = new DomainCart
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId
+        };
+        _context.Carts.Add(cart);
+
+        var cartItem = new CartItem
+        {
+            Id = Guid.NewGuid(),
+            CartId = cart.Id,
+            ProductId = product.Id,
+            Product = product,
+            Quantity = 2
+        };
+        _context.CartItems.Add(cartItem);
+        await _context.SaveChangesAsync();
+
+        _paymentServiceMock
+            .Setup(x => x.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var command = new CreateOrderCommand(
+            userId,
+            "Ankara, Çankaya",
+            new PaymentRequestDto("Ahmet Kaya", "1234567812345678", "05", "2029", "456")
+        );
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(4);
+
+        // LowStockAlert SignalR yayınının yapıldığını doğrula
+        _notificationServiceMock.Verify(
+            x => x.PublishToAllAsync("LowStockAlert", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }
