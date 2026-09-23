@@ -31,6 +31,7 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
     public async Task<Result<string>> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
     {
         var order = await _context.Orders
+            .Include(o => o.User)
             .Include(o => o.Items)
                 .ThenInclude(i => i.Product)
             .Include(o => o.Items)
@@ -95,16 +96,15 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
             cancellationToken);
 
         // E-Posta bildirimi
-        var orderUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.UserId, cancellationToken);
-        if (orderUser != null && !string.IsNullOrWhiteSpace(orderUser.Email))
+        if (order.User is not null && !string.IsNullOrWhiteSpace(order.User.Email))
         {
-            var customerName = $"{orderUser.FirstName} {orderUser.LastName}".Trim();
+            var customerName = $"{order.User.FirstName} {order.User.LastName}".Trim();
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await _emailService.SendOrderStatusChangedEmailAsync(
-                        orderUser.Email,
+                        order.User.Email,
                         customerName,
                         order.OrderNumber,
                         "İptal Edildi",

@@ -7,6 +7,7 @@ using Nexora.Application.Features.Orders.Dtos;
 using Nexora.Application.Features.Orders.Queries.GetAllOrders;
 using Nexora.Application.Features.Orders.Queries.GetOrderById;
 using Nexora.Application.Features.Orders.Queries.GetUserOrders;
+using Nexora.Application.Features.Orders.Commands.CancelOrder;
 using Nexora.Domain.Enums;
 
 namespace Nexora.Api.Controllers;
@@ -79,9 +80,8 @@ public sealed class OrdersController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
-        var command = new Nexora.Application.Features.Orders.Commands.CancelOrder.CancelOrderCommand(id, userId);
+        var command = new CancelOrderCommand(id, userId);
         var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 }
-
