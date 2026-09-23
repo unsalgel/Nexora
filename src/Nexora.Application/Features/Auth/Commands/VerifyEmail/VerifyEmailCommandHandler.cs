@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -54,19 +55,13 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Doğrulama başarılı olunca hoş geldin e-postası ilet
+
         var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _emailService.SendWelcomeEmailAsync(user.Email, registeredUserName, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Doğrulama sonrası hoşgeldin e-postası gönderilemedi. UserId: {UserId}", user.Id);
-            }
-        });
+        _emailService.SendInBackground(
+            svc => svc.SendWelcomeEmailAsync(user.Email, registeredUserName, CancellationToken.None),
+            _logger,
+            "Doğrulama sonrası hoşgeldin e-postası gönderilemedi. UserId: {UserId}",
+            user.Id);
 
         return Result<string>.Success("E-posta adresiniz başarıyla doğrulandı. Artık güvenle giriş yapabilirsiniz.");
     }

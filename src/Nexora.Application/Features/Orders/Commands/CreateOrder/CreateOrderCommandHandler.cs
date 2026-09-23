@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -143,7 +144,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         }
 
         var grandTotal = Math.Max(0, rawTotal - discountAmount);
-        var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
+        var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
 
         var isPaymentSuccessful = await _paymentService.ProcessPaymentAsync(grandTotal, request.PaymentInfo, cancellationToken);
 
@@ -292,17 +293,11 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         if (user != null && !string.IsNullOrWhiteSpace(user.Email))
         {
             var userName = $"{user.FirstName} {user.LastName}".Trim();
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _emailService.SendOrderConfirmationEmailAsync(dto, user.Email, userName, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Sipariş onay e-postası gönderilemedi. OrderId: {OrderId}", order.Id);
-                }
-            });
+            _emailService.SendInBackground(
+                svc => svc.SendOrderConfirmationEmailAsync(dto, user.Email, userName, CancellationToken.None),
+                _logger,
+                "Sipariş onay e-postası gönderilemedi. OrderId: {OrderId}",
+                order.Id);
         }
 
         return Result<OrderDto>.Success(dto, "Siparişiniz başarıyla oluşturuldu.");

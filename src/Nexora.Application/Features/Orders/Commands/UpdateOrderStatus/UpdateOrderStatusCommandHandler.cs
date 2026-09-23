@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -30,7 +31,7 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
     {
-        var query = _context.Orders.AsQueryable();
+        var query = _context.Orders.Include(o => o.User).AsQueryable();
         if (request.NewStatus == OrderStatus.Cancelled)
         {
             query = query
@@ -122,28 +123,22 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             },
             cancellationToken);
 
-        var orderUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.UserId, cancellationToken);
+        var orderUser = order.User;
         if (orderUser != null && !string.IsNullOrWhiteSpace(orderUser.Email))
         {
             var customerName = $"{orderUser.FirstName} {orderUser.LastName}".Trim();
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _emailService.SendOrderStatusChangedEmailAsync(
-                        orderUser.Email,
-                        customerName,
-                        order.OrderNumber,
-                        GetStatusTurkishText(order.Status),
-                        order.TrackingNumber,
-                        order.Carrier,
-                        CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Sipariş durum güncelleme e-postası gönderilemedi. OrderId: {OrderId}", order.Id);
-                }
-            });
+            _emailService.SendInBackground(
+                svc => svc.SendOrderStatusChangedEmailAsync(
+                    orderUser.Email,
+                    customerName,
+                    order.OrderNumber,
+                    GetStatusTurkishText(order.Status),
+                    order.TrackingNumber,
+                    order.Carrier,
+                    CancellationToken.None),
+                _logger,
+                "Sipariş durum güncelleme e-postası gönderilemedi. OrderId: {OrderId}",
+                order.Id);
         }
 
         return Result<string>.Success($"Sipariş durumu başarıyla '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.");

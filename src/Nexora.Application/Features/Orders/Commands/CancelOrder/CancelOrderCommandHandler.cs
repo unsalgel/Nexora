@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -99,24 +100,18 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
         if (order.User is not null && !string.IsNullOrWhiteSpace(order.User.Email))
         {
             var customerName = $"{order.User.FirstName} {order.User.LastName}".Trim();
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _emailService.SendOrderStatusChangedEmailAsync(
-                        order.User.Email,
-                        customerName,
-                        order.OrderNumber,
-                        "İptal Edildi",
-                        null,
-                        null,
-                        CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Sipariş iptal e-postası gönderilemedi. OrderId: {OrderId}", order.Id);
-                }
-            });
+            _emailService.SendInBackground(
+                svc => svc.SendOrderStatusChangedEmailAsync(
+                    order.User.Email,
+                    customerName,
+                    order.OrderNumber,
+                    "İptal Edildi",
+                    null,
+                    null,
+                    CancellationToken.None),
+                _logger,
+                "Sipariş iptal e-postası gönderilemedi. OrderId: {OrderId}",
+                order.Id);
         }
 
         return Result<string>.Success("Siparişiniz başarıyla iptal edildi.");

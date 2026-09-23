@@ -6,16 +6,9 @@ using Nexora.Application.Features.Chat.Dtos;
 
 namespace Nexora.Api.Controllers;
 
-/// <summary>
-/// Müşteri destek yapay zeka asistanı (AI Chatbot) API uç noktalarını yöneten Controller.
-/// Ziyaretçiler veya giriş yapmış kullanıcılar soru sorabilir.
-/// </summary>
 [AllowAnonymous]
 public sealed class ChatController : ApiControllerBase
 {
-    /// <summary>
-    /// AI Chatbot'a mesaj gönderir ve RAG tabanlı dinamik yanıt alır.
-    /// </summary>
     [HttpPost("send")]
     public async Task<ActionResult<Result<ChatResponseDto>>> SendMessage(
         SendChatMessageCommand command,

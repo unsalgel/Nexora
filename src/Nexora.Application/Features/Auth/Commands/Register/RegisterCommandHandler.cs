@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -70,17 +71,11 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         await _context.SaveChangesAsync(cancellationToken);
 
         var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _emailService.SendEmailVerificationCodeEmailAsync(user.Email, registeredUserName, verificationCode, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "E-posta doğrulama kodu gönderilemedi. UserId: {UserId}", user.Id);
-            }
-        });
+        _emailService.SendInBackground(
+            svc => svc.SendEmailVerificationCodeEmailAsync(user.Email, registeredUserName, verificationCode, CancellationToken.None),
+            _logger,
+            "E-posta doğrulama kodu gönderilemedi. UserId: {UserId}",
+            user.Id);
 
         return Result<string>.Success("Kayıt başarıyla tamamlandı. Lütfen e-posta adresinize gönderilen 6 haneli doğrulama kodunu onaylayınız.");
     }

@@ -44,7 +44,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
                 await _dbLogger.LogWarningAsync(
                     source: requestName,
-                    message: $"Yavaş İstek Algılandı ({elapsedMilliseconds}ms sürede tamamlandı)",
+                    message: "Yavaş İstek Algılandı",
                     durationMs: elapsedMilliseconds,
                     cancellationToken: cancellationToken);
             }

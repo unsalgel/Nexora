@@ -1,3 +1,4 @@
+using Nexora.Application.Common.Extensions;
 using System.Security.Cryptography;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -61,17 +62,11 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         await _context.SaveChangesAsync(cancellationToken);
 
         var userName = $"{user.FirstName} {user.LastName}".Trim();
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _emailService.SendPasswordResetCodeEmailAsync(user.Email, userName, resetCode, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Şifre sıfırlama e-postası gönderilemedi. UserId: {UserId}", user.Id);
-            }
-        });
+        _emailService.SendInBackground(
+            svc => svc.SendPasswordResetCodeEmailAsync(user.Email, userName, resetCode, CancellationToken.None),
+            _logger,
+            "Şifre sıfırlama e-postası gönderilemedi. UserId: {UserId}",
+            user.Id);
 
         return Result<string>.Success("Şifre sıfırlama kodunuz e-posta adresinize gönderildi.");
     }
