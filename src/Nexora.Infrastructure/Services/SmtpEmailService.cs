@@ -9,61 +9,61 @@ namespace Nexora.Infrastructure.Services;
 
 public sealed class SmtpEmailService : IEmailService
 {
-    private readonly EmailSettings _settings;
-    private readonly ILogger<SmtpEmailService> _logger;
+  private readonly EmailSettings _settings;
+  private readonly ILogger<SmtpEmailService> _logger;
 
-    public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger)
+  public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger)
+  {
+    _settings = settings.Value;
+    _logger = logger;
+  }
+
+  public async Task SendEmailAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
+  {
+    if (string.IsNullOrWhiteSpace(to))
     {
-        _settings = settings.Value;
-        _logger = logger;
+      return;
     }
 
-    public async Task SendEmailAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
+    if (string.IsNullOrWhiteSpace(_settings.Host) || string.IsNullOrWhiteSpace(_settings.UserName))
     {
-        if (string.IsNullOrWhiteSpace(to))
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_settings.Host) || string.IsNullOrWhiteSpace(_settings.UserName))
-        {
-            _logger.LogInformation(
-                "[E-POSTA SİMÜLASYONU] Alıcı: {To} | Konu: {Subject} | Gönderici: {Sender}",
-                to, subject, _settings.SenderEmail);
-            return;
-        }
-
-        try
-        {
-            using var message = new MailMessage
-            {
-                From = new MailAddress(_settings.SenderEmail, _settings.SenderName),
-                Subject = subject,
-                Body = htmlBody,
-                IsBodyHtml = true
-            };
-            message.To.Add(to);
-
-            using var client = new SmtpClient(_settings.Host, _settings.Port)
-            {
-                EnableSsl = _settings.EnableSsl,
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(_settings.UserName, _settings.Password),
-                DeliveryMethod = SmtpDeliveryMethod.Network
-            };
-
-            await client.SendMailAsync(message, cancellationToken);
-            _logger.LogInformation("E-posta başarıyla gönderildi: {To} | Konu: {Subject}", to, subject);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "E-posta gönderilirken hata oluştu: {To} | Konu: {Subject}", to, subject);
-        }
+      _logger.LogInformation(
+          "[E-POSTA SİMÜLASYONU] Alıcı: {To} | Konu: {Subject} | Gönderici: {Sender}",
+          to, subject, _settings.SenderEmail);
+      return;
     }
 
-    public async Task SendWelcomeEmailAsync(string to, string userName, CancellationToken cancellationToken = default)
+    try
     {
-        var html = $@"
+      using var message = new MailMessage
+      {
+        From = new MailAddress(_settings.SenderEmail, _settings.SenderName),
+        Subject = subject,
+        Body = htmlBody,
+        IsBodyHtml = true
+      };
+      message.To.Add(to);
+
+      using var client = new SmtpClient(_settings.Host, _settings.Port)
+      {
+        EnableSsl = _settings.EnableSsl,
+        UseDefaultCredentials = false,
+        Credentials = new NetworkCredential(_settings.UserName, _settings.Password),
+        DeliveryMethod = SmtpDeliveryMethod.Network
+      };
+
+      await client.SendMailAsync(message, cancellationToken);
+      _logger.LogInformation("E-posta başarıyla gönderildi: {To} | Konu: {Subject}", to, subject);
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, "E-posta gönderilirken hata oluştu: {To} | Konu: {Subject}", to, subject);
+    }
+  }
+
+  public async Task SendWelcomeEmailAsync(string to, string userName, CancellationToken cancellationToken = default)
+  {
+    var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -97,12 +97,12 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, "Nexora'ya Hoş Geldiniz! 🎉", html, cancellationToken);
-    }
+    await SendEmailAsync(to, "Nexora'ya Hoş Geldiniz! 🎉", html, cancellationToken);
+  }
 
-    public async Task SendOrderConfirmationEmailAsync(OrderDto order, string to, string userName, CancellationToken cancellationToken = default)
-    {
-        var itemsRows = string.Join("", order.Items.Select(item => $@"
+  public async Task SendOrderConfirmationEmailAsync(OrderDto order, string to, string userName, CancellationToken cancellationToken = default)
+  {
+    var itemsRows = string.Join("", order.Items.Select(item => $@"
           <tr style='border-bottom: 1px solid #f1f5f9;'>
             <td style='padding: 12px 0; font-weight: 600; color: #1e293b;'>{item.ProductName} {(string.IsNullOrWhiteSpace(item.VariantSKU) ? "" : $"<br><span style='font-size:11px; color:#64748b; font-family:monospace;'>SKU: {item.VariantSKU}</span>")}</td>
             <td style='padding: 12px 0; text-align: center; color: #64748b;'>{item.Quantity} Adet</td>
@@ -110,7 +110,7 @@ public sealed class SmtpEmailService : IEmailService
           </tr>
         "));
 
-        var html = $@"
+    var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -127,7 +127,7 @@ public sealed class SmtpEmailService : IEmailService
 <body>
   <div class='container'>
     <div class='header'>
-      <h1 style='margin:0; font-size:22px; font-weight:800;'>Siparişiniz Alındı! ✅</h1>
+      <h1 style='margin:0; font-size:22px; font-weight:800;'>Siparişiniz Alındı!</h1>
       <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{order.OrderNumber}</p>
     </div>
     <div class='content'>
@@ -169,38 +169,38 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, $"Siparişiniz Alındı (#{order.OrderNumber}) 🛍️", html, cancellationToken);
-    }
+    await SendEmailAsync(to, $"Siparişiniz Alındı (#{order.OrderNumber}) 🛍️", html, cancellationToken);
+  }
 
-    public async Task SendOrderStatusChangedEmailAsync(
-        string to,
-        string userName,
-        string orderNumber,
-        string newStatusText,
-        string? trackingNumber,
-        string? carrier,
-        CancellationToken cancellationToken = default)
-    {
-        var trackingSection = !string.IsNullOrWhiteSpace(trackingNumber)
-            ? $@"<div style='background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px; margin:16px 0; color:#1e40af;'>
+  public async Task SendOrderStatusChangedEmailAsync(
+      string to,
+      string userName,
+      string orderNumber,
+      string newStatusText,
+      string? trackingNumber,
+      string? carrier,
+      CancellationToken cancellationToken = default)
+  {
+    var trackingSection = !string.IsNullOrWhiteSpace(trackingNumber)
+        ? $@"<div style='background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px; margin:16px 0; color:#1e40af;'>
                   <strong style='display:block; margin-bottom:4px;'>Kargo Takip Bilgileri:</strong>
                   Kargo Firması: <strong>{carrier ?? "Kargo"}</strong><br>
                   Takip Numarası: <strong style='font-family:monospace;'>{trackingNumber}</strong>
                 </div>"
-            : "";
+        : "";
 
-        var isCancelled = string.Equals(newStatusText, "İptal Edildi", StringComparison.OrdinalIgnoreCase);
-        var headerGradient = isCancelled
-            ? "linear-gradient(135deg, #e11d48, #be123c)"
-            : "linear-gradient(135deg, #2563eb, #3b82f6)";
-        var headerTitle = isCancelled ? "Siparişiniz İptal Edildi" : "Sipariş Durumunuz Güncellendi 📦";
-        var statusColor = isCancelled ? "#e11d48" : "#ea580c";
-        var buttonBg = isCancelled ? "#e11d48" : "#2563eb";
-        var emailSubject = isCancelled 
-            ? $"Siparişiniz İptal Edildi (#{orderNumber})" 
-            : $"Sipariş Durumu: {newStatusText} (#{orderNumber}) 📦";
+    var isCancelled = string.Equals(newStatusText, "İptal Edildi", StringComparison.OrdinalIgnoreCase);
+    var headerGradient = isCancelled
+        ? "linear-gradient(135deg, #e11d48, #be123c)"
+        : "linear-gradient(135deg, #2563eb, #3b82f6)";
+    var headerTitle = isCancelled ? "Siparişiniz İptal Edildi" : "Sipariş Durumunuz Güncellendi 📦";
+    var statusColor = isCancelled ? "#e11d48" : "#ea580c";
+    var buttonBg = isCancelled ? "#e11d48" : "#2563eb";
+    var emailSubject = isCancelled
+        ? $"Siparişiniz İptal Edildi (#{orderNumber})"
+        : $"Sipariş Durumu: {newStatusText} (#{orderNumber}) 📦";
 
-        var html = $@"
+    var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -236,12 +236,12 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, emailSubject, html, cancellationToken);
-    }
+    await SendEmailAsync(to, emailSubject, html, cancellationToken);
+  }
 
-    public async Task SendEmailVerificationCodeEmailAsync(string to, string userName, string verificationCode, CancellationToken cancellationToken = default)
-    {
-        var html = $@"
+  public async Task SendEmailVerificationCodeEmailAsync(string to, string userName, string verificationCode, CancellationToken cancellationToken = default)
+  {
+    var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -277,12 +277,12 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, "Nexora E-Posta Doğrulama Kodunuz ✉️", html, cancellationToken);
-    }
+    await SendEmailAsync(to, "Nexora E-Posta Doğrulama Kodunuz ✉️", html, cancellationToken);
+  }
 
-    public async Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default)
-    {
-        var html = $@"
+  public async Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default)
+  {
+    var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -318,6 +318,6 @@ public sealed class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-        await SendEmailAsync(to, "Nexora Şifre Sıfırlama Kodunuz 🔐", html, cancellationToken);
-    }
+    await SendEmailAsync(to, "Nexora Şifre Sıfırlama Kodunuz 🔐", html, cancellationToken);
+  }
 }

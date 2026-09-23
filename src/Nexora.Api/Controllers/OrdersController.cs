@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Orders.Commands.CreateOrder;
@@ -70,6 +70,17 @@ public sealed class OrdersController : ApiControllerBase
     {
         var safeCommand = command with { OrderId = id };
         var result = await Sender.Send(safeCommand, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<Result<string>>> CancelOrder(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        var command = new Nexora.Application.Features.Orders.Commands.CancelOrder.CancelOrderCommand(id, userId);
+        var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
     }
 }

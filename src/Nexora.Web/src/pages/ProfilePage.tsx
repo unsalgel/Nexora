@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import { decodeJwt } from '../lib/jwt';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { useToast } from '../context/ToastContext';
 import { 
   Package, 
   Heart, 
@@ -82,6 +83,8 @@ export const ProfilePage: React.FC = () => {
   }, [location.pathname]);
   const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
   const { addToCart } = useCart();
+  const { success: showSuccess, error: showError } = useToast();
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
 
   const [orders, setOrders] = useState<OrderDto[]>([]);
@@ -240,6 +243,26 @@ export const ProfilePage: React.FC = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     navigate('/login');
+  };
+
+  
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm('Bu siparişi iptal etmek istediğinize emin misiniz?')) return;
+    try {
+      setCancellingOrderId(orderId);
+      const response = await apiClient.post(`/orders/${orderId}/cancel`);
+      if (response.data?.isSuccess) {
+        showSuccess(response.data.message || 'Siparişiniz başarıyla iptal edildi.');
+        await fetchOrders();
+      } else {
+        showError(response.data?.message || 'Sipariş iptal edilemedi.');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      showError(error.response?.data?.message || 'Sipariş iptal edilirken bir hata oluştu.');
+    } finally {
+      setCancellingOrderId(null);
+    }
   };
 
   const handleCopy = (code: string) => {
@@ -455,6 +478,7 @@ export const ProfilePage: React.FC = () => {
                         </div>
                         <div>
                           {getStatusBadge(order.status)}
+
                         </div>
                       </div>
 
@@ -583,6 +607,15 @@ export const ProfilePage: React.FC = () => {
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span>Tahmini Teslimat: 2-3 İş Günü</span>
                         </div>
+                        {(order.status.toLowerCase() === 'pending' || order.status.toLowerCase() === 'paid') && (
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            disabled={cancellingOrderId === order.id}
+                            className="text-[11px] font-medium text-rose-600 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {cancellingOrderId === order.id ? 'İptal Ediliyor...' : 'Siparişi İptal Et'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
