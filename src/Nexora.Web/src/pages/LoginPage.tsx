@@ -12,7 +12,8 @@ export const LoginPage: React.FC = () => {
   const { refreshCart } = useCart();
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [verificationCode, setVerificationCode] = useState('');
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -30,6 +31,46 @@ export const LoginPage: React.FC = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+
+  
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode.trim().length !== 6) {
+      setErrorMessage('Lütfen 6 haneli doğrulama kodunu eksiksiz giriniz.');
+      return;
+    }
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.post('/auth/verify-email', {
+        email: identity.trim(),
+        code: verificationCode.trim()
+      });
+
+      if (response.data?.isSuccess) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          setActiveTab('login');
+          setStep(2);
+          setVerificationCode('');
+          setIsSuccess(false);
+        }, 1800);
+      } else {
+        setErrorMessage(response.data?.message || 'Doğrulama başarısız oldu.');
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      const apiErrors = error.response?.data?.errors;
+      if (apiErrors && apiErrors.length > 0) {
+        setErrorMessage(apiErrors[0]);
+      } else {
+        setErrorMessage(error.response?.data?.message || 'Doğrulama kodu hatalı veya süresi dolmuş.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +252,7 @@ export const LoginPage: React.FC = () => {
           {isSuccess && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-700 text-xs font-semibold animate-in fade-in-50">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-              <span>{activeTab === 'login' ? 'Giriş başarılı! Profilinize yönlendiriliyorsunuz...' : 'Üyelik başarıyla oluşturuldu! Giriş yapabilirsiniz...'}</span>
+              <span>{activeTab === 'login' ? 'Giriş başarılı! Profilinize yönlendiriliyorsunuz...' : step === 3 ? 'E-postanız doğrulandı! Giriş ekranına geçiliyor...' : 'Üyelik oluşturuldu!'}</span>
             </div>
           )}
 
@@ -327,6 +368,64 @@ export const LoginPage: React.FC = () => {
               >
                 Geri Dön
               </button>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5 animate-in fade-in-50">
+              <div className="p-3.5 bg-orange-50 border border-orange-200/80 rounded-2xl text-xs text-orange-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <KeyRound className="w-4 h-4 text-orange-600" />
+                  E-Posta Doğrulama Kodu Gönderildi
+                </p>
+                <p className="text-slate-600">
+                  <strong className="text-slate-800">{identity}</strong> adresinize gönderilen 6 haneli kodu giriniz.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyEmail} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 block">6 Haneli Doğrulama Kodu</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="123456"
+                    value={verificationCode}
+                    onChange={(e) => {
+                      setVerificationCode(e.target.value.replace(/\D/g, ''));
+                      setErrorMessage(null);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center tracking-widest text-xl font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
+                  />
+                </div>
+
+                {errorMessage && (
+                  <div className="flex items-center gap-1.5 pt-1 text-rose-600 text-xs font-semibold animate-in fade-in-50">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <span>{isLoading ? 'Doğrulanıyor...' : 'Hesabı Onayla ve Giriş Yap'}</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </button>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setStep(2); setErrorMessage(null); }}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    Geri Dön
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>
