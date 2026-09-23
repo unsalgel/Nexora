@@ -36,7 +36,7 @@ public static class VariantSeeder
             await context.SaveChangesAsync();
         }
 
-        // Değerler
+        // Bedenler
         var sizes = new[] { "S", "M", "L", "XL" };
         var sizeValues = new System.Collections.Generic.Dictionary<string, ProductAttributeValue>();
         foreach (var s in sizes)
@@ -103,7 +103,7 @@ public static class VariantSeeder
                     ProductId = prod.Id,
                     SKU = $"{prod.SKU}-{s}",
                     Price = prod.Price,
-                    StockQuantity = count % 2 == 0 ? 15 : 5, // Gerçekçi stok dağılımı
+                    StockQuantity = count % 2 == 0 ? 15 : 5,
                     IsActive = true,
                     CreatedAtUtc = DateTime.UtcNow
                 };

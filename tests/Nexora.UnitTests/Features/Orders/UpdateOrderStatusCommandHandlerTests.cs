@@ -52,10 +52,13 @@ public sealed class UpdateOrderStatusCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenOrderAlreadyCancelled_ThrowsConflictException()
     {
+        var user = new User { FirstName = "Test", LastName = "User", Email = "test@test.com", PasswordHash = "h" };
+        _context.Users.Add(user);
         var order = new Order
         {
             OrderNumber = "NX-TEST-001",
-            UserId = Guid.NewGuid(),
+            UserId = user.Id,
+            User = user,
             ShippingAddress = "Adres",
             TotalAmount = 500,
             Status = OrderStatus.Cancelled

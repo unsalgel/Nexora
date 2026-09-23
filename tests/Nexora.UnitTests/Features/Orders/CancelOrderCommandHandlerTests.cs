@@ -66,11 +66,13 @@ public sealed class CancelOrderCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenOrderAlreadyShipped_ThrowsConflictException()
     {
-        var userId = Guid.NewGuid();
+        var user = new User { FirstName = "Test", LastName = "User", Email = "test@test.com", PasswordHash = "h" };
+        _context.Users.Add(user);
         var order = new Order
         {
             OrderNumber = "NX-TEST-102",
-            UserId = userId,
+            UserId = user.Id,
+            User = user,
             ShippingAddress = "Adres",
             TotalAmount = 800,
             Status = OrderStatus.Shipped // Kargoda
@@ -78,7 +80,7 @@ public sealed class CancelOrderCommandHandlerTests : IDisposable
         _context.Orders.Add(order);
         await _context.SaveChangesAsync();
 
-        var command = new CancelOrderCommand(order.Id, userId);
+        var command = new CancelOrderCommand(order.Id, user.Id);
 
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
