@@ -15,6 +15,8 @@ import { AdminNotFoundPage } from './pages/AdminNotFoundPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { AdminNotificationProvider } from './context/AdminNotificationContext';
+import { AdminToastProvider } from './context/AdminToastContext';
+import { AdminErrorBoundary } from './components/ui/AdminErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,9 +29,11 @@ const queryClient = new QueryClient({
 
 export const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AdminNotificationProvider>
-        <Router>
+    <AdminErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AdminNotificationProvider>
+          <AdminToastProvider>
+            <Router>
           <Routes>
             <Route path="/login" element={<AdminLoginPage />} />
           
@@ -50,9 +54,11 @@ export const App: React.FC = () => {
 
           <Route path="*" element={<AdminNotFoundPage />} />
         </Routes>
-      </Router>
-      </AdminNotificationProvider>
-    </QueryClientProvider>
+        </Router>
+      </AdminToastProvider>
+    </AdminNotificationProvider>
+  </QueryClientProvider>
+</AdminErrorBoundary>
   );
 };
 
