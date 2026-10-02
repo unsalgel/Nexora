@@ -1,4 +1,5 @@
 import { SafeImage } from '../components/common/SafeImage';
+import { EmptyState } from '../components/common/EmptyState';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Ticket, ShoppingBag, ArrowLeft, Check, X, Loader2 } from 'lucide-react';
@@ -71,19 +72,14 @@ export const CartPage: React.FC = () => {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4 py-12">
-        <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2">
-          <ShoppingBag className="w-10 h-10" />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900">Sepetiniz Boş!</h2>
-        <p className="text-xs text-slate-500 max-w-sm">Sepetinizde henüz ürün bulunmuyor. Binlerce indirimli ürünü keşfetmeye başlayın.</p>
-        <Link
-          to="/products"
-          className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 flex items-center gap-2 pt-3 transition-transform active:scale-95"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Alışverişe Başla</span>
-        </Link>
+      <div className="py-12">
+        <EmptyState
+          icon={ShoppingBag}
+          title="Sepetiniz Henüz Boş"
+          description="Sepetinizde ürün bulunmuyor. İlginizi çekebilecek ürünleri ve fırsatları keşfetmek için alışverişe başlayın."
+          actionText="Alışverişe Başla"
+          onAction={() => navigate('/products')}
+        />
       </div>
     );
   }
