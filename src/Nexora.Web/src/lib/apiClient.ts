@@ -1,9 +1,9 @@
 import axios from 'axios';
+import { ENV } from './env';
 
-export const API_BASE_URL = 'http://localhost:5285/api';
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: ENV.API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,7 +33,7 @@ apiClient.interceptors.response.use(
 
       if (refreshToken && accessToken) {
         try {
-          const res = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+          const res = await axios.post(`${ENV.API_URL}/auth/refresh-token`, {
             accessToken,
             refreshToken
           });

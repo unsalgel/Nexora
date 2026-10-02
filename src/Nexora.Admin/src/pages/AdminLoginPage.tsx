@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { ENV } from '../lib/env';
 import { AxiosError } from 'axios';
 import { decodeAdminJwt } from '../lib/jwt';
 import type { ApiResponse } from '../lib/apiClient';
@@ -173,7 +174,7 @@ export const AdminLoginPage: React.FC = () => {
 
         <div className="text-center">
           <a
-            href="http://localhost:5173"
+            href={ENV.WEB_URL}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-black text-slate-600 hover:text-orange-600 transition-colors inline-flex items-center gap-1.5"

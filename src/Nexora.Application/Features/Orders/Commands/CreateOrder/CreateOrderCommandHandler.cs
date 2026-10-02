@@ -37,6 +37,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     public async Task<Result<OrderDto>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         var cart = await _context.Carts
+            .Include(c => c.User)
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
             .Include(c => c.Items)
@@ -289,7 +290,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 i.Quantity,
                 i.TotalPrice)).ToList());
 
-        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.UserId, cancellationToken);
+        var user = cart.User;
         if (user != null && !string.IsNullOrWhiteSpace(user.Email))
         {
             var userName = $"{user.FirstName} {user.LastName}".Trim();
