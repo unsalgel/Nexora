@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
+import { ENV } from '../lib/env';
 import type { ApiResponse } from '../lib/apiClient';
 
 export interface SiteSettings {
@@ -57,7 +58,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       connection = new HubConnectionBuilder()
-        .withUrl('http://localhost:5285/hubs/app')
+        .withUrl(ENV.HUBS.APP)
         .withAutomaticReconnect()
         .configureLogging(LogLevel.Information)
         .build();

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, AlertTriangle, X, ShoppingBag } from 'lucide-react';
+import { ENV } from '../lib/env';
 
 interface AdminNotification {
   id: string;
@@ -54,7 +55,7 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
 
     let isCancelled = false;
     const connection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5285/hubs/app', {
+      .withUrl(ENV.HUBS.APP, {
         accessTokenFactory: () => localStorage.getItem('adminAccessToken') || '',
         transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents
       })

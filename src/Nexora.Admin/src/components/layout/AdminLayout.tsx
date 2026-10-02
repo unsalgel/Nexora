@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { decodeAdminJwt } from '../../lib/jwt';
+import { ENV } from '../../lib/env';
 
 interface FailedAttemptDetail {
   attemptedAtUtc: string;
@@ -145,7 +146,7 @@ export const AdminLayout: React.FC = () => {
 
         <div className="space-y-3 pt-4 border-t border-slate-100">
           <a
-            href="http://localhost:5173"
+            href={ENV.WEB_URL}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-orange-600 hover:bg-orange-50/60 transition-colors"

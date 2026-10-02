@@ -7,10 +7,6 @@ using Nexora.Application.Features.Chat.Dtos;
 
 namespace Nexora.Application.Features.Chat.Commands.SendMessage;
 
-/// <summary>
-/// Müşteri destek mesajını karşılayan ve RAG (Retrieval-Augmented Generation)
-/// mantığıyla veritabanındaki ürünleri Gemini modeline bağlam olarak besleyen handler.
-/// </summary>
 public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageCommand, Result<ChatResponseDto>>
 {
     private readonly IApplicationDbContext _dbContext;
@@ -127,9 +123,6 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         return products;
     }
 
-    /// <summary>
-    /// Tekrar eden Select projeksiyonunu tek noktada tanımlar (DRY).
-    /// </summary>
     private static IQueryable<ProductInfo> ProjectToProductInfo(IQueryable<Domain.Entities.Product> query)
     {
         return query.Select(p => new ProductInfo(
@@ -195,8 +188,5 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         return sb.ToString();
     }
 
-    /// <summary>
-    /// RAG projeksiyonunda kullanılan dahili veri taşıyıcı.
-    /// </summary>
     private sealed record ProductInfo(Guid Id, string Name, decimal Price, int StockQuantity, string CategoryName, string ImageUrl);
 }

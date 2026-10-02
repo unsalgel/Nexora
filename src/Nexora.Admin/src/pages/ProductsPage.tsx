@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
+import { ENV } from '../lib/env';
 import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
@@ -412,7 +413,7 @@ export const ProductsPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
                           <img
-                            src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `http://localhost:5285${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
+                            src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `${ENV.BACKEND_URL}${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
                             alt={product.name}
                             className="max-h-full object-contain"
                             onError={(e) => {
@@ -623,7 +624,7 @@ export const ProductsPage: React.FC = () => {
                       <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center gap-3 group">
                         <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 flex items-center justify-center">
                           <img
-                            src={imageUrl.startsWith('http') ? imageUrl : `http://localhost:5285${imageUrl}`}
+                            src={imageUrl.startsWith('http') ? imageUrl : `${ENV.BACKEND_URL}${imageUrl}`}
                             alt="Önizleme"
                             className="w-full h-full object-contain"
                             onError={(e) => {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
+import { ENV } from '../lib/env';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { NotificationDto } from '../types/notification';
 import { useToast } from './ToastContext';
@@ -61,7 +62,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     let isCancelled = false;
     const connection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5285/hubs/app', {
+      .withUrl(ENV.HUBS.APP, {
         accessTokenFactory: () => localStorage.getItem('accessToken') || '',
         transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents
       })

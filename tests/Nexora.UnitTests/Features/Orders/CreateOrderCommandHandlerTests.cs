@@ -58,17 +58,20 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     public async Task Handle_WhenCartIsEmpty_ThrowsConflictException()
     {
         // Arrange
-        var userId = Guid.NewGuid();
+        var user = new User { FirstName = "Ali", LastName = "Yılmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
         var cart = new DomainCart
         {
             Id = Guid.NewGuid(),
-            UserId = userId
+            UserId = user.Id,
+            User = user
         };
         _context.Carts.Add(cart);
         await _context.SaveChangesAsync();
 
         var command = new CreateOrderCommand(
-            userId,
+            user.Id,
             "İstanbul, Beşiktaş",
             new PaymentRequestDto("Ali Yılmaz", "1234567812345678", "12", "2028", "123")
         );
@@ -85,7 +88,9 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     public async Task Handle_ValidOrder_CreatesOrderAndClearsCart()
     {
         // Arrange
-        var userId = Guid.NewGuid();
+        var user = new User { FirstName = "Ali", LastName = "Yılmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
         var category = new Category { Id = Guid.NewGuid(), Name = "Elektronik" };
         _context.Categories.Add(category);
 
@@ -104,7 +109,8 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         var cart = new DomainCart
         {
             Id = Guid.NewGuid(),
-            UserId = userId
+            UserId = user.Id,
+            User = user
         };
         _context.Carts.Add(cart);
 
@@ -124,7 +130,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             .ReturnsAsync(true);
 
         var command = new CreateOrderCommand(
-            userId,
+            user.Id,
             "İstanbul, Kadıköy",
             new PaymentRequestDto("Ali Yılmaz", "1234567812345678", "12", "2028", "123")
         );
@@ -153,7 +159,9 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     public async Task Handle_WhenStockDropsToCriticalLevel_PublishesLowStockAlert()
     {
         // Arrange
-        var userId = Guid.NewGuid();
+        var user = new User { FirstName = "Ahmet", LastName = "Kaya", Email = "ahmet@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
         var category = new Category { Id = Guid.NewGuid(), Name = "Elektronik" };
         var brand = new Brand { Id = Guid.NewGuid(), Name = "Logitech" };
         _context.Categories.Add(category);
@@ -175,7 +183,8 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
         var cart = new DomainCart
         {
             Id = Guid.NewGuid(),
-            UserId = userId
+            UserId = user.Id,
+            User = user
         };
         _context.Carts.Add(cart);
 
@@ -195,7 +204,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             .ReturnsAsync(true);
 
         var command = new CreateOrderCommand(
-            userId,
+            user.Id,
             "Ankara, Çankaya",
             new PaymentRequestDto("Ahmet Kaya", "1234567812345678", "05", "2029", "456")
         );

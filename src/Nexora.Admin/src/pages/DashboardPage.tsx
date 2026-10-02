@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../lib/apiClient';
+import { ENV } from '../lib/env';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { AdminOrderDto } from '../types/order';
 import type { SalesAnalyticsDto } from '../types/dashboard';
@@ -472,7 +473,7 @@ export const DashboardPage: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
                             <img
-                              src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `http://localhost:5285${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
+                              src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `${ENV.BACKEND_URL}${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
                               alt={product.name}
                               className="max-h-full object-contain"
                               onError={(e) => {
