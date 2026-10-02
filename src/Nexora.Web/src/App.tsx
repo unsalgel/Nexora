@@ -19,6 +19,7 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SecurityNoticeBanner } from './components/common/SecurityNoticeBanner';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,7 +32,8 @@ const queryClient = new QueryClient({
 
 export const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <FavoritesProvider>
           <CartProvider>
@@ -67,6 +69,7 @@ export const App: React.FC = () => {
         </FavoritesProvider>
       </ToastProvider>
     </QueryClientProvider>
+  </ErrorBoundary>
   );
 };
 

@@ -7,9 +7,8 @@ import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
-import { ToastContainer } from '../components/ui/Toast';
 import { uploadImage } from '../lib/uploadService';
-import type { ToastMessage } from '../components/ui/Toast';
+import { useAdminToast } from '../context/AdminToastContext';
 
 interface BrandDto {
   id: string;
@@ -26,19 +25,7 @@ export const BrandsPage: React.FC = () => {
   const [editingBrand, setEditingBrand] = useState<BrandDto | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const showToast = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  const { showToast } = useAdminToast();
 
   const [name, setName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -488,8 +475,6 @@ export const BrandsPage: React.FC = () => {
         }}
         onClose={() => setBrandToDelete(null)}
       />
-
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
     </div>
   );
