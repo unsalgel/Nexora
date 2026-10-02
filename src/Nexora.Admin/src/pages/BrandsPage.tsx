@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tag, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
-import { ENV } from '../lib/env';
+import { SafeImage } from '../components/common/SafeImage';
 import { AxiosError } from 'axios';
 import type { ApiResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -382,13 +382,10 @@ export const BrandsPage: React.FC = () => {
                 {logoUrl ? (
                   <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center gap-3 group">
                     <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 flex items-center justify-center p-1">
-                      <img
-                        src={logoUrl.startsWith('http') ? logoUrl : `${ENV.BACKEND_URL}${logoUrl}`}
+                      <SafeImage
+                        src={logoUrl}
                         alt="Önizleme"
                         className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
-                        }}
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-8">
