@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
-import { ENV } from '../lib/env';
+import { SafeImage } from '../components/common/SafeImage';
 import { AxiosError } from 'axios';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
@@ -412,13 +412,10 @@ export const ProductsPage: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center shrink-0">
-                          <img
-                            src={product.mainImageUrl ? (product.mainImageUrl.startsWith('http') ? product.mainImageUrl : `${ENV.BACKEND_URL}${product.mainImageUrl}`) : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80'}
+                          <SafeImage
+                            src={product.mainImageUrl}
                             alt={product.name}
                             className="max-h-full object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
-                            }}
                           />
                         </div>
                         <div className="min-w-0">
@@ -623,13 +620,10 @@ export const ProductsPage: React.FC = () => {
                     {imageUrl ? (
                       <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center gap-3 group">
                         <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 flex items-center justify-center">
-                          <img
-                            src={imageUrl.startsWith('http') ? imageUrl : `${ENV.BACKEND_URL}${imageUrl}`}
+                          <SafeImage
+                            src={imageUrl}
                             alt="Önizleme"
                             className="w-full h-full object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80';
-                            }}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
