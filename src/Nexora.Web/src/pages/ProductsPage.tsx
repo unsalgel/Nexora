@@ -1,5 +1,10 @@
 import { SafeImage } from '../components/common/SafeImage';
+import { EmptyState } from '../components/common/EmptyState';
+import { ProductGridSkeleton } from '../components/common/ProductCardSkeleton';
+import { QueryBoundary } from '../components/common/QueryBoundary';
 import React, { useState, useEffect } from 'react';
+
+export const PRODUCTS_PER_PAGE = 9;
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -92,12 +97,12 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
+  const { data: productsData, isLoading, isError, error } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
     queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy],
     queryFn: async () => {
       const params: Record<string, string | number | boolean | undefined> = {
         page,
-        pageSize: 9,
+        pageSize: PRODUCTS_PER_PAGE,
         isActive: true,
       };
       if (selectedCategoryId !== 'all') params.categoryId = selectedCategoryId;
@@ -356,29 +361,26 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map(n => (
-                <div key={n} className="bg-white rounded-2xl border border-slate-150 p-4 space-y-4 animate-pulse">
-                  <div className="h-48 bg-slate-100 rounded-xl w-full" />
-                  <div className="h-4 bg-slate-100 rounded w-2/3" />
-                  <div className="h-4 bg-slate-100 rounded w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-3">
-              <p className="text-xs text-slate-500 font-medium">Aradığınız kriterlere uygun ürün bulunamadı.</p>
-              <button 
-                onClick={handleResetFilters}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-              >
-                Filtreleri Temizle
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
+          <QueryBoundary
+            isLoading={isLoading}
+            skeleton={<ProductGridSkeleton count={PRODUCTS_PER_PAGE} />}
+            isError={isError}
+            error={error}
+            data={filteredProducts}
+            isEmpty={(list) => list.length === 0}
+            emptyState={
+              <EmptyState
+                icon={Search}
+                title="Ürün Bulunamadı"
+                description="Arama kriterlerinize veya seçili filtrelere uygun ürün bulunamadı. Filtreleri sıfırlayarak tüm ürünleri görüntüleyebilirsiniz."
+                actionText="Filtreleri Temizle"
+                onAction={handleResetFilters}
+              />
+            }
+          >
+            {(items) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {items.map((product) => (
                 <Link
                   key={product.id}
                   to={`/products/${product.id}`}
@@ -453,6 +455,7 @@ export const ProductsPage: React.FC = () => {
               ))}
             </div>
           )}
+        </QueryBoundary>
 
           {pagedProducts && pagedProducts.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-6">
