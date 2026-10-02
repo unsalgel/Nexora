@@ -9,6 +9,7 @@ import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { ToastContainer } from '../components/ui/Toast';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
 import { uploadImage } from '../lib/uploadService';
 import type { ToastMessage } from '../components/ui/Toast';
 
@@ -395,11 +396,7 @@ export const ProductsPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
-                    Ürünler yükleniyor...
-                  </td>
-                </tr>
+                <TableSkeleton rows={6} cols={6} />
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">

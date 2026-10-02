@@ -17,6 +17,7 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { SecurityNoticeBanner } from './components/common/SecurityNoticeBanner';
 
 const queryClient = new QueryClient({
@@ -53,7 +54,7 @@ export const App: React.FC = () => {
                         <Route path="/addresses" element={<ProfilePage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
-                        <Route path="*" element={<HomePage />} />
+                        <Route path="*" element={<NotFoundPage />} />
                       </Routes>
                     </main>
                     <Footer />

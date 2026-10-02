@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -11,6 +11,7 @@ import { CouponsPage } from './pages/CouponsPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminNotFoundPage } from './pages/AdminNotFoundPage';
 import { AdminRoute } from './components/auth/AdminRoute';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { AdminNotificationProvider } from './context/AdminNotificationContext';
@@ -43,10 +44,11 @@ export const App: React.FC = () => {
               <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<AdminNotFoundPage />} />
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<AdminNotFoundPage />} />
         </Routes>
       </Router>
       </AdminNotificationProvider>
