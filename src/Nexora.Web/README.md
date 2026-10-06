@@ -50,6 +50,11 @@ Nexora e-ticaret platformunun son kullanıcı alışveriş deneyimini sunan mü�
 * Popover yapısında ekranı kilitlemeyen sipariş ve bildirim listesi (`NotificationDropdown`).
 * Satın alınan ürünlere yıldız puanı verme ve yorum yazma modülü.
 
+### 6. Hata Toleransı ve Durum Yönetimi (State & Error Boundaries)
+* **Global Error Boundary:** Sayfa genelinde beklenmeyen render hatalarını yakalayan, beyaz ekrana düşmeyi önleyen ve kurtarma eylemleri sunan `ErrorBoundary`.
+* **QueryBoundary Deseni:** Veri çekme süreçlerinde yükleme iskeleti (`ProductGridSkeleton`), hata görünümü ve boş durum (`EmptyState`) yönetimini tek çatı altında toplayan generic durum kapsayıcısı.
+* **404 Sayfa Bulunamadı (`NotFoundPage`):** Geçersiz bağlantılar için ana sayfaya ve ürün kataloğuna yönlendiren kurumsal 404 arayüzü.
+
 ---
 
 ## Klasör Organizasyonu
@@ -58,13 +63,13 @@ Nexora e-ticaret platformunun son kullanıcı alışveriş deneyimini sunan mü�
 src/
 ├── components/          # Ortak arayüz bileşenleri
 │   ├── auth/            # Giriş, kayıt ve korumalı rota bileşenleri
-│   ├── common/          # Güvenli görsel (SafeImage) gibi platform geneli bileşenler
+│   ├── common/          # Güvenli görsel (SafeImage), ErrorBoundary, QueryBoundary, EmptyState
 │   ├── layout/          # Navbar, Footer ve bildirim bileşenleri
 │   └── ui/              # Buton, modal ve form girdi öğeleri
-├── context/             # Global Context sağlayıcıları (CartContext, FavoritesContext)
+├── context/             # Global Context sağlayıcıları (CartContext, FavoritesContext, ToastContext)
 ├── features/            # Alan bazlı işlevsel modüller (örn: chat/ bileşenleri, kancaları ve servisleri)
 ├── lib/                 # Axios yapılandırması, görsel çözümleyiciler ve kart algoritmaları
-├── pages/               # Sayfa bileşenleri (Vitrin, Ürünler, Detay, Sepet, Ödeme vb.)
+├── pages/               # Sayfa bileşenleri (Vitrin, Ürünler, Detay, Sepet, Ödeme, 404 vb.)
 ├── types/               # TypeScript tip ve arayüz sözleşmeleri
 ├── App.tsx              # Uygulama rota şeması
 └── main.tsx             # React DOM başlangıç noktası
@@ -72,11 +77,14 @@ src/
 
 ---
 
-## Kurulum ve Çalıştırma
+## Kurulum, Güvenlik ve Çalıştırma
 
 ```bash
 # Paket bağımlılıklarını kurun
 npm install
+
+# Güvenlik ve zafiyet denetimi (0 açık kuralı)
+npm audit --audit-level=high
 
 # Geliştirme sunucusunu başlatın (Port: 5173)
 npm run dev
