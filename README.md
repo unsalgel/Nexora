@@ -6,7 +6,7 @@
 [![React & TypeScript](https://img.shields.io/badge/Frontend-React_18_%7C_TypeScript-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Güvenlik Politikası](https://img.shields.io/badge/Security-Policy_Active-success.svg?logo=shield&logoColor=white)](https://github.com/unsalgel/Nexora/security/policy)
 
-Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensipleri doğrultusunda geliştirilmiş, yüksek performans ve kurumsal güvenlik standartlarına sahip tam kapsamlı bir e-ticaret platformudur.
+Nexora; Clean Architecture, CQRS (Command Query Responsibility Segregation) ve SOLID prensipleri doğrultusunda geliştirilmiş, yüksek performans ve kurumsal güvenlik standartlarına sahip tam kapsamlı bir e-ticaret platformudur.
 
 Platform; müşteri vitrini (`Nexora.Web`), yönetim portalı (`Nexora.Admin`) ve merkezi REST API servisinden (`Nexora.Api`) meydana gelmektedir.
 
