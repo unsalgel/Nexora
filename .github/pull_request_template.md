@@ -9,12 +9,6 @@
 - [ ] 📚 Dokümantasyon (Documentation)
 - [ ] 🧪 Test (Unit / Integration / Architecture)
 
----
-
-### 📝 Değişiklik Açıklaması
-<!-- Yapılan değişikliğin amacını ve çözdüğü problemi kısaca açıklayınız -->
-
----
 
 ### 🛡️ Kalite, Mimari ve Kod İnceleme Kontrol Listesi
 
