@@ -24,7 +24,7 @@ Nexora e-ticaret platformunun envanter, sipariş karşılama, satış analitiği
 * Sadece `Admin` rolüne sahip kullanıcıların erişebildiği korumalı rota yapısı (`AdminRoute`).
 * **Güvenlik İhlali ve Kilitlenme Uyarısı:** Önceki başarısız oturum denemelerini tarih, saat ve IP bazında listeleyen güvenlik bilgilendirme penceresi.
 * **Anlık Oturum Kapatma:** Çıkış yapıldığında Access Token ve Refresh Token'ın eş zamanlı olarak kara listeye aktarılması.
-* Varsayılan Giriş Bilgileri: `admin@nexora.com` / `Admin123*`
+* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel geliştirme ve demo içindir; canlı ortamda kullanılmaz)*
 
 ### 2. Satış ve Performans Analitiği (Dashboard)
 * **Temel Metrik Kartları:** Toplam Ciro, Ortalama Sepet Tutarı (AOV), Tamamlanan Sipariş Hacmi, Aktif Envanter Değeri (TL), Canlı Ürün Sayısı, Kategori ve Marka Dağılımı.
