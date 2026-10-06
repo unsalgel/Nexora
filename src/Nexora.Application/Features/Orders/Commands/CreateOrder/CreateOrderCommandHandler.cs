@@ -135,12 +135,6 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
                 {
                     discountAmount = rawTotal;
                 }
-
-                appliedCoupon.CurrentUsageCount++;
-                if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
-                {
-                    appliedCoupon.IsActive = false;
-                }
             }
         }
 
@@ -195,11 +189,23 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             int remainingStock;
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
+                // Çift satışı (Overselling) ve eşzamanlı stok yarışını (Race Condition) kesin olarak engelle
+                if (item.ProductVariant.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' varyantı için stok yetersiz kaldı. Kalan stok: {item.ProductVariant.StockQuantity}");
+                }
+
                 item.ProductVariant.StockQuantity -= item.Quantity;
                 remainingStock = item.ProductVariant.StockQuantity;
             }
             else
             {
+                // Çift satışı (Overselling) ve eşzamanlı stok yarışını (Race Condition) kesin olarak engelle
+                if (item.Product.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' için stok yetersiz kaldı. Kalan stok: {item.Product.StockQuantity}");
+                }
+
                 item.Product.StockQuantity -= item.Quantity;
                 remainingStock = item.Product.StockQuantity;
             }
@@ -207,6 +213,21 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             if (remainingStock <= 5)
             {
                 lowStockAlerts.Add((item.ProductId, item.Product.Name, item.ProductVariantId, item.ProductVariant?.SKU, remainingStock));
+            }
+        }
+
+        // Kupon kullanımını ödeme başarıyla onaylandıktan sonra atomik olarak artır
+        if (appliedCoupon is not null)
+        {
+            if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
+            {
+                throw new ConflictException("Kupon toplam kullanım limitine ulaştığı için uygulanamadı.");
+            }
+
+            appliedCoupon.CurrentUsageCount++;
+            if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
+            {
+                appliedCoupon.IsActive = false;
             }
         }
 
