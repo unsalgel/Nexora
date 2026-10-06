@@ -171,7 +171,7 @@ npm run dev
 ```
 
 * Yönetim Arayüzü: `http://localhost:5174`
-* Varsayılan Yönetici Hesabı: `admin@nexora.com` / `Admin123*`
+* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel geliştirme ve demo içindir; canlı ortamda kullanılmaz)*
 
 ### 6. Güvenlik ve Test Denetimi
 ```bash
