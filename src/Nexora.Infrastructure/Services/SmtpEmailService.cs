@@ -27,9 +27,7 @@ public sealed class SmtpEmailService : IEmailService
 
     if (string.IsNullOrWhiteSpace(_settings.Host) || string.IsNullOrWhiteSpace(_settings.UserName))
     {
-      _logger.LogInformation(
-          "[E-POSTA SİMÜLASYONU] Alıcı: {To} | Konu: {Subject} | Gönderici: {Sender}",
-          to, subject, _settings.SenderEmail);
+      _logger.LogInformation("[E-POSTA SİMÜLASYONU] SMTP sunucu ayarları bulunmadığı için e-posta gönderimi simüle edildi.");
       return;
     }
 
@@ -53,11 +51,11 @@ public sealed class SmtpEmailService : IEmailService
       };
 
       await client.SendMailAsync(message, cancellationToken);
-      _logger.LogInformation("E-posta başarıyla gönderildi: {To} | Konu: {Subject}", to, subject);
+      _logger.LogInformation("E-posta başarıyla gönderildi.");
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "E-posta gönderilirken hata oluştu: {To} | Konu: {Subject}", to, subject);
+      _logger.LogError(ex, "E-posta gönderimi sırasında bir hata oluştu.");
     }
   }
 
