@@ -27,9 +27,7 @@ public sealed class SmtpEmailService : IEmailService
 
     if (string.IsNullOrWhiteSpace(_settings.Host) || string.IsNullOrWhiteSpace(_settings.UserName))
     {
-      _logger.LogInformation(
-          "[E-POSTA SİMÜLASYONU] Alıcı: {MaskedTo} | Konu: {Subject}",
-          MaskEmail(to), subject);
+      _logger.LogInformation("[E-POSTA SİMÜLASYONU] SMTP sunucu ayarları bulunmadığı için e-posta gönderimi simüle edildi.");
       return;
     }
 
@@ -53,11 +51,11 @@ public sealed class SmtpEmailService : IEmailService
       };
 
       await client.SendMailAsync(message, cancellationToken);
-      _logger.LogInformation("E-posta başarıyla gönderildi: {MaskedTo} | Konu: {Subject}", MaskEmail(to), subject);
+      _logger.LogInformation("E-posta başarıyla gönderildi.");
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "E-posta gönderilirken hata oluştu: {MaskedTo} | Konu: {Subject}", MaskEmail(to), subject);
+      _logger.LogError(ex, "E-posta gönderimi sırasında bir hata oluştu.");
     }
   }
 
@@ -319,13 +317,5 @@ public sealed class SmtpEmailService : IEmailService
 </html>";
 
     await SendEmailAsync(to, "Nexora Şifre Sıfırlama Kodunuz 🔐", html, cancellationToken);
-  }
-
-  private static string MaskEmail(string? email)
-  {
-    if (string.IsNullOrWhiteSpace(email)) return "***";
-    var atIndex = email.IndexOf('@');
-    if (atIndex <= 1) return "***" + (atIndex >= 0 ? email[atIndex..] : "");
-    return $"{email[0]}***{email[atIndex - 1]}{email[atIndex..]}";
   }
 }
