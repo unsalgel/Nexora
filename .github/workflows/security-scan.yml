@@ -48,17 +48,19 @@ jobs:
           src/Nexora.Web/package-lock.json
           src/Nexora.Admin/package-lock.json
 
-    - name: Nexora.Web Guvenlik Denetimi
+    - name: Nexora.Web Guvenlik Denetimi ve Tip Kontrolu
       working-directory: src/Nexora.Web
       run: |
         npm ci
         npm audit --audit-level=high
+        npm run build
 
-    - name: Nexora.Admin Guvenlik Denetimi
+    - name: Nexora.Admin Guvenlik Denetimi ve Tip Kontrolu
       working-directory: src/Nexora.Admin
       run: |
         npm ci
         npm audit --audit-level=high
+        npm run build
 
   codeql-analysis:
     name: CodeQL Statik Kod Analizi (SAST)
