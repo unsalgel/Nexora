@@ -19,9 +19,9 @@ Proje, iş kurallarının ve çekirdek varlıkların dış bağımlılıklardan 
 ```
 Nexora/
 ├── src/
-│   ├── Nexora.Domain/         # Çekirdek varlıklar, değer nesneleri, domain eventleri, hata tipleri
+│   ├── Nexora.Domain/         # Çekirdek varlıklar (Entities), enumlar ve özel hata tipleri (Exceptions)
 │   ├── Nexora.Application/    # CQRS komut ve sorguları (MediatR), DTO'lar, FluentValidation kuralları
-│   ├── Nexora.Infrastructure/ # Güvenlik (JWT, BCrypt, Token Blacklist), Harici Entegrasyonlar (Yapay Zeka Asistanı, Ödeme, Depolama)
+│   ├── Nexora.Infrastructure/ # Güvenlik (JWT, BCrypt, Token Blacklist), E-Posta (SMTP), AI Asistanı, Yerel Dosya Depolama
 │   ├── Nexora.Persistence/    # EF Core 8, PostgreSQL konfigürasyonları, DbContext, Migration ve Seeder yapıları
 │   ├── Nexora.Api/            # ASP.NET Core Web API, Controller'lar, Middleware'ler, Serilog, Rate Limiter
 │   ├── Nexora.Web/            # React, TypeScript, Vite, Tailwind CSS Müşteri Vitrini (Port 5173)
@@ -181,7 +181,7 @@ npm run dev
 
 ### 6. Güvenlik ve Test Denetimi
 ```bash
-# Backend birim testleri (46 test)
+# Backend birim ve mimari testleri (51 test)
 dotnet test
 
 # .NET paket zafiyet taraması
