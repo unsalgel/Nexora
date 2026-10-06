@@ -54,13 +54,22 @@ Nexora e-ticaret platformunun envanter, sipariş karşılama, satış analitiği
 * Kategori ve marka ağacı oluşturma, düzenleme ve sıralama.
 * Kritik silme adımları için doğrulama modalları (`ConfirmModal`).
 
+### 7. Hata Toleransı ve Bildirim Mimarisi (Error Handling & Toast)
+* **Admin Error Boundary:** Panel modüllerinde oluşabilecek beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal kurtarma ekranı (`AdminErrorBoundary`).
+* **Merkezi Bildirim Sağlayıcısı (AdminToastProvider):** Sayfa bazında kod tekrarı oluşturmaksızın bildirimleri yöneten merkezi `useAdminToast` kancası.
+* **Akıcı Yükleme İskeletleri (TableSkeleton):** Veri çekilirken düzen kaymasını (layout shift) engelleyen hafif satır iskeletleri.
+* **404 Sayfa Bulunamadı (`AdminNotFoundPage`):** Geçersiz admin rotaları için yönlendirici kontrol paneli sayfası.
+
 ---
 
-## Geliştirme ve Derleme
+## Geliştirme, Güvenlik ve Derleme
 
 ```bash
 # Bağımlılıkların kurulumu
 npm install
+
+# Güvenlik ve zafiyet denetimi (0 açık kuralı)
+npm audit --audit-level=high
 
 # Geliştirme sunucusunun çalıştırılması (Port: 5174)
 npm run dev
