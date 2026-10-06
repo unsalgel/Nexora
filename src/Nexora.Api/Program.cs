@@ -22,12 +22,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("NexoraCorsPolicy", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? ["https://nexora.com", "https://admin.nexora.com"];
+
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 
@@ -165,8 +178,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
-app.UseCors("AllowAll");
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseCors("NexoraCorsPolicy");
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseStaticFiles();
 app.UseRateLimiter();
