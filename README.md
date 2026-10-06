@@ -1,5 +1,11 @@
 # Nexora Kurumsal E-Ticaret ve Yönetim Platformu
 
+[![Güvenlik ve Kalite Taraması](https://github.com/unsalgel/Nexora/actions/workflows/security-scan.yml/badge.svg?branch=master)](https://github.com/unsalgel/Nexora/actions/workflows/security-scan.yml)
+[![Clean Architecture & SOLID](https://img.shields.io/badge/Architecture-NetArchTest_Verified-blue.svg)](https://github.com/unsalgel/Nexora/blob/master/tests/Nexora.UnitTests/Architecture/ArchitectureTests.cs)
+[![.NET Sürümü](https://img.shields.io/badge/.NET-8.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![React & TypeScript](https://img.shields.io/badge/Frontend-React_18_%7C_TypeScript-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Güvenlik Politikası](https://img.shields.io/badge/Security-Policy_Active-success.svg?logo=shield&logoColor=white)](https://github.com/unsalgel/Nexora/security/policy)
+
 Nexora; Clean Architecture, Domain-Driven Design (DDD) ve CQRS prensipleri doğrultusunda geliştirilmiş, yüksek performans ve kurumsal güvenlik standartlarına sahip tam kapsamlı bir e-ticaret platformudur.
 
 Platform; müşteri vitrini (`Nexora.Web`), yönetim portalı (`Nexora.Admin`) ve merkezi REST API servisinden (`Nexora.Api`) meydana gelmektedir.
