@@ -116,6 +116,14 @@ Nexora/
 * Sipariş durumu değiştiğinde müşteriye anlık SignalR bildirimi ve bildirim çanı senkronizasyonu.
 * Site ayarları (duyuru metni, iletişim bilgileri vb.) güncellendiğinde tüm aktif kullanıcılarda anında yansıyan canlı güncelleme altyapısı.
 
+### 9. Kurumsal Siber Güvenlik ve Hata Toleransı (Security & Fault Tolerance)
+* **Güvenlik Başlıkları (Security Headers Middleware):** Clickjacking engeli (`X-Frame-Options: DENY`), MIME sniffing engeli (`X-Content-Type-Options: nosniff`), XSS koruması, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` ve katı `Content-Security-Policy (CSP)`.
+* **Zorunlu HTTPS & HSTS:** Üretim ortamında zorunlu HTTPS yönlendirmesi ve 1 yıllık `Strict-Transport-Security` (HSTS).
+* **Ortama Duyarlı Güvenli CORS:** Geliştirme ortamında esnek yerel portlar, canlı ortamda yalnızca güvenli Web & Admin alan adlarını kapsayan whitelist.
+* **Global Hata Yakalama (Global Error Boundary):** Hem Web hem Admin tarafında beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal `ErrorBoundary`, kurtarma butonları ve harici telemetri kancaları (`onError`).
+* **Sıfır Zafiyetli Paket Standartları:** NuGet ve NPM bağımlılıklarında bilinen CVE açıkları düzenli olarak taranır ve sıfır zafiyet seviyesinde tutulur.
+* **CI/CD Güvenlik & SAST Boru Hattı:** GitHub Actions üzerinde her push/PR ve haftalık zamanlamayla çalışan otomatik CodeQL statik kod analizi, NuGet ve NPM zafiyet denetimi.
+
 ---
 
 ## Kurulum ve Dağıtım Adımları
@@ -165,6 +173,19 @@ npm run dev
 * Yönetim Arayüzü: `http://localhost:5174`
 * Varsayılan Yönetici Hesabı: `admin@nexora.com` / `Admin123*`
 
+### 6. Güvenlik ve Test Denetimi
+```bash
+# Backend birim testleri (46 test)
+dotnet test
+
+# .NET paket zafiyet taraması
+dotnet list package --vulnerable --include-transitive
+
+# Frontend güvenlik denetimleri
+cd src/Nexora.Web && npm audit --audit-level=high
+cd src/Nexora.Admin && npm audit --audit-level=high
+```
+
 ---
 
 ## Kodlama Standartları ve Kalite Kriterleri
@@ -173,3 +194,4 @@ npm run dev
 * Veritabanı sorgularında performans öncelikli tutulmalı; projeksiyon ve filtrelemeler veritabanı motoru üzerinde çalıştırılmalıdır.
 * TypeScript tarafında tip gevşekliğine (`any`) izin verilmez; katı tip denetimi zorunludur.
 * Derleme, paketleme ve çalışma zamanı adımlarında hata ve uyarı bulunmamalıdır.
+* Güvenlik açıklarına (SQLi, XSS, CSRF, IDOR, MIME-sniffing, Clickjacking) karşı kodlama standartları tavizsiz korunur.
