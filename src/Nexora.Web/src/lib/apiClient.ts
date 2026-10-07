@@ -20,6 +20,23 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -28,6 +45,20 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
+
+      // Eğer halihazırda bir yenileme işlemi devam ediyorsa, paralel istekleri kuyrukta beklet
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err: unknown) => Promise.reject(err));
+      }
+
+      isRefreshing = true;
       const refreshToken = localStorage.getItem('refreshToken');
       const accessToken = localStorage.getItem('accessToken');
 
@@ -46,12 +77,21 @@ apiClient.interceptors.response.use(
             localStorage.setItem('refreshToken', newRefreshToken);
 
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            processQueue(null, newAccessToken);
             return apiClient(originalRequest);
+          } else {
+            processQueue(new Error('Token yenilenemedi.'));
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/login';
           }
-        } catch (refreshError) {
+        } catch (refreshError: unknown) {
+          processQueue(refreshError);
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           window.location.href = '/login';
+        } finally {
+          isRefreshing = false;
         }
       } else {
         localStorage.removeItem('accessToken');

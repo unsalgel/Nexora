@@ -36,13 +36,20 @@ public sealed class GlobalExceptionHandlerMiddleware
             var endpoint = $"{context.Request.Method} {context.Request.Path}";
             var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Bilinmiyor";
 
-            await dbLogger.LogErrorAsync(
-                source: "GlobalExceptionHandler",
-                ex: ex,
-                endpoint: endpoint,
-                userEmail: userEmail,
-                clientIp: clientIp,
-                cancellationToken: context.RequestAborted);
+            try
+            {
+                await dbLogger.LogErrorAsync(
+                    source: "GlobalExceptionHandler",
+                    ex: ex,
+                    endpoint: endpoint,
+                    userEmail: userEmail,
+                    clientIp: clientIp,
+                    cancellationToken: context.RequestAborted);
+            }
+            catch (Exception dbEx)
+            {
+                _logger.LogWarning(dbEx, "Hata detayları veritabanına kaydedilemedi.");
+            }
 
             await HandleExceptionAsync(context, ex);
         }
