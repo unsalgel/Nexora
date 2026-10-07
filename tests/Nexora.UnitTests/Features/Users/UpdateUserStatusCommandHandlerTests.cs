@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
+using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Users.Commands.UpdateUserStatus;
 using Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
@@ -11,12 +13,14 @@ namespace Nexora.UnitTests.Features.Users;
 public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
 {
     private readonly NexoraDbContext _context;
+    private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly UpdateUserStatusCommandHandler _handler;
 
     public UpdateUserStatusCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
-        _handler = new UpdateUserStatusCommandHandler(_context);
+        _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
+        _handler = new UpdateUserStatusCommandHandler(_context, _tokenBlacklistServiceMock.Object);
     }
 
     public void Dispose()
@@ -67,6 +71,33 @@ public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
 
         var tokens = await _context.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync();
         tokens.Should().OnlyContain(t => t.IsRevoked);
+
+        _tokenBlacklistServiceMock.Verify(x => x.RevokeUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenUserActivated_UnrevokesUser()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Test",
+            LastName = "User",
+            Email = "active@nexora.com",
+            PasswordHash = "hash",
+            IsActive = false
+        };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        var command = new UpdateUserStatusCommand(user.Id, true);
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var updatedUser = await _context.Users.FindAsync(user.Id);
+        updatedUser!.IsActive.Should().BeTrue();
+
+        _tokenBlacklistServiceMock.Verify(x => x.UnrevokeUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

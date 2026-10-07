@@ -140,6 +140,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       window.dispatchEvent(new CustomEvent('nexora:order-created', { detail: payload }));
     });
 
+    connection.on('AccountFrozen', (payload?: { message?: string }) => {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      window.dispatchEvent(new CustomEvent('nexora:account-frozen', { detail: payload }));
+      window.location.href = '/login?reason=frozen';
+    });
+
     connection.start().catch(() => {});
 
     return () => {

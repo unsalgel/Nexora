@@ -45,6 +45,11 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken)
             ?? throw new NotFoundException("Kullanıcıya ait sepet bulunamadı.");
 
+        if (!cart.User.IsActive)
+        {
+            throw new UnauthorizedException("Hesabınız dondurulmuştur. Sipariş oluşturamazsınız.");
+        }
+
         if (!cart.Items.Any())
         {
             throw new ConflictException("Sepetinizde ürün bulunmamaktadır. Boş sepetle sipariş oluşturulamaz.");

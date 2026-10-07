@@ -37,6 +37,9 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
         existingToken.IsRevoked = true;
 
         var user = existingToken.User;
+        if (!user.IsActive)
+            throw new UnauthorizedException("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
+
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         var newAccessToken = _jwtProvider.GenerateAccessToken(user, roles);
         var newRefreshTokenValue = _jwtProvider.GenerateRefreshToken();

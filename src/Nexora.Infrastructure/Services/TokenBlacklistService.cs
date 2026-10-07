@@ -52,4 +52,37 @@ public sealed class TokenBlacklistService : ITokenBlacklistService
 
         return false;
     }
+
+    private static string GetUserCacheKey(Guid userId) => $"revoked_user:{userId}";
+
+    public async Task RevokeUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var key = GetUserCacheKey(userId);
+        _memoryCache.Set(key, true, TimeSpan.FromDays(7));
+        await _cacheService.SetAsync(key, true, TimeSpan.FromDays(7), cancellationToken);
+    }
+
+    public async Task UnrevokeUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var key = GetUserCacheKey(userId);
+        _memoryCache.Remove(key);
+        await _cacheService.RemoveAsync(key, cancellationToken);
+    }
+
+    public async Task<bool> IsUserRevokedAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var key = GetUserCacheKey(userId);
+
+        if (_memoryCache.TryGetValue<bool>(key, out var isRevokedInMemory) && isRevokedInMemory)
+            return true;
+
+        var isRevokedInRedis = await _cacheService.GetAsync<bool>(key, cancellationToken);
+        if (isRevokedInRedis)
+        {
+            _memoryCache.Set(key, true, TimeSpan.FromMinutes(10));
+            return true;
+        }
+
+        return false;
+    }
 }
