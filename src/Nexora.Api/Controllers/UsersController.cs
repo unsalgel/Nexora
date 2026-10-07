@@ -36,11 +36,11 @@ public sealed class UsersController : ApiControllerBase
     [HttpPut("{id:guid}/status")]
     public async Task<ActionResult<Result<bool>>> UpdateUserStatus(
         Guid id,
-        bool isActive,
+        UpdateUserStatusCommand command,
         CancellationToken cancellationToken = default)
     {
-        var command = new UpdateUserStatusCommand(id, isActive);
-        var result = await Sender.Send(command, cancellationToken);
+        var safeCommand = command with { Id = id };
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 

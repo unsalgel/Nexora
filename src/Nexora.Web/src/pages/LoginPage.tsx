@@ -19,7 +19,12 @@ export const LoginPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('reason') === 'frozen'
+      ? 'Hesabınız yönetici tarafından dondurulmuştur. Lütfen destek ekibiyle iletişime geçiniz.'
+      : null;
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const [showForgotModal, setShowForgotModal] = useState(false);

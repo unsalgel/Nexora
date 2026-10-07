@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -42,7 +42,7 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
         category.Name = request.Name;
         category.Description = request.Description;
         category.ParentCategoryId = request.ParentCategoryId;
-        category.IsActive = true;
+        category.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync(cancellationToken);
 

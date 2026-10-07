@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Nexora.Application.Features.Brands.Commands.CreateBrand;
+using Nexora.Application.Features.Brands.Commands.UpdateBrand;
 using Nexora.Application.Features.Categories.Commands.CreateCategory;
+using Nexora.Application.Features.Categories.Commands.UpdateCategory;
 using Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
 using Nexora.Persistence.Context;
@@ -96,5 +98,57 @@ public sealed class CategoryAndBrandCommandHandlerTests : IDisposable
         var saved = _context.Brands.FirstOrDefault(b => b.Id == result.Data);
         saved.Should().NotBeNull();
         saved!.Name.Should().Be("Adidas");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateBrand_WhenValid_UpdatesIsActiveProperly(bool targetStatus)
+    {
+        var brand = new Brand
+        {
+            Id = Guid.NewGuid(),
+            Name = "Puma",
+            LogoUrl = "https://cdn.nexora.com/puma.png",
+            IsActive = !targetStatus
+        };
+        _context.Brands.Add(brand);
+        await _context.SaveChangesAsync();
+
+        var handler = new UpdateBrandCommandHandler(_context);
+        var command = new UpdateBrandCommand(brand.Id, "Puma", "https://cdn.nexora.com/puma.png", targetStatus);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var updated = _context.Brands.FirstOrDefault(b => b.Id == brand.Id);
+        updated.Should().NotBeNull();
+        updated!.IsActive.Should().Be(targetStatus);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateCategory_WhenValid_UpdatesIsActiveProperly(bool targetStatus)
+    {
+        var category = new Category
+        {
+            Id = Guid.NewGuid(),
+            Name = "Aksesuar",
+            Description = "Saat, Gözlük",
+            IsActive = !targetStatus
+        };
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+
+        var handler = new UpdateCategoryCommandHandler(_context);
+        var command = new UpdateCategoryCommand(category.Id, "Aksesuar", "Saat, Gözlük", null, targetStatus);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var updated = _context.Categories.FirstOrDefault(c => c.Id == category.Id);
+        updated.Should().NotBeNull();
+        updated!.IsActive.Should().Be(targetStatus);
     }
 }

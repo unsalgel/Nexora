@@ -90,16 +90,35 @@ export const CategoriesPage: React.FC = () => {
       });
       return res.data;
     },
+    onMutate: async ({ category, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-categories-list'] });
+      const previousData = queryClient.getQueryData<ApiResponse<CategoryDto[]>>(['admin-categories-list', statusFilter]);
+      queryClient.setQueryData<ApiResponse<CategoryDto[]> | undefined>(
+        ['admin-categories-list', statusFilter],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map(c => c.id === category.id ? { ...c, isActive: newStatus } : c)
+          };
+        }
+      );
+      return { previousData };
+    },
     onSuccess: (_, variables) => {
+      showToast('success', `"${variables.category.name}" kategorisi başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
+    },
+    onError: (err: unknown, _, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['admin-categories-list', statusFilter], context.previousData);
+      }
+      const error = err as AxiosError<{ message?: string }>;
+      showToast('error', error.response?.data?.message || 'Kategori durumu güncellenirken bir hata oluştu.');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-categories'] });
-      setTogglingCategoryId(null);
-      showToast('success', `"${variables.category.name}" kategorisi başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
-    },
-    onError: (err: unknown) => {
-      const error = err as AxiosError<{ message?: string }>;
-      showToast('error', error.response?.data?.message || 'Kategori durumu güncellenirken bir hata oluştu.');
       setTogglingCategoryId(null);
     }
   });

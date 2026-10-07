@@ -50,7 +50,7 @@ public sealed class CategoriesController : ApiControllerBase
         UpdateCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var safeCommand = command with { Id = id, IsActive = true };
+        var safeCommand = command with { Id = id };
         var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }

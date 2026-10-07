@@ -61,10 +61,11 @@ public sealed class CouponsController : ApiControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> UpdateCouponStatus(
         Guid id,
-        bool isActive,
+        UpdateCouponStatusCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new UpdateCouponStatusCommand(id, isActive), cancellationToken);
+        var safeCommand = command with { Id = id };
+        var result = await Sender.Send(safeCommand, cancellationToken);
         return Ok(result);
     }
 

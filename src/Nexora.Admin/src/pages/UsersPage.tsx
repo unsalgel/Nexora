@@ -94,25 +94,44 @@ export const UsersPage: React.FC = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, newStatus }: { id: string; newStatus: boolean }) => {
       setTogglingUserId(id);
-      const res = await apiClient.put(`/users/${id}/status`, newStatus, {
-        headers: { 'Content-Type': 'application/json' },
+      const res = await apiClient.put(`/users/${id}/status`, {
+        isActive: newStatus
       });
       return res.data;
     },
+    onMutate: async ({ id, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousData = queryClient.getQueryData(['admin-users', currentPage, searchTerm, statusFilter]);
+      queryClient.setQueryData(['admin-users', currentPage, searchTerm, statusFilter], (old: UsersResponse | undefined) => {
+        if (!old?.data?.items) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            items: old.data.items.map(u => u.id === id ? { ...u, isActive: newStatus } : u)
+          }
+        };
+      });
+      return { previousData };
+    },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      setTogglingUserId(null);
       setActionMessage({
         type: 'success',
         text: `Kullanıcı hesabı başarıyla ${variables.newStatus ? 'aktif duruma getirildi' : 'donduruldu/pasife alındı'}.`,
       });
       setTimeout(() => setActionMessage(null), 3500);
     },
-    onError: () => {
-      setTogglingUserId(null);
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['admin-users', currentPage, searchTerm, statusFilter], context.previousData);
+      }
       setActionMessage({ type: 'error', text: 'Kullanıcı durumu güncellenirken bir hata oluştu.' });
       setTimeout(() => setActionMessage(null), 3500);
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setTogglingUserId(null);
+    }
   });
 
   const updateRolesMutation = useMutation({

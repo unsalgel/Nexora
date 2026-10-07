@@ -149,8 +149,8 @@ export const CouponsPage: React.FC = () => {
   const handleToggleCouponStatus = async (coupon: CouponDto, newStatus: boolean) => {
     try {
       setTogglingCouponId(coupon.id);
-      const res = await apiClient.put<ApiResponse<string>>(`/coupons/${coupon.id}/status`, newStatus, {
-        headers: { 'Content-Type': 'application/json' }
+      const res = await apiClient.put<ApiResponse<string>>(`/coupons/${coupon.id}/status`, {
+        isActive: newStatus
       });
       if (res.data?.isSuccess) {
         setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, isActive: newStatus } : c));

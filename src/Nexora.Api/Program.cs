@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -85,6 +86,31 @@ builder.Services.AddAuthentication(options =>
         OnTokenValidated = async context =>
         {
             var blacklistService = context.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
+            var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (Guid.TryParse(userIdClaim, out var userId))
+            {
+                if (await blacklistService.IsUserRevokedAsync(userId, context.HttpContext.RequestAborted))
+                {
+                    context.Fail("Kullanıcı hesabı askıya alınmıştır veya dondurulmuştur.");
+                    return;
+                }
+
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<IApplicationDbContext>();
+                var isUserActive = await dbContext.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => (bool?)u.IsActive)
+                    .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                if (isUserActive == false)
+                {
+                    await blacklistService.RevokeUserAsync(userId, context.HttpContext.RequestAborted);
+                    context.Fail("Kullanıcı hesabı askıya alınmıştır veya dondurulmuştur.");
+                    return;
+                }
+            }
+
             var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
 
             if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenRevokedAsync(jti, context.HttpContext.RequestAborted))

@@ -9,10 +9,17 @@ namespace Nexora.Application.Features.Users.Commands.UpdateUserStatus;
 public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserStatusCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ITokenBlacklistService _tokenBlacklistService;
+    private readonly IRealTimeNotificationService? _notificationService;
 
-    public UpdateUserStatusCommandHandler(IApplicationDbContext context)
+    public UpdateUserStatusCommandHandler(
+        IApplicationDbContext context,
+        ITokenBlacklistService tokenBlacklistService,
+        IRealTimeNotificationService? notificationService = null)
     {
         _context = context;
+        _tokenBlacklistService = tokenBlacklistService;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<bool>> Handle(UpdateUserStatusCommand request, CancellationToken cancellationToken)
@@ -33,6 +40,21 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
             {
                 token.IsRevoked = true;
             }
+
+            await _tokenBlacklistService.RevokeUserAsync(user.Id, cancellationToken);
+
+            if (_notificationService != null)
+            {
+                await _notificationService.PublishToUserAsync(
+                    user.Id,
+                    "AccountFrozen",
+                    new { message = "Hesabınız yönetici tarafından dondurulmuştur. Oturumunuz sonlandırılıyor." },
+                    cancellationToken);
+            }
+        }
+        else
+        {
+            await _tokenBlacklistService.UnrevokeUserAsync(user.Id, cancellationToken);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
