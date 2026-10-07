@@ -37,5 +37,10 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
             .WithMany(p => p.Variants)
             .HasForeignKey(pv => pv.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }

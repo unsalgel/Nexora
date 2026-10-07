@@ -250,7 +250,14 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 
         _context.Notifications.Add(notification);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException("Seçilen ürün veya varyantın stoku işlem sırasında tükendi. Lütfen sepetinizi kontrol ediniz.");
+        }
 
         // Kullanıcıya sipariş alındı anlık bildirimini ilet
         await _notificationService.PublishToUserAsync(

@@ -12,7 +12,8 @@ export const validateLuhn = (cardNumber: string): boolean => {
     return false;
   }
 
-  if (KNOWN_TEST_CARDS.includes(cleanDigits)) {
+  // Yalnızca geliştirme ortamında test kartlarına izin ver, canlı ortamda saf Luhn algoritması çalışır
+  if (import.meta.env.DEV && KNOWN_TEST_CARDS.includes(cleanDigits)) {
     return true;
   }
 
