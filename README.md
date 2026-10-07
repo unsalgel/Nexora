@@ -2,6 +2,7 @@
 
 [![Güvenlik ve Kalite Taraması](https://github.com/unsalgel/Nexora/actions/workflows/security-scan.yml/badge.svg?branch=master)](https://github.com/unsalgel/Nexora/actions/workflows/security-scan.yml)
 [![Clean Architecture & SOLID](https://img.shields.io/badge/Architecture-NetArchTest_Verified-blue.svg)](https://github.com/unsalgel/Nexora/blob/master/tests/Nexora.UnitTests/Architecture/ArchitectureTests.cs)
+[![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-green.svg)](LICENSE)
 [![.NET Sürümü](https://img.shields.io/badge/.NET-8.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![React & TypeScript](https://img.shields.io/badge/Frontend-React_18_%7C_TypeScript-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Güvenlik Politikası](https://img.shields.io/badge/Security-Policy_Active-success.svg?logo=shield&logoColor=white)](https://github.com/unsalgel/Nexora/security/policy)
@@ -127,8 +128,12 @@ Nexora/
 * **Zorunlu HTTPS & HSTS:** Üretim ortamında zorunlu HTTPS yönlendirmesi ve 1 yıllık `Strict-Transport-Security` (HSTS).
 * **Ortama Duyarlı Güvenli CORS:** Geliştirme ortamında esnek yerel portlar, canlı ortamda yalnızca güvenli Web & Admin alan adlarını kapsayan whitelist.
 * **Global Hata Yakalama (Global Error Boundary):** Hem Web hem Admin tarafında beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal `ErrorBoundary`, kurtarma butonları ve harici telemetri kancaları (`onError`).
-* **Sıfır Zafiyetli Paket Standartları:** NuGet ve NPM bağımlılıklarında bilinen CVE açıkları düzenli olarak taranır ve sıfır zafiyet seviyesinde tutulur.
-* **CI/CD Güvenlik & SAST Boru Hattı:** GitHub Actions üzerinde her push/PR ve haftalık zamanlamayla çalışan otomatik CodeQL statik kod analizi, NuGet ve NPM zafiyet denetimi.
+* **Sıfır Zafiyetli Paket Standartları:** NuGet ve NPM bağımlılıklarında bilinen CVE açıkları düzenli olarak taranır; zafiyetli paket tespit edildiğinde CI derlemesi otomatik olarak durdurulur (`exit 1`).
+* **Otomatik Bağımlılık Denetimi (Dependabot):** `.github/dependabot.yml` ile NuGet, NPM (Web & Admin) ve GitHub Actions sürümleri haftalık periyotlarla taranır.
+* **CI/CD Güvenlik & SAST Boru Hattı:** GitHub Actions üzerinde çalışan matrix tabanlı güvenlik iş akışı (`security-scan.yml`):
+  * C# ve TypeScript/JavaScript için derinlemesine CodeQL Statik Analizi (`queries: security-extended`).
+  * PR aşamasında yeni gelen zafiyetli paketleri engelleyen `dependency-review-action`.
+  * En az yetki ilkesi (`permissions: contents: read`) ve eş zamanlı koşu yönetimi (`concurrency`).
 
 ---
 
@@ -139,17 +144,23 @@ Nexora/
 * Node.js (v20 veya üzeri) ve npm
 * Docker Desktop
 
-### 2. Veritabanı ve Önbellek Servislerinin Başlatılması
-Proje kök dizininde bulunan Docker Compose konfigürasyonunu çalıştırın:
+### 2. Ortam Değişkenleri ve Veritabanı Servisleri
+Örnek ortam değişkenleri dosyasını kopyalayarak yerel `.env` dosyanızı oluşturun:
+
+```bash
+cp .env.example .env
+```
+
+Ardından Docker Compose ile yerel altyapı servislerini (PostgreSQL, Redis, pgAdmin) başlatın:
 
 ```bash
 docker compose up -d
 ```
 
-Bağlantı Noktaları:
-* PostgreSQL: `localhost:5432`
-* Redis: `localhost:6379`
-* pgAdmin: `localhost:5050`
+Servis Bağlantı Noktaları *(Güvenlik amacıyla yalnızca yerel `127.0.0.1` erişimine bağlıdır)*:
+* PostgreSQL: `127.0.0.1:5432`
+* Redis (Parola korumalı): `127.0.0.1:6379`
+* pgAdmin: `127.0.0.1:5050`
 
 ### 3. Backend API Servisinin Çalıştırılması
 ```bash
@@ -177,7 +188,7 @@ npm run dev
 ```
 
 * Yönetim Arayüzü: `http://localhost:5174`
-* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel geliştirme ve demo içindir; canlı ortamda kullanılmaz)*
+* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel `Development` ortamında otomatik tohumlanır; canlı ortamda `ADMIN_SEED_ENABLED` ve `ADMIN_SEED_PASSWORD` ortam değişkenleriyle güvenli biçimde yapılandırılır)*
 
 ### 6. Güvenlik ve Test Denetimi
 ```bash

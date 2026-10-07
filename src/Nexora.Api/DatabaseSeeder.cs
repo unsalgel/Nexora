@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Nexora.Application.Abstractions;
@@ -18,47 +19,66 @@ public static class DatabaseSeeder
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         var adminRoleId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        // 1. Admin Kullanıcısı
-        var adminEmail = "admin@nexora.com";
-        var existingAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
-        if (existingAdmin is null)
+        // 1. Admin Kullanıcısı Güvenliği (Canlı ortamda varsayılan şifreli tohumlama engellenir)
+        var isSeedEnabled = environment.IsDevelopment() ||
+                            configuration.GetValue<bool>("ADMIN_SEED_ENABLED") ||
+                            string.Equals(Environment.GetEnvironmentVariable("ADMIN_SEED_ENABLED"), "true", StringComparison.OrdinalIgnoreCase);
+
+        var adminEmail = configuration["ADMIN_SEED_EMAIL"]
+                         ?? Environment.GetEnvironmentVariable("ADMIN_SEED_EMAIL")
+                         ?? "admin@nexora.com";
+
+        var adminPassword = configuration["ADMIN_SEED_PASSWORD"]
+                            ?? Environment.GetEnvironmentVariable("ADMIN_SEED_PASSWORD");
+
+        if (string.IsNullOrWhiteSpace(adminPassword) && environment.IsDevelopment())
         {
-            var adminId = Guid.NewGuid();
-            var adminUser = new User
-            {
-                Id = adminId,
-                Email = adminEmail,
-                PasswordHash = passwordHasher.Hash("Admin123*"),
-                FirstName = "Sistem",
-                LastName = "Yöneticisi",
-                IsActive = true,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-
-            var adminUserRole = new UserRole
-            {
-                UserId = adminId,
-                RoleId = adminRoleId
-            };
-
-            await context.Users.AddAsync(adminUser);
-            await context.UserRoles.AddAsync(adminUserRole);
-            await context.SaveChangesAsync();
+            adminPassword = "Admin123*";
         }
-        else
+
+        if (isSeedEnabled && !string.IsNullOrWhiteSpace(adminPassword))
         {
-            // Admin zaten varsa her açılışta ağır hash işlemi yapma, sadece rol eksikse ekle
-            if (!await context.UserRoles.AnyAsync(ur => ur.UserId == existingAdmin.Id && ur.RoleId == adminRoleId))
+            var existingAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+            if (existingAdmin is null)
             {
-                await context.UserRoles.AddAsync(new UserRole
+                var adminId = Guid.NewGuid();
+                var adminUser = new User
                 {
-                    UserId = existingAdmin.Id,
+                    Id = adminId,
+                    Email = adminEmail,
+                    PasswordHash = passwordHasher.Hash(adminPassword),
+                    FirstName = "Sistem",
+                    LastName = "Yöneticisi",
+                    IsActive = true,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                var adminUserRole = new UserRole
+                {
+                    UserId = adminId,
                     RoleId = adminRoleId
-                });
+                };
+
+                await context.Users.AddAsync(adminUser);
+                await context.UserRoles.AddAsync(adminUserRole);
                 await context.SaveChangesAsync();
+            }
+            else
+            {
+                if (!await context.UserRoles.AnyAsync(ur => ur.UserId == existingAdmin.Id && ur.RoleId == adminRoleId))
+                {
+                    await context.UserRoles.AddAsync(new UserRole
+                    {
+                        UserId = existingAdmin.Id,
+                        RoleId = adminRoleId
+                    });
+                    await context.SaveChangesAsync();
+                }
             }
         }
 

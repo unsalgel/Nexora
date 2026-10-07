@@ -1,0 +1,48 @@
+version: 2
+updates:
+  # .NET NuGet Paket Güncellemeleri
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "backend"
+      - "nuget"
+
+  # Nexora.Web NPM Bağımlılıkları
+  - package-ecosystem: "npm"
+    directory: "/src/Nexora.Web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "web"
+
+  # Nexora.Admin NPM Bağımlılıkları
+  - package-ecosystem: "npm"
+    directory: "/src/Nexora.Admin"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "admin"
+
+  # GitHub Actions İş Akışı Güncellemeleri
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci-cd"
