@@ -114,16 +114,35 @@ export const BrandsPage: React.FC = () => {
       });
       return res.data;
     },
+    onMutate: async ({ brand, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-brands-list'] });
+      const previousData = queryClient.getQueryData<ApiResponse<BrandDto[]>>(['admin-brands-list', statusFilter]);
+      queryClient.setQueryData<ApiResponse<BrandDto[]> | undefined>(
+        ['admin-brands-list', statusFilter],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map(b => b.id === brand.id ? { ...b, isActive: newStatus } : b)
+          };
+        }
+      );
+      return { previousData };
+    },
     onSuccess: (_, variables) => {
+      showToast('success', `"${variables.brand.name}" markası başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
+    },
+    onError: (err: unknown, _, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['admin-brands-list', statusFilter], context.previousData);
+      }
+      const error = err as AxiosError<{ message?: string }>;
+      showToast('error', error.response?.data?.message || 'Marka durumu güncellenirken bir hata oluştu.');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-brands-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-brands-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-brands'] });
-      setTogglingBrandId(null);
-      showToast('success', `"${variables.brand.name}" markası başarıyla ${variables.newStatus ? 'aktif' : 'pasif'} duruma getirildi.`);
-    },
-    onError: (err: unknown) => {
-      const error = err as AxiosError<{ message?: string }>;
-      showToast('error', error.response?.data?.message || 'Marka durumu güncellenirken bir hata oluştu.');
       setTogglingBrandId(null);
     }
   });
