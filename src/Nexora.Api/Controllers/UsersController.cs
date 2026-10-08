@@ -1,18 +1,39 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
+using Nexora.Application.Features.Users.Commands.UpdateProfile;
 using Nexora.Application.Features.Users.Commands.UpdateUserRoles;
 using Nexora.Application.Features.Users.Commands.UpdateUserStatus;
 using Nexora.Application.Features.Users.Dtos;
 using Nexora.Application.Features.Users.Queries.GetAllRoles;
+using Nexora.Application.Features.Users.Queries.GetProfile;
 using Nexora.Application.Features.Users.Queries.GetUsers;
 
 namespace Nexora.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize]
 public sealed class UsersController : ApiControllerBase
 {
+    [HttpGet("me")]
+    public async Task<ActionResult<Result<UserProfileDto>>> GetProfile(CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        var result = await Sender.Send(new GetProfileQuery(userId), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPut("me")]
+    public async Task<ActionResult<Result<UserProfileDto>>> UpdateProfile(
+        UpdateProfileCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var safeCommand = command with { UserId = GetCurrentUserId() };
+        var result = await Sender.Send(safeCommand, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<PagedResult<UserDto>>>> GetUsers(
         string? searchTerm,
         bool? isActive,
