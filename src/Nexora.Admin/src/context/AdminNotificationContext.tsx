@@ -3,6 +3,8 @@ import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/si
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, AlertTriangle, X, ShoppingBag } from 'lucide-react';
 import { ENV } from '../lib/env';
+import type { ApiResponse } from '../lib/apiClient';
+import type { CategoryDto, CategoryStatusChangedPayload } from '../types/category';
 
 interface AdminNotification {
   id: string;
@@ -113,12 +115,39 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       queryClient.invalidateQueries({ queryKey: ['products'] });
     });
 
+    connection.on('CategoryStatusChanged', (payload: CategoryStatusChangedPayload) => {
+      if (isCancelled) return;
+
+      addNotification(
+        'info',
+        'Kategori Durumu Güncellendi',
+        `"${payload.name}" kategorisi ${payload.isActive ? 'aktif' : 'pasif'} duruma getirildi.`
+      );
+
+      queryClient.setQueriesData<ApiResponse<CategoryDto[]>>({ queryKey: ['admin-categories-list'] }, (old) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map((c) => c.id === payload.id ? { ...c, isActive: payload.isActive } : c)
+        };
+      });
+
+      queryClient.setQueryData<ApiResponse<CategoryDto[]>>(['categories'], (old) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map((c) => c.id === payload.id ? { ...c, isActive: payload.isActive } : c)
+        };
+      });
+    });
+
     connection.start().catch(() => {});
 
     return () => {
       isCancelled = true;
       connection.off('ReceiveNewOrder');
       connection.off('LowStockAlert');
+      connection.off('CategoryStatusChanged');
       connection.stop().catch(() => {});
     };
   }, [addNotification, queryClient]);

@@ -4,6 +4,7 @@ import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signal
 import { apiClient } from '../lib/apiClient';
 import { ENV } from '../lib/env';
 import type { ApiResponse } from '../lib/apiClient';
+import type { CategoryDto, CategoryStatusChangedPayload } from '../types/category';
 
 export interface SiteSettings {
   siteTitle: string;
@@ -66,6 +67,61 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       connection.on('SiteSettingsUpdated', (updatedSettings: SiteSettings) => {
         setLiveSettings(updatedSettings);
         queryClient.setQueryData(['site-settings'], { isSuccess: true, data: updatedSettings });
+      });
+
+      connection.on('CategoryStatusChanged', (payload: CategoryStatusChangedPayload) => {
+        queryClient.setQueryData<ApiResponse<{ id: string; name: string }[]>>(['navbar-categories'], (old) => {
+          if (!old || !old.data) return old;
+          if (!payload.isActive) {
+            return {
+              ...old,
+              data: old.data.filter((c) => c.id !== payload.id)
+            };
+          } else {
+            const exists = old.data.some((c) => c.id === payload.id);
+            if (!exists) {
+              return {
+                ...old,
+                data: [...old.data, { id: payload.id, name: payload.name }].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+              };
+            }
+            return {
+              ...old,
+              data: old.data.map((c) => c.id === payload.id ? { ...c, name: payload.name } : c)
+            };
+          }
+        });
+
+        queryClient.setQueryData<ApiResponse<CategoryDto[]>>(['categories'], (old) => {
+          if (!old || !old.data) return old;
+          if (!payload.isActive) {
+            return {
+              ...old,
+              data: old.data.filter((c) => c.id !== payload.id)
+            };
+          } else {
+            const exists = old.data.some((c) => c.id === payload.id);
+            if (!exists) {
+              const newCategory: CategoryDto = {
+                id: payload.id,
+                name: payload.name,
+                description: payload.description || '',
+                parentCategoryId: payload.parentCategoryId || null,
+                parentCategoryName: null,
+                isActive: true,
+                subCategories: []
+              };
+              return {
+                ...old,
+                data: [...old.data, newCategory].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+              };
+            }
+            return {
+              ...old,
+              data: old.data.map((c) => c.id === payload.id ? { ...c, name: payload.name, isActive: true } : c)
+            };
+          }
+        });
       });
 
       connection.start().catch((err) => {
