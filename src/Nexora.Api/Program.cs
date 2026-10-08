@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using Nexora.Api;
 using Nexora.Api.Hubs;
 using Nexora.Api.Middlewares;
+using Nexora.Api.OpenApi;
 using Nexora.Api.Services;
 using Nexora.Application;
 using Nexora.Application.Abstractions;
@@ -137,6 +139,23 @@ builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationSer
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = ApiVersionReader.Combine(
+        new UrlSegmentApiVersionReader(),
+        new HeaderApiVersionReader("X-Api-Version"),
+        new QueryStringApiVersionReader("api-version")
+    );
+})
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -150,7 +169,9 @@ builder.Services.AddRateLimiter(options =>
 
     options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
-        if (httpContext.Request.Path.StartsWithSegments("/api/auth"))
+        var path = httpContext.Request.Path.Value ?? string.Empty;
+        if (path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
         {
             var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
             return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
@@ -169,8 +190,6 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Nexora API", Version = "v1" });
-
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -196,13 +215,23 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        foreach (var description in descriptions)
+        {
+            var url = $"/swagger/{description.GroupName}/swagger.json";
+            var name = description.GroupName.ToUpperInvariant();
+            options.SwaggerEndpoint(url, name);
+        }
+    });
 }
 else
 {

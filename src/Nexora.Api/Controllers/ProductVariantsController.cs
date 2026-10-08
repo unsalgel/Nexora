@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.ProductVariants.Commands.CreateProductVariant;
@@ -9,7 +9,7 @@ using Nexora.Application.Features.ProductVariants.Queries.GetProductVariantsByPr
 
 namespace Nexora.Api.Controllers;
 
-[Route("api")]
+[Route("api/v{version:apiVersion}")]
 public sealed class ProductVariantsController : ApiControllerBase
 {
     [HttpGet("products/{productId:guid}/variants")]
