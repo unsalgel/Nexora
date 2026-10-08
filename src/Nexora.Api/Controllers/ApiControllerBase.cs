@@ -1,11 +1,13 @@
 using System.Security.Claims;
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Nexora.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
     private ISender? _senderInstance;
