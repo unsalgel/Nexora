@@ -1,4 +1,4 @@
-﻿import { SafeImage } from '../components/common/SafeImage';
+import { SafeImage } from '../components/common/SafeImage';
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
@@ -99,7 +99,6 @@ export const ProfilePage: React.FC = () => {
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Adres Yönetimi State'leri
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);

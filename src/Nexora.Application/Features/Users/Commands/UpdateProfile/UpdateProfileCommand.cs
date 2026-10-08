@@ -33,7 +33,6 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        // E-posta adresi değiştirildiyse çakışma kontrolü yap
         if (!string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
         {
             var isEmailTaken = await _context.Users

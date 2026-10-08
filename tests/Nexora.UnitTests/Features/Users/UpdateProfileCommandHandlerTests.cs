@@ -26,17 +26,14 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenUserDoesNotExist_ReturnsFailure()
     {
-        // Arrange
         var command = new UpdateProfileCommand(
             Guid.NewGuid(),
             "Ünsal",
             "Gel",
             "unsal@nexora.com");
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
         result.Message.Should().Be("Kullanıcı bulunamadı.");
     }
@@ -44,7 +41,6 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenEmailIsTakenByAnotherUser_ReturnsFailure()
     {
-        // Arrange
         var user1 = new User
         {
             Id = Guid.NewGuid(),
@@ -74,10 +70,8 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
             "Gel",
             "ali@nexora.com");
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
         result.Message.Should().Be("Bu e-posta adresi başka bir kullanıcı tarafından kullanılmaktadır.");
     }
@@ -85,7 +79,6 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenValidProfileUpdate_ReturnsSuccessAndUpdatesDatabase()
     {
-        // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -106,10 +99,8 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
             "YeniSoyad",
             "yeni@nexora.com");
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.FirstName.Should().Be("YeniAd");
