@@ -18,6 +18,11 @@ public sealed class RealTimeNotificationService : IRealTimeNotificationService
         await _hubContext.Clients.All.SendAsync(eventName, data, cancellationToken);
     }
 
+    public async Task PublishToAdminsAsync(string eventName, object data, CancellationToken cancellationToken = default)
+    {
+        await _hubContext.Clients.Group("Admins").SendAsync(eventName, data, cancellationToken);
+    }
+
     public async Task PublishToUserAsync(Guid userId, string eventName, object data, CancellationToken cancellationToken = default)
     {
         await _hubContext.Clients.User(userId.ToString()).SendAsync(eventName, data, cancellationToken);

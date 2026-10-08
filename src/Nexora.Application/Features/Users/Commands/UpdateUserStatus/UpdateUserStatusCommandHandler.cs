@@ -32,6 +32,20 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
 
         if (!request.IsActive)
         {
+            var isUserAdmin = await _context.UserRoles
+                .AnyAsync(ur => ur.UserId == user.Id && ur.Role != null && ur.Role.Name == "Admin", cancellationToken);
+
+            if (isUserAdmin)
+            {
+                var otherActiveAdminsCount = await _context.UserRoles
+                    .CountAsync(ur => ur.Role.Name == "Admin" && ur.UserId != user.Id && ur.User.IsActive, cancellationToken);
+
+                if (otherActiveAdminsCount == 0)
+                {
+                    throw new ConflictException("Sistemdeki son aktif yönetici dondurulamaz.");
+                }
+            }
+
             var userTokens = await _context.RefreshTokens
                 .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
                 .ToListAsync(cancellationToken);

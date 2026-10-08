@@ -103,7 +103,6 @@ jobs:
         fetch-depth: 0
     - name: Gitleaks gizli anahtar taramasi
       uses: gitleaks/gitleaks-action@v2
-      continue-on-error: true
 
   codeql:
     name: codeql (${{ matrix.language }})

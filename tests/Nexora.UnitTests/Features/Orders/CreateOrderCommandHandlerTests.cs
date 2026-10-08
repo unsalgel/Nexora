@@ -39,17 +39,14 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenCartNotFound_ThrowsNotFoundException()
     {
-        // Arrange
         var command = new CreateOrderCommand(
             Guid.NewGuid(),
             "İstanbul, Beşiktaş",
             new PaymentRequestDto("Ali Yılmaz", "1234567812345678", "12", "2028", "123")
         );
 
-        // Act
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage("Kullanıcıya ait sepet bulunamadı.");
     }
@@ -135,22 +132,18 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             new PaymentRequestDto("Ali Yılmaz", "1234567812345678", "12", "2028", "123")
         );
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.TotalAmount.Should().Be(1000m);
         result.Data.Items.Should().HaveCount(1);
         result.Data.OrderNumber.Should().StartWith("NX-");
 
-        // Sepetin temizlendiğini doğrula
         var updatedCart = _context.Carts.Find(cart.Id);
         updatedCart.Should().NotBeNull();
         _context.CartItems.Count(ci => ci.CartId == cart.Id).Should().Be(0);
 
-        // Ürün stoğunun düştüğünü doğrula (10 - 2 = 8)
         var updatedProduct = _context.Products.Find(product.Id);
         updatedProduct!.StockQuantity.Should().Be(8);
     }
@@ -158,7 +151,6 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenStockDropsToCriticalLevel_PublishesLowStockAlert()
     {
-        // Arrange
         var user = new User { FirstName = "Ahmet", LastName = "Kaya", Email = "ahmet@nexora.com", PasswordHash = "hash" };
         _context.Users.Add(user);
 
@@ -173,7 +165,7 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             Name = "Kablosuz Mouse",
             SKU = "LOGI-MOU-01",
             Price = 600m,
-            StockQuantity = 6, // 2 sipariş verilince 4 kalacak (<= 5 kritik)
+            StockQuantity = 6,
             CategoryId = category.Id,
             BrandId = brand.Id,
             IsActive = true
@@ -209,16 +201,13 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             new PaymentRequestDto("Ahmet Kaya", "1234567812345678", "05", "2029", "456")
         );
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         product.StockQuantity.Should().Be(4);
 
-        // LowStockAlert SignalR yayınının yapıldığını doğrula
         _notificationServiceMock.Verify(
-            x => x.PublishToAllAsync("LowStockAlert", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.PublishToAdminsAsync("LowStockAlert", It.IsAny<object>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

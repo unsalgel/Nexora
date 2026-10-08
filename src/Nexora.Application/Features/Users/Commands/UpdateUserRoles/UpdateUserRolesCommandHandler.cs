@@ -27,7 +27,22 @@ public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRo
             .Where(r => request.Roles.Contains(r.Name))
             .ToListAsync(cancellationToken);
 
+        var isAdminCurrently = user.UserRoles.Any(ur => ur.Role != null && ur.Role.Name == "Admin");
+        var willBeAdmin = allRoles.Any(r => r.Name == "Admin");
+
+        if (isAdminCurrently && !willBeAdmin)
+        {
+            var otherActiveAdminsCount = await _context.UserRoles
+                .CountAsync(ur => ur.Role.Name == "Admin" && ur.UserId != user.Id && ur.User.IsActive, cancellationToken);
+
+            if (otherActiveAdminsCount == 0)
+            {
+                throw new ConflictException("Sistemdeki son aktif yöneticinin yönetici yetkisi kaldırılamaz.");
+            }
+        }
+
         _context.UserRoles.RemoveRange(user.UserRoles);
+        user.UserRoles.Clear();
 
         foreach (var role in allRoles)
         {

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -25,7 +25,14 @@ public sealed class CreateReviewCommandHandler : IRequestHandler<CreateReviewCom
             throw new NotFoundException("Değerlendirilecek ürün bulunamadı.");
 
         if (request.Rating < 1 || request.Rating > 5)
-            throw new ArgumentException("Puanlama değeri 1 ile 5 arasında olmalıdır.");
+            throw new BusinessValidationException("Puanlama değeri 1 ile 5 arasında olmalıdır.");
+
+        var hasPurchased = await _context.Orders
+            .AnyAsync(o => o.UserId == request.UserId &&
+                           o.Items.Any(i => i.ProductId == request.ProductId), cancellationToken);
+
+        if (!hasPurchased)
+            throw new BusinessValidationException("Yalnızca satın aldığınız ürünlere yorum yapabilirsiniz.");
 
         var hasAlreadyReviewed = await _context.Reviews
             .AnyAsync(r => r.UserId == request.UserId && r.ProductId == request.ProductId, cancellationToken);

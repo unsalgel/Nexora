@@ -47,6 +47,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     [HttpGet("roles")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<IReadOnlyList<RoleDto>>>> GetRoles(
         CancellationToken cancellationToken = default)
     {
@@ -55,6 +56,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}/status")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<bool>>> UpdateUserStatus(
         Guid id,
         UpdateUserStatusCommand command,
@@ -66,6 +68,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}/roles")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<bool>>> UpdateUserRoles(
         Guid id,
         List<string> roles,
