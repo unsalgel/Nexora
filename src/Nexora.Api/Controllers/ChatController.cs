@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Chat.Commands.SendMessage;
 using Nexora.Application.Features.Chat.Dtos;
@@ -7,6 +8,7 @@ using Nexora.Application.Features.Chat.Dtos;
 namespace Nexora.Api.Controllers;
 
 [AllowAnonymous]
+[EnableRateLimiting("AiChatPolicy")]
 public sealed class ChatController : ApiControllerBase
 {
     [HttpPost("send")]

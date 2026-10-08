@@ -28,12 +28,24 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
             ?? throw new UnauthorizedException("Geçersiz refresh token.");
 
         if (existingToken.IsRevoked)
-            throw new UnauthorizedException("Bu refresh token iptal edilmiştir.");
+        {
+            var userTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == existingToken.UserId && !rt.IsRevoked)
+                .ToListAsync(cancellationToken);
+
+            foreach (var token in userTokens)
+            {
+                token.IsRevoked = true;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            throw new UnauthorizedException("Şüpheli oturum etkinliği tespit edildi. Güvenliğiniz için tüm açık oturumlarınız sonlandırıldı. Lütfen tekrar giriş yapınız.");
+        }
 
         if (existingToken.ExpiresAtUtc <= DateTime.UtcNow)
             throw new UnauthorizedException("Refresh token süresi dolmuştur. Lütfen tekrar giriş yapınız.");
 
-        // Eski token'ı iptal et
         existingToken.IsRevoked = true;
 
         var user = existingToken.User;
