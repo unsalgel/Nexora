@@ -40,5 +40,10 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
 
         builder.Property(c => c.IsDeleted)
             .IsRequired();
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
