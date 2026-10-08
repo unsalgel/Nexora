@@ -81,13 +81,18 @@ Nexora/
 * **RAG (Retrieval-Augmented Generation) Mimarisi:** Veritabanındaki güncel katalog verileri, stok adetleri, fiyatlar ve mağaza kuralları (14 gün iade, 500 TL üzeri ücretsiz kargo, teslimat süreleri) asistan modeline dinamik bağlam olarak aktarılır.
 * **Etkileşimli Ürün Kartları:** Asistan yanıtlarında önerilen ürünler resim, fiyat, doğrudan tek tıkla sepete ekleme ve ürün detayına yönlendirme butonlarıyla zenginleştirilmiş kart bileşenleri olarak sunulur.
 * **Akıllı Karşılama ve Sesli Bildirim:** Ziyaretçiyi karşılayan interaktif davet balonu ve asistan yanıtlarıyla eş zamanlı çalışan Web Audio API tabanlı harmonik bildirim tonu.
+* **Prompt İzolasyonu ve Enjeksiyon Koruması:** Kullanıcı mesajları ve geçmiş konuşmalar XML sınır etiketleri (`<gecmis_konusma>`, `<asistan>`, `<musteri>`) içerisine izole edilir; 1000 karakterlik hız sınırlaması ve sistem rolünden sapmayı engelleyen katı güvenlik kuralları uygulanır.
+* **Güvenli API İletişimi:** Google Gemini API anahtarı URL parametrelerinde değil, `x-goog-api-key` HTTP istek başlığında taşınarak log sızıntıları engellenir.
 * **Dayanıklılık ve Yeniden Deneme Mekanizması:** API seviyesinde anlık servis kesintileri veya yoğunluklara karşı üstel gecikmeli (exponential backoff) otomatik yeniden deneme döngüsü.
 
 ### 2. Kimlik Denetimi ve Güvenlik Altyapısı (Auth & Security)
-* **Rol Hiyerarşisi:** Müşteri (`Customer`) ve Yönetici (`Admin`) yetkilendirmesi.
+* **Rol Hiyerarşisi ve Yetki Yükseltme Koruması:** Müşteri (`Customer`) ve Yönetici (`Admin`) yetkilendirmesi; rol ve kullanıcı durumu yönetim uç noktalarında katı `[Authorize(Roles = "Admin")]` denetimi.
+* **Son Yönetici Koruması (Last Admin Invariant):** Sistemdeki tek aktif yöneticinin Admin rolünün kaldırılması veya hesabının pasife alınması `ConflictException` ile engellenir; sistemin sahipsiz kalması önlenir.
+* **OAuth 2.0 Refresh Token Aile İptali (Reuse Detection):** İptal edilmiş veya süresi geçmiş bir refresh token yeniden kullanılmaya çalışıldığında, ilgili kullanıcıya ait tüm aktif oturumlar ve token aileleri anında geçersiz kılınır.
+* **Zamanlama Saldırısı Koruması (Constant-Time Verification):** Kullanıcı adı veya e-posta bulunamadığında dahi sahte karma doğrulama çalıştırılarak kullanıcı numaralandırma ve yanıt süresi analizi (timing attack) engellenir.
 * **Kademeli Hesap Kilitleme:** Hatalı girişlerde artan bekleme süreleri ve 10 başarısız denemede 24 saat otomatik hesap dondurma.
 * **Anlık Token İptali (Token Revocation):**
-  * Her token için benzersiz `jti` üretilir; çıkış işlemlerinde token hem Redis hem MemoryCache kara listesine alınır.
+  * Her token için benzersiz `jti` üretilir; çıkış ve hesap dondurma işlemlerinde token'lar hem Redis hem MemoryCache kara listesine alınır.
   * `JwtBearerEvents.OnTokenValidated` kancası ile geçersiz kılınan token'lar anında reddedilir.
   * `ClockSkew = TimeSpan.Zero` tanımlamasıyla varsayılan 5 dakikalık tolerans süresi kaldırılarak kesin süre denetimi sağlanmıştır.
 * **Güvenlik Geçmişi Bilgilendirmesi:** Giriş esnasında kullanıcının önceki başarısız denemelerini tarih, saat ve IP adresleriyle özetleyen bilgilendirme modalı.
@@ -99,41 +104,46 @@ Nexora/
 * **Durum Değişim Döngüsü:** Sipariş durumlarının (Ödendi, Hazırlanıyor, Kargoda, Teslim Edildi, İptal) tek tıkla güncellenmesi.
 
 ### 4. Katalog, Stok ve Çoklu Görsel Yönetimi
-* **Görsel Depolama Hattı:** `IFileStorageService` üzerinden 5MB dosya boyutu ve MIME tipi denetimi yapılan yerel depolama altyapısı; sürükle-bırak desteği ve harici CDN URL entegrasyonu.
+* **Binary Magic-Byte Başlık Doğrulaması:** Dosya uzantısı ve MIME tipi manipülasyonlarına karşı JPEG (`FF D8 FF`), PNG (`89 50 4E 47`) ve WEBP (`52 49 46 46`) binary sihirli bayt doğrulaması (`LocalFileStorageService`).
+* **PostgreSQL İyimser Eşzamanlılık (Optimistic Concurrency):** Eş zamanlı stok güncellemelerinde kayıp güncellemeleri (lost update) engellemek amacıyla yerel `xmin` sistem tokeni kullanılır.
 * **Güvenli Görsel Gösterimi (SafeImage):** Eksik veya ulaşılamayan görseller için otomatik çift kademeli yedekleme (fallback) sistemi.
 * **Varyant ve Envanter:** Beden, renk ve numara varyantları; SKU, stok adedi ve fiyat takibi.
-* **Kritik Stok Takibi:** Stoğu 30 adedin altına inen ürünler için yönetim panelinde anlık uyarı listesi.
+* **Kritik Stok Takibi:** Stoğu 5 adedin altına inen ürünler için yönetim grubuna özel anlık düşük stok alarmları.
 
 ### 5. Kupon ve Promosyon Motoru
 * Yüzdelik (%) ve Sabit Tutar (TL) indirim modelleri.
 * Kupon kullanım kotası, minimum sepet tutarı ve geçerlilik tarihi kısıtları.
+* Yarış durumlarına (race condition) ve eşzamanlı kupon tüketimine karşı `xmin` token koruması.
 * Sepet ve ödeme aşamalarında anlık kupon doğrulama ve sepet indirimi hesaplaması.
 
 ### 6. Kullanıcı & Rol Yönetimi (Users & Roles)
 * Admin paneli üzerinden tüm müşterilerin ve yöneticilerin aranması, filtrelenmesi ve sayfalanması.
-* Kullanıcı hesap durumunun (Aktif/Pasif) tek tıkla güncellenmesi.
-* Dinamik rol atama ve kaldırma mekanizması.
+* Kullanıcı hesap durumunun (Aktif/Pasif) tek tıkla güncellenmesi ve pasife alınan kullanıcının tüm oturumlarının anında düşürülmesi.
+* Güvenli dinamik rol atama ve son yönetici denetimi.
 
 ### 7. Ürün Değerlendirme ve Yorum Yönetimi (Reviews)
-* Müşterilerin satın aldıkları ürünlere 1-5 puan arası değerlendirme ve yorum ekleyebilmesi.
+* **Doğrulanmış Satın Alma (Verified Purchase):** Yalnızca ürünü satın almış kullanıcıların değerlendirme ve yorum ekleyebilmesi (`BusinessValidationException`).
+* **Kural Tabanlı Doğrulama:** 1 ile 5 arası puan aralığı ve maksimum 1000 karakterlik yorum sınırlaması (FluentValidation).
 * Ürün detayında gerçek zamanlı puan ortalaması ve yorum listeleme.
 * Admin panelinde yorumları puan ve metne göre arama, filtreleme ve moderasyon (silme).
 
-### 8. Gerçek Zamanlı Bildirim & Ayarlar (SignalR Real-time Hub)
-* Sipariş durumu değiştiğinde müşteriye anlık SignalR bildirimi ve bildirim çanı senkronizasyonu.
+### 8. Gerçek Zamanlı Bildirim & Ticari Veri İzolasyonu (SignalR Real-time Hub)
+* **Ticari Veri İzolasyonu:** Sipariş tutarları, müşteri bilgileri ve düşük stok uyarıları genel soketlere değil, yalnızca `Admins` grubuna yayınlanır (`PublishToAdminsAsync`).
+* **Otomatik İdari Grup Kaydı:** `AppHub` bağlantı sağlandığında JWT rolü `Admin` olan istemcileri otomatik olarak `Admins` grubuna dahil eder.
+* Müşteriye özel sipariş durumu güncellemeleri yalnızca ilgili kullanıcının kanalına (`PublishToUserAsync`) iletilir.
 * Site ayarları (duyuru metni, iletişim bilgileri vb.) güncellendiğinde tüm aktif kullanıcılarda anında yansıyan canlı güncelleme altyapısı.
 
-### 9. Kurumsal Siber Güvenlik ve Hata Toleransı (Security & Fault Tolerance)
-* **Güvenlik Başlıkları (Security Headers Middleware):** Clickjacking engeli (`X-Frame-Options: DENY`), MIME sniffing engeli (`X-Content-Type-Options: nosniff`), XSS koruması, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` ve katı `Content-Security-Policy (CSP)`.
+### 9. Kurumsal Siber Güvenlik, DevOps ve Altyapı
+* **Ters Proxy Gerçek IP Çözümlemesi:** Nginx/Traefik arkasındaki dağıtımlarda gerçek istemci IP ve HTTPS şemasını çözmek için `UseForwardedHeaders` middleware'i etkindir.
+* **Hangfire Dashboard Sıkılaştırması:** Yerel loopback IP bypass erişimi yalnızca `Development` ortamına sınırlandırılmıştır; canlıda Admin rolü zorunludur.
+* **Sağlık Denetimleri (Health Checks):** Kapsayıcı orkestrasyonu (Kubernetes/Docker) için `/health/live`, `/health/ready` ve `DatabaseHealthCheck` uç noktaları.
+* **Root Yetkisiz Konteynerleştirme:** Üretim ortamı için en az yetkili `appuser` ile çalışan multi-stage `Dockerfile` ve gereksiz dosyaları arındıran `.dockerignore`.
+* **CI/CD Gizli Anahtar Taraması (Gitleaks):** PR ve push süreçlerinde çalışan, `GITHUB_TOKEN` ile PR farklarını tarayan ve gizli anahtar tespitinde pipeline'ı kıran (`fail-closed`) güvenlik adımı.
+* **Güvenlik Başlıkları:** Clickjacking engeli (`X-Frame-Options: DENY`), MIME sniffing engeli (`X-Content-Type-Options: nosniff`), XSS koruması, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` ve katı `Content-Security-Policy (CSP)`.
 * **Zorunlu HTTPS & HSTS:** Üretim ortamında zorunlu HTTPS yönlendirmesi ve 1 yıllık `Strict-Transport-Security` (HSTS).
 * **Ortama Duyarlı Güvenli CORS:** Geliştirme ortamında esnek yerel portlar, canlı ortamda yalnızca güvenli Web & Admin alan adlarını kapsayan whitelist.
-* **Global Hata Yakalama (Global Error Boundary):** Hem Web hem Admin tarafında beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal `ErrorBoundary`, kurtarma butonları ve harici telemetri kancaları (`onError`).
-* **Sıfır Zafiyetli Paket Standartları:** NuGet ve NPM bağımlılıklarında bilinen CVE açıkları düzenli olarak taranır; zafiyetli paket tespit edildiğinde CI derlemesi otomatik olarak durdurulur (`exit 1`).
-* **Otomatik Bağımlılık Denetimi (Dependabot):** `.github/dependabot.yml` ile NuGet, NPM (Web & Admin) ve GitHub Actions sürümleri haftalık periyotlarla taranır.
-* **CI/CD Güvenlik & SAST Boru Hattı:** GitHub Actions üzerinde çalışan matrix tabanlı güvenlik iş akışı (`security-scan.yml`):
-  * C# ve TypeScript/JavaScript için derinlemesine CodeQL Statik Analizi (`queries: security-extended`).
-  * PR aşamasında yeni gelen zafiyetli paketleri engelleyen `dependency-review-action`.
-  * En az yetki ilkesi (`permissions: contents: read`) ve eş zamanlı koşu yönetimi (`concurrency`).
+* **Global Hata Yakalama (Global Error Boundary):** Web ve Admin taraflarında beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal `ErrorBoundary` ve kurtarma bileşenleri.
+* **CI/CD Güvenlik & SAST Boru Hattı:** GitHub Actions üzerinde çalışan CodeQL Statik Analizi (`queries: security-extended`), Dependency Review ve Gitleaks gizli anahtar taraması.
 
 ---
 
@@ -170,6 +180,8 @@ dotnet run --project src/Nexora.Api
 
 * API Adresi: `http://localhost:5285`
 * Swagger Arayüzü: `http://localhost:5285/swagger`
+* Canlılık Denetimi (Liveness): `http://localhost:5285/health/live`
+* Hazırlık Denetimi (Readiness): `http://localhost:5285/health/ready`
 
 ### 4. Müşteri Vitrin Uygulamasının Başlatılması (Nexora.Web)
 ```bash
@@ -188,11 +200,11 @@ npm run dev
 ```
 
 * Yönetim Arayüzü: `http://localhost:5174`
-* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel `Development` ortamında otomatik tohumlanır; canlı ortamda `ADMIN_SEED_ENABLED` ve `ADMIN_SEED_PASSWORD` ortam değişkenleriyle güvenli biçimde yapılandırılır)*
+* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel `Development` ortamında otomatik tohumlanır)*
 
 ### 6. Güvenlik ve Test Denetimi
 ```bash
-# Backend birim ve mimari testleri (51 test)
+# Backend birim ve mimari testleri (93 test - %100 Başarılı)
 dotnet test
 
 # .NET paket zafiyet taraması

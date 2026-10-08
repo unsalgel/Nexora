@@ -50,11 +50,21 @@ Nexora e-ticaret platformunun envanter, sipariş karşılama, satış analitiği
 * Minimum alışveriş tutarı, kullanım limiti kotası ve son geçerlilik tarihi kuralları.
 * Kupon kullanım oranını gösteren canlı kota çubuğu.
 
-### 6. Kategori ve Marka Mimarisi
+### 6. Kullanıcı & Rol Yönetimi ve Son Yönetici Koruması (`/users`)
+* **Kullanıcı Listeleme ve Arama:** Müşteri ve yöneticilerin anlık filtrelenmesi ve sayfalanması.
+* **Rol Yönetimi (RBAC):** Kullanıcılara `Admin` veya `Customer` rolleri atama; yetki yükseltme koruması.
+* **Son Yönetici Koruması (Last Admin Invariant):** Sistemdeki tek aktif yöneticinin Admin rolünün kaldırılması veya hesabının pasife alınması sistem tarafından engellenir; sistemin sahipsiz kalması önlenir.
+* **Anlık Oturum Düşürme:** Bir kullanıcı pasife alındığında, tüm aktif oturum ve refresh token'ları anında iptal edilir.
+
+### 7. Gerçek Zamanlı İdari Bildirimler (SignalR Admin Group)
+* **İdari Veri İzolasyonu:** Canlı sipariş tutarları ve müşteri detayları (`ReceiveNewOrder`) ile kritik stok alarmları (`LowStockAlert`) WebSocket üzerinde yalnızca `Admins` grubuna yayınlanır; müşteri soketlerine sızdırılmaz.
+* Panel açıldığında yetkilendirilmiş yöneticiler otomatik olarak `Admins` grubuna bağlanır.
+
+### 8. Kategori ve Marka Mimarisi
 * Kategori ve marka ağacı oluşturma, düzenleme ve sıralama.
 * Kritik silme adımları için doğrulama modalları (`ConfirmModal`).
 
-### 7. Hata Toleransı ve Bildirim Mimarisi (Error Handling & Toast)
+### 9. Hata Toleransı ve Bildirim Mimarisi (Error Handling & Toast)
 * **Admin Error Boundary:** Panel modüllerinde oluşabilecek beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal kurtarma ekranı (`AdminErrorBoundary`).
 * **Merkezi Bildirim Sağlayıcısı (AdminToastProvider):** Sayfa bazında kod tekrarı oluşturmaksızın bildirimleri yöneten merkezi `useAdminToast` kancası.
 * **Akıcı Yükleme İskeletleri (TableSkeleton):** Veri çekilirken düzen kaymasını (layout shift) engelleyen hafif satır iskeletleri.

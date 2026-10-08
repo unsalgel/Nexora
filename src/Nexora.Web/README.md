@@ -28,6 +28,7 @@ Nexora e-ticaret platformunun son kullanıcı alışveriş deneyimini sunan mü�
 * **Hızlı Öneri Başlıkları:** Popüler ürünler, teslimat süreleri ve iade şartlarına yönelik tek tıkla soru sorma butonları.
 * **Akıllı Karşılama Balonu:** Ziyaretçinin siteye girişinden kısa süre sonra açılan interaktif yardım daveti.
 * **Senkronize Sesli Bildirim:** Asistan yanıtının ekrana yansıdığı milisaniyede devreye giren Web Audio API tabanlı harmonik bildirim sesi.
+* **Prompt İzolasyonu ve Güvenlik:** İstemci tarafında 1000 karakterlik girdi kontrolü ve sunucu tarafında XML kapsüllemeli prompt injection savunması.
 * **Oturum ve Geçmiş Kalıcılığı:** Tarayıcı yerel depolaması (`localStorage`) üzerinde konuşma geçmişinin korunması ve tek tıkla sıfırlanabilmesi.
 
 ### 2. Güvenli Görsel Gösterimi (SafeImage)
@@ -44,11 +45,11 @@ Nexora e-ticaret platformunun son kullanıcı alışveriş deneyimini sunan mü�
 * Sepet ekranında anlık kupon doğrulama.
 * Yüzdelik veya sabit indirim tutarlarının sepete yansıtılması ve minimum harcama koşullarının kontrolü.
 
-### 5. Katalog Arama, Filtreleme ve Etkileşim
+### 5. Katalog Arama, Filtreleme ve Doğrulanmış Değerlendirmeler
 * Ürün adı, marka ve SKU üzerinden çalışan gerçek zamanlı katalog arama çubuğu.
 * Fiyat aralığı, kategori ve marka bazlı çoklu filtreleme.
 * Popover yapısında ekranı kilitlemeyen sipariş ve bildirim listesi (`NotificationDropdown`).
-* Satın alınan ürünlere yıldız puanı verme ve yorum yazma modülü.
+* **Doğrulanmış Satın Alma Değerlendirmesi:** Yalnızca ürünü teslim almış/satın almış müşterilere açık 1-5 puan arası değerlendirme ve yorum ekleme sistemi.
 
 ### 6. Hata Toleransı ve Durum Yönetimi (State & Error Boundaries)
 * **Global Error Boundary:** Sayfa genelinde beklenmeyen render hatalarını yakalayan, beyaz ekrana düşmeyi önleyen ve kurtarma eylemleri sunan `ErrorBoundary`.
