@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
@@ -11,14 +12,15 @@ public sealed class OrderCleanupJob(
     ILogger<OrderCleanupJob> logger,
     IDbLogger dbLogger) : IOrderCleanupJob
 {
+    [DisplayName("1 gün ödenmeyen beklemedeki siparişleri iptal edip stokları geri yükler")]
     public async Task CancelStalePendingOrdersAsync(CancellationToken cancellationToken = default)
     {
         var cutoffTime = DateTime.UtcNow.AddHours(-24);
 
         var staleOrders = await dbContext.Orders
             .Include(o => o.Items)
-            .Where(o => o.Status == OrderStatus.Pending && 
-                        o.PaymentStatus == PaymentStatus.Pending && 
+            .Where(o => o.Status == OrderStatus.Pending &&
+                        o.PaymentStatus == PaymentStatus.Pending &&
                         o.CreatedAtUtc <= cutoffTime)
             .ToListAsync(cancellationToken);
 

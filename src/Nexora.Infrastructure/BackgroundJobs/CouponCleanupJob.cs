@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
@@ -10,6 +11,7 @@ public sealed class CouponCleanupJob(
     ILogger<CouponCleanupJob> logger,
     IDbLogger dbLogger) : ICouponCleanupJob
 {
+    [DisplayName("Süresi dolan veya tükenen indirim kuponlarını otomatik pasife alır")]
     public async Task ProcessExpiredCouponsAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;

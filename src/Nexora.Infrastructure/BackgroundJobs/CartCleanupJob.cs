@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
@@ -10,6 +11,7 @@ public sealed class CartCleanupJob(
     ILogger<CartCleanupJob> logger,
     IDbLogger dbLogger) : ICartCleanupJob
 {
+    [DisplayName("1 aydan eski sahipsiz sepetleri ve satırlarını temizler")]
     public async Task CleanupAbandonedCartsAsync(CancellationToken cancellationToken = default)
     {
         var cutoffTime = DateTime.UtcNow.AddDays(-30);
