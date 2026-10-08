@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
+using Nexora.Domain.Enums;
 using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Reviews.Commands.CreateReview;
@@ -29,6 +30,8 @@ public sealed class CreateReviewCommandHandler : IRequestHandler<CreateReviewCom
 
         var hasPurchased = await _context.Orders
             .AnyAsync(o => o.UserId == request.UserId &&
+                           o.PaymentStatus == PaymentStatus.Success &&
+                           o.Status != OrderStatus.Cancelled &&
                            o.Items.Any(i => i.ProductId == request.ProductId), cancellationToken);
 
         if (!hasPurchased)

@@ -21,7 +21,7 @@ public sealed class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordC
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken)
-            ?? throw new NotFoundException("Kullanıcı bulunamadı.");
+            ?? throw new BusinessValidationException("Geçersiz e-posta adresi veya sıfırlama kodu.");
 
         var resetCode = await _context.PasswordResetCodes
             .Where(c => c.UserId == user.Id && c.Code == request.Code.Trim() && !c.IsUsed)

@@ -126,6 +126,7 @@ public sealed class LoginCommandHandlerTests : IDisposable
         await _context.SaveChangesAsync();
 
         var command = new LoginCommand("inactive@nexora.com", "Password123!");
+        _passwordHasherMock.Setup(x => x.Verify(command.Password, user.PasswordHash)).Returns(true);
 
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 

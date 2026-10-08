@@ -17,7 +17,15 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<JwtSettings>(options =>
+        {
+            configuration.GetSection(JwtSettings.SectionName).Bind(options);
+            var envSecret = configuration["JWT_SECRET_KEY"] ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+            if (!string.IsNullOrWhiteSpace(envSecret))
+            {
+                options.SecretKey = envSecret;
+            }
+        });
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
         services.AddScoped<IEmailService, SmtpEmailService>();
 
@@ -26,7 +34,15 @@ public static class DependencyInjection
         services.AddScoped<IPaymentService, FakePaymentService>();
 
         // Redis Configuration
-        var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        var redisConnectionString = configuration.GetConnectionString("Redis") 
+            ?? configuration["REDIS_URL"] 
+            ?? "localhost:6379,abortConnect=false";
+
+        var redisPassword = configuration["REDIS_PASSWORD"] ?? Environment.GetEnvironmentVariable("REDIS_PASSWORD");
+        if (!string.IsNullOrWhiteSpace(redisPassword) && !redisConnectionString.Contains("password=", StringComparison.OrdinalIgnoreCase))
+        {
+            redisConnectionString = $"{redisConnectionString},password={redisPassword}";
+        }
 
         services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(redisConnectionString));

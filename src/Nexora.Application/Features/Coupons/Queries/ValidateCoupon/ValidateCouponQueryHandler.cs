@@ -22,7 +22,7 @@ public sealed class ValidateCouponQueryHandler
         ValidateCouponQuery request, 
         CancellationToken cancellationToken)
     {
-        var normalizedCode = request.Code.Trim().ToUpper();
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var coupon = await _context.Coupons
             .FirstOrDefaultAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken)
