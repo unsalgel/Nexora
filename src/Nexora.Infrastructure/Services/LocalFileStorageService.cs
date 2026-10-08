@@ -81,8 +81,14 @@ public sealed class LocalFileStorageService : IFileStorageService
                 webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
             }
 
+            var uploadsRoot = Path.GetFullPath(Path.Combine(webRoot, "uploads"));
             var relativePath = fileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            var physicalPath = Path.Combine(webRoot, relativePath);
+            var physicalPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
+
+            if (!physicalPath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(false);
+            }
 
             if (File.Exists(physicalPath))
             {

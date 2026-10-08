@@ -54,7 +54,6 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenCartIsEmpty_ThrowsConflictException()
     {
-        // Arrange
         var user = new User { FirstName = "Ali", LastName = "Yılmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
         _context.Users.Add(user);
 
@@ -73,18 +72,71 @@ public sealed class CreateOrderCommandHandlerTests : IDisposable
             new PaymentRequestDto("Ali Yılmaz", "1234567812345678", "12", "2028", "123")
         );
 
-        // Act
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("Sepetinizde ürün bulunmamaktadır. Boş sepetle sipariş oluşturulamaz.");
     }
 
     [Fact]
+    public async Task Handle_WhenStockInsufficient_ThrowsConflictExceptionWithoutChargingPayment()
+    {
+        var user = new User { FirstName = "Mehmet", LastName = "Demir", Email = "mehmet@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
+        var category = new Category { Id = Guid.NewGuid(), Name = "Elektronik" };
+        _context.Categories.Add(category);
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Monitör",
+            SKU = "MON-001",
+            Price = 4000m,
+            StockQuantity = 1,
+            CategoryId = category.Id,
+            IsActive = true
+        };
+        _context.Products.Add(product);
+
+        var cart = new DomainCart
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            User = user
+        };
+        _context.Carts.Add(cart);
+
+        var cartItem = new CartItem
+        {
+            Id = Guid.NewGuid(),
+            CartId = cart.Id,
+            ProductId = product.Id,
+            Product = product,
+            Quantity = 3
+        };
+        _context.CartItems.Add(cartItem);
+        await _context.SaveChangesAsync();
+
+        var command = new CreateOrderCommand(
+            user.Id,
+            "İzmir, Bornova",
+            new PaymentRequestDto("Mehmet Demir", "1234567812345678", "08", "2027", "999")
+        );
+
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*yetersiz stok*");
+
+        _paymentServiceMock.Verify(
+            x => x.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_ValidOrder_CreatesOrderAndClearsCart()
     {
-        // Arrange
         var user = new User { FirstName = "Ali", LastName = "Yılmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
         _context.Users.Add(user);
 

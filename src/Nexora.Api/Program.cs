@@ -67,7 +67,20 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 
-var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+var resolvedSecretKey = builder.Configuration["JWT_SECRET_KEY"] 
+    ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+    ?? jwtSettings.SecretKey;
+
+if (!builder.Environment.IsDevelopment() &&
+    (string.IsNullOrWhiteSpace(resolvedSecretKey) ||
+     resolvedSecretKey.Contains("YOUR_JWT_SECRET_KEY") ||
+     Encoding.UTF8.GetByteCount(resolvedSecretKey) < 32))
+{
+    throw new InvalidOperationException("GÜVENLİK HATASI: Canlı ortamda varsayılan veya güvensiz JWT anahtarı kullanılamaz. Lütfen en az 32 karakterlik güvenli bir JWT_SECRET_KEY ortam değişkeni tanımlayınız.");
+}
+
+jwtSettings.SecretKey = resolvedSecretKey;
 
 builder.Services.AddAuthentication(options =>
 {
@@ -192,7 +205,8 @@ builder.Services.AddRateLimiter(options =>
     {
         var path = httpContext.Request.Path.Value ?? string.Empty;
         if (path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
+            path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/coupons/validate", StringComparison.OrdinalIgnoreCase))
         {
             var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
             return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
@@ -244,8 +258,21 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
-forwardedHeadersOptions.KnownNetworks.Clear();
-forwardedHeadersOptions.KnownProxies.Clear();
+
+if (app.Environment.IsDevelopment())
+{
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+}
+else
+{
+    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("10.0.0.0"), 8));
+    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("172.16.0.0"), 12));
+    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("192.168.0.0"), 16));
+    forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.Loopback);
+    forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+}
+
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (app.Environment.IsDevelopment())

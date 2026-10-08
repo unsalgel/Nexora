@@ -22,7 +22,7 @@ public sealed class UpdateCouponCommandHandler : IRequestHandler<UpdateCouponCom
             .FirstOrDefaultAsync(c => c.Id == request.Id && !c.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Güncellenmek istenen kupon bulunamadı.");
 
-        var normalizedCode = request.Code.Trim().ToUpper();
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var duplicateCode = await _context.Coupons
             .AnyAsync(c => c.Code == normalizedCode && c.Id != request.Id && !c.IsDeleted, cancellationToken);

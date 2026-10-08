@@ -33,10 +33,12 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
     {
         await _loginAttemptService.CheckAttemptAsync(request.Email, cancellationToken);
 
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
         var user = await _context.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
 
         if (user is null)
         {
@@ -45,14 +47,14 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
             throw new UnauthorizedException("E-posta adresi veya şifre hatalı.");
         }
 
-        if (!user.IsActive)
-            throw new UnauthorizedException("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
-
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             await _loginAttemptService.RecordFailedAttemptAsync(request.Email, request.IpAddress, cancellationToken);
             throw new UnauthorizedException("E-posta adresi veya şifre hatalı.");
         }
+
+        if (!user.IsActive)
+            throw new UnauthorizedException("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
 
         var failedAttemptsList = await _loginAttemptService.ResetAndGetAttemptsAsync(request.Email, cancellationToken) 
             ?? new List<FailedLoginAttemptDto>();

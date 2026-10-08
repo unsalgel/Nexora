@@ -109,4 +109,58 @@ public sealed class CreateReviewCommandHandlerTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_WhenOrderPaymentFailed_ThrowsBusinessValidationException()
+    {
+        var category = new Category { Name = "Aksesuar" };
+        var brand = new Brand { Name = "TestBrand" };
+        _context.Categories.Add(category);
+        _context.Brands.Add(brand);
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Mousepad",
+            SKU = "NX-TEST-PAD-01",
+            Price = 300,
+            StockQuantity = 10,
+            CategoryId = category.Id,
+            BrandId = brand.Id,
+            IsActive = true,
+            IsDeleted = false
+        };
+        _context.Products.Add(product);
+
+        var userId = Guid.NewGuid();
+        var failedOrder = new Order
+        {
+            Id = Guid.NewGuid(),
+            OrderNumber = "NX-FAIL-01",
+            UserId = userId,
+            ShippingAddress = "Ankara",
+            TotalAmount = 300,
+            Status = OrderStatus.Cancelled,
+            PaymentStatus = PaymentStatus.Failed,
+            Items = new List<OrderItem>
+            {
+                new()
+                {
+                    ProductId = product.Id,
+                    ProductName = product.Name,
+                    UnitPrice = 300,
+                    Quantity = 1,
+                    TotalPrice = 300
+                }
+            }
+        };
+        _context.Orders.Add(failedOrder);
+        await _context.SaveChangesAsync();
+
+        var command = new CreateReviewCommand(userId, product.Id, 5, "Ödeme başarısız ama yorum yapmaya çalışıyorum.");
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessValidationException>()
+            .WithMessage("Yalnızca satın aldığınız ürünlere yorum yapabilirsiniz.");
+    }
 }

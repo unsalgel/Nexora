@@ -28,11 +28,8 @@ public sealed class GetSalesAnalyticsQueryHandlerTests : IDisposable
     {
         // Arrange
         var query = new GetSalesAnalyticsQuery(Days: 30);
-
-        // Act
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.TotalOrdersAllTime.Should().Be(0);
@@ -45,7 +42,6 @@ public sealed class GetSalesAnalyticsQueryHandlerTests : IDisposable
     [Fact]
     public async Task Handle_WhenOrdersExist_ReturnsCorrectAggregationsAndPercentages()
     {
-        // Arrange
         var category1 = new Category { Id = Guid.NewGuid(), Name = "Elektronik" };
         var category2 = new Category { Id = Guid.NewGuid(), Name = "Moda" };
         _context.Categories.AddRange(category1, category2);
@@ -118,11 +114,8 @@ public sealed class GetSalesAnalyticsQueryHandlerTests : IDisposable
         await _context.SaveChangesAsync();
 
         var query = new GetSalesAnalyticsQuery(Days: 7);
-
-        // Act
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.TotalOrdersAllTime.Should().Be(3); // Toplam sipariş (iptal dahil kayıt sayısı)

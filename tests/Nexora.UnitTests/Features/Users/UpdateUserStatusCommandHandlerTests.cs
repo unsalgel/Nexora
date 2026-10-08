@@ -125,5 +125,8 @@ public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
 
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("Sistemdeki son aktif yönetici dondurulamaz.");
+
+        var unchangedAdmin = await _context.Users.FindAsync(adminUser.Id);
+        unchangedAdmin!.IsActive.Should().BeTrue();
     }
 }

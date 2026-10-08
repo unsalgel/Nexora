@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Nexora.Application.Abstractions;
 using StackExchange.Redis;
 
@@ -67,10 +67,14 @@ public sealed class RedisCacheService : ICacheService
     {
         try
         {
+            var pattern = $"{prefix}*";
             foreach (var endpoint in _connectionMultiplexer.GetEndPoints())
             {
                 var server = _connectionMultiplexer.GetServer(endpoint);
-                var keys = server.Keys(pattern: $"*{prefix}*").ToArray();
+                if (!server.IsConnected)
+                    continue;
+
+                var keys = server.Keys(pattern: pattern).ToArray();
                 if (keys.Length > 0)
                 {
                     await _database.KeyDeleteAsync(keys);

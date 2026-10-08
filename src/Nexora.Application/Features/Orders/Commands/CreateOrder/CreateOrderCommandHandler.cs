@@ -143,7 +143,39 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             }
         }
 
-        var grandTotal = Math.Max(0, rawTotal - discountAmount);
+        // Ödeme öncesi stok durumunu doğrula (Stok yetersizse asla karttan para çekilmemeli)
+        foreach (var item in cart.Items)
+        {
+            if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
+            {
+                if (item.ProductVariant.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' varyantı için stok yetersiz kaldı. Kalan stok: {item.ProductVariant.StockQuantity}");
+                }
+            }
+            else
+            {
+                if (item.Product.StockQuantity < item.Quantity)
+                {
+                    throw new ConflictException($"'{item.Product.Name}' için stok yetersiz kaldı. Kalan stok: {item.Product.StockQuantity}");
+                }
+            }
+        }
+
+        if (appliedCoupon is not null && appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
+        {
+            throw new ConflictException("Kupon toplam kullanım limitine ulaştığı için uygulanamadı.");
+        }
+
+        var settings = await _context.Settings
+            .AsNoTracking()
+            .ToDictionaryAsync(s => s.Key, s => s.Value, cancellationToken);
+        var freeShippingThreshold = decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold", "500"), out var fst) ? fst : 500m;
+        var shippingCost = decimal.TryParse(settings.GetValueOrDefault("ShippingCost", "29.90"), out var sc) ? sc : 29.90m;
+        var isFreeShipping = rawTotal >= freeShippingThreshold || rawTotal == 0;
+        var shippingFee = isFreeShipping ? 0m : shippingCost;
+
+        var grandTotal = Math.Max(0, rawTotal + shippingFee - discountAmount);
         var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
 
         var isPaymentSuccessful = await _paymentService.ProcessPaymentAsync(grandTotal, request.PaymentInfo, cancellationToken);
@@ -194,23 +226,11 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             int remainingStock;
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
-                // Çift satışı (Overselling) ve eşzamanlı stok yarışını (Race Condition) kesin olarak engelle
-                if (item.ProductVariant.StockQuantity < item.Quantity)
-                {
-                    throw new ConflictException($"'{item.Product.Name}' varyantı için stok yetersiz kaldı. Kalan stok: {item.ProductVariant.StockQuantity}");
-                }
-
                 item.ProductVariant.StockQuantity -= item.Quantity;
                 remainingStock = item.ProductVariant.StockQuantity;
             }
             else
             {
-                // Çift satışı (Overselling) ve eşzamanlı stok yarışını (Race Condition) kesin olarak engelle
-                if (item.Product.StockQuantity < item.Quantity)
-                {
-                    throw new ConflictException($"'{item.Product.Name}' için stok yetersiz kaldı. Kalan stok: {item.Product.StockQuantity}");
-                }
-
                 item.Product.StockQuantity -= item.Quantity;
                 remainingStock = item.Product.StockQuantity;
             }
@@ -221,14 +241,8 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             }
         }
 
-        // Kupon kullanımını ödeme başarıyla onaylandıktan sonra atomik olarak artır
         if (appliedCoupon is not null)
         {
-            if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
-            {
-                throw new ConflictException("Kupon toplam kullanım limitine ulaştığı için uygulanamadı.");
-            }
-
             appliedCoupon.CurrentUsageCount++;
             if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
             {

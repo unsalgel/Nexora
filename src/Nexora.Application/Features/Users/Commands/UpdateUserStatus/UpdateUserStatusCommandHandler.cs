@@ -28,8 +28,6 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
             .FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Kullanıcı bulunamadı.");
 
-        user.IsActive = request.IsActive;
-
         if (!request.IsActive)
         {
             var isUserAdmin = await _context.UserRoles
@@ -45,6 +43,8 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
                     throw new ConflictException("Sistemdeki son aktif yönetici dondurulamaz.");
                 }
             }
+
+            user.IsActive = false;
 
             var userTokens = await _context.RefreshTokens
                 .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
@@ -68,6 +68,7 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
         }
         else
         {
+            user.IsActive = true;
             await _tokenBlacklistService.UnrevokeUserAsync(user.Id, cancellationToken);
         }
 

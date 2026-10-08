@@ -19,7 +19,7 @@ public sealed class CreateCouponCommandHandler : IRequestHandler<CreateCouponCom
 
     public async Task<Result<CouponDto>> Handle(CreateCouponCommand request, CancellationToken cancellationToken)
     {
-        var normalizedCode = request.Code.Trim().ToUpper();
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var existingCoupon = await _context.Coupons
             .AnyAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken);

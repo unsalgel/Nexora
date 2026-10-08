@@ -1,11 +1,12 @@
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Entities;
 
 namespace Nexora.Infrastructure.Services;
 
-public sealed class DbLogger(IApplicationDbContext context, ILogger<DbLogger> logger) : IDbLogger
+public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger> logger) : IDbLogger
 {
     public async Task LogInformationAsync(
         string source,
@@ -29,6 +30,8 @@ public sealed class DbLogger(IApplicationDbContext context, ILogger<DbLogger> lo
                 TimestampUtc = DateTime.UtcNow
             };
 
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
             await context.SaveChangesAsync(cancellationToken);
         }
@@ -62,6 +65,8 @@ public sealed class DbLogger(IApplicationDbContext context, ILogger<DbLogger> lo
                 TimestampUtc = DateTime.UtcNow
             };
 
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
             await context.SaveChangesAsync(cancellationToken);
         }
@@ -114,6 +119,8 @@ public sealed class DbLogger(IApplicationDbContext context, ILogger<DbLogger> lo
                 TimestampUtc = DateTime.UtcNow
             };
 
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
             await context.SaveChangesAsync(cancellationToken);
         }
