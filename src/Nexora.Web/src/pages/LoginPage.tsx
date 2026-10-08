@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle, KeyRound, X, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, RotateCw, ShieldCheck, CheckCircle2, AlertCircle, KeyRound, X, Sparkles } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
 import { useFavorites } from '../context/FavoritesContext';
@@ -41,14 +41,21 @@ export const LoginPage: React.FC = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setInterval(() => {
       setResendCooldown((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (step === 3) {
+      otpInputRef.current?.focus();
+    }
+  }, [step]);
 
   const handleResendCode = async () => {
     if (resendCooldown > 0 || resendLoading) return;
@@ -427,73 +434,160 @@ export const LoginPage: React.FC = () => {
           )}
 
           {step === 3 && (
-            <div className="space-y-5 animate-in fade-in-50">
-              <div className="p-3.5 bg-orange-50 border border-orange-200/80 rounded-2xl text-xs text-orange-800 space-y-1">
-                <p className="font-bold flex items-center gap-1.5">
-                  <KeyRound className="w-4 h-4 text-orange-600" />
-                  E-Posta Doğrulama Kodu Gönderildi
-                </p>
-                <p className="text-slate-600">
-                  <strong className="text-slate-800">{identity}</strong> adresinize gönderilen 6 haneli kodu giriniz.
-                </p>
+            <div className="space-y-6 animate-in fade-in-50">
+              {/* Başlık ve E-posta Rozeti */}
+              <div className="text-center space-y-3 pt-1">
+                <div className="inline-flex items-center justify-center">
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500 shadow-sm shadow-orange-500/10">
+                      <Mail className="w-7 h-7" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+                      <ShieldCheck className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                    E-Postanızı Doğrulayın
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                    Hesabınızı güvenceye almak için tek kullanımlık 6 haneli kodu aşağıdaki adrese ilettik:
+                  </p>
+                  <div className="flex items-center justify-center pt-0.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 border border-slate-200/80 rounded-full text-xs font-semibold text-slate-700 max-w-full truncate">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{identity}</span>
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <form onSubmit={handleVerifyEmail} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">6 Haneli Doğrulama Kodu</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    placeholder="123456"
-                    value={verificationCode}
-                    onChange={(e) => {
-                      setVerificationCode(e.target.value.replace(/\D/g, ''));
-                      setErrorMessage(null);
-                    }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center tracking-widest text-xl font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all"
-                  />
+              <form onSubmit={handleVerifyEmail} className="space-y-5">
+                {/* 6 Haneli Segmentli OTP Girişi */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">
+                      6 Haneli Güvenlik Kodu
+                    </label>
+                    {verificationCode.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVerificationCode('');
+                          setErrorMessage(null);
+                          otpInputRef.current?.focus();
+                        }}
+                        className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        Temizle
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    {/* Arka planda klavye ve yapıştırma olaylarını yöneten gizli input */}
+                    <input
+                      ref={otpInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setVerificationCode(val);
+                        setErrorMessage(null);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 font-mono tracking-widest text-transparent selection:bg-transparent"
+                      aria-label="6 Haneli Doğrulama Kodu"
+                    />
+
+                    {/* 6 Ayrı Şık Slot Kutusu */}
+                    <div className="grid grid-cols-6 gap-2 sm:gap-2.5">
+                      {[0, 1, 2, 3, 4, 5].map((index) => {
+                        const digit = verificationCode[index] || '';
+                        const isCurrent = verificationCode.length === index;
+                        const isFilled = Boolean(digit);
+
+                        return (
+                          <div
+                            key={index}
+                            className={`h-12 sm:h-14 rounded-xl border flex items-center justify-center font-mono text-xl font-bold transition-all duration-150 select-none ${
+                              isCurrent
+                                ? 'border-orange-500 bg-white ring-4 ring-orange-500/15 shadow-sm scale-[1.02] text-slate-900'
+                                : isFilled
+                                ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
+                                : 'border-slate-200 bg-slate-50/80 text-slate-300'
+                            }`}
+                          >
+                            {digit ? (
+                              <span className="animate-in zoom-in-75 duration-100">{digit}</span>
+                            ) : isCurrent ? (
+                              <span className="w-1.5 h-5 bg-orange-500 rounded-full animate-pulse" />
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {errorMessage && (
-                  <div className="flex items-center gap-1.5 pt-1 text-rose-600 text-xs font-semibold animate-in fade-in-50">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200/80 rounded-xl text-rose-700 text-xs font-semibold animate-in fade-in-50">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
                 {resendSuccess && (
-                  <div className="flex items-center gap-1.5 pt-1 text-emerald-600 text-xs font-semibold animate-in fade-in-50">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-emerald-700 text-xs font-semibold animate-in fade-in-50">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
                     <span>{resendSuccess}</span>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  disabled={isLoading || verificationCode.length !== 6}
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span>{isLoading ? 'Doğrulanıyor...' : 'Hesabı Onayla ve Giriş Yap'}</span>
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
 
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center justify-between pt-1">
                   <button
                     type="button"
                     onClick={() => { setStep(2); setErrorMessage(null); setResendSuccess(null); }}
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
                   >
-                    Geri Dön
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Geri Dön</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleResendCode}
                     disabled={resendCooldown > 0 || resendLoading}
-                    className="text-xs font-bold text-orange-600 hover:text-orange-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
                   >
-                    {resendLoading ? 'Gönderiliyor...' : resendCooldown > 0 ? `Tekrar Gönder (${resendCooldown}s)` : 'Kodu Tekrar Gönder'}
+                    {resendLoading ? (
+                      <span>Gönderiliyor...</span>
+                    ) : resendCooldown > 0 ? (
+                      <>
+                        <RotateCw className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                        <span>Tekrar Gönder ({resendCooldown}s)</span>
+                      </>
+                    ) : (
+                      <>
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Kodu Tekrar Gönder</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
