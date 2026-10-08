@@ -9,10 +9,14 @@ namespace Nexora.Application.Features.Categories.Commands.UpdateCategory;
 public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryCommand, Result<string>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService? _notificationService;
 
-    public UpdateCategoryCommandHandler(IApplicationDbContext context)
+    public UpdateCategoryCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService? notificationService = null)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<string>> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
@@ -45,6 +49,18 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
         category.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_notificationService is not null)
+        {
+            await _notificationService.PublishToAllAsync("CategoryStatusChanged", new
+            {
+                id = category.Id,
+                name = category.Name,
+                description = category.Description,
+                parentCategoryId = category.ParentCategoryId,
+                isActive = category.IsActive
+            }, cancellationToken);
+        }
 
         return Result<string>.Success("Kategori başarıyla güncellendi.");
     }

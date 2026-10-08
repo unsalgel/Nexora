@@ -151,4 +151,32 @@ public sealed class CategoryAndBrandCommandHandlerTests : IDisposable
         updated.Should().NotBeNull();
         updated!.IsActive.Should().Be(targetStatus);
     }
+
+    [Fact]
+    public async Task UpdateCategory_WhenNotificationServiceProvided_PublishesCategoryStatusChanged()
+    {
+        var category = new Category
+        {
+            Id = Guid.NewGuid(),
+            Name = "Spor",
+            Description = "Spor malzemeleri",
+            IsActive = true
+        };
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+
+        var notificationMock = new Moq.Mock<Nexora.Application.Abstractions.IRealTimeNotificationService>();
+        var handler = new UpdateCategoryCommandHandler(_context, notificationMock.Object);
+        var command = new UpdateCategoryCommand(category.Id, "Spor & Outdoor", "Güncel açıklama", null, false);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        notificationMock.Verify(
+            n => n.PublishToAllAsync(
+                "CategoryStatusChanged",
+                Moq.It.IsAny<object>(),
+                Moq.It.IsAny<CancellationToken>()),
+            Moq.Times.Once);
+    }
 }

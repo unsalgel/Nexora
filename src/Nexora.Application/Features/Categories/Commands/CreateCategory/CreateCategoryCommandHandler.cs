@@ -10,10 +10,14 @@ namespace Nexora.Application.Features.Categories.Commands.CreateCategory;
 public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService? _notificationService;
 
-    public CreateCategoryCommandHandler(IApplicationDbContext context)
+    public CreateCategoryCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService? notificationService = null)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<Guid>> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
@@ -44,6 +48,18 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_notificationService is not null)
+        {
+            await _notificationService.PublishToAllAsync("CategoryStatusChanged", new
+            {
+                id = category.Id,
+                name = category.Name,
+                description = category.Description,
+                parentCategoryId = category.ParentCategoryId,
+                isActive = category.IsActive
+            }, cancellationToken);
+        }
 
         return Result<Guid>.Success(category.Id, "Kategori başarıyla oluşturuldu.");
     }
