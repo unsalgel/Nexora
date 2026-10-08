@@ -38,6 +38,40 @@ export const LoginPage: React.FC = () => {
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
 
   
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setResendSuccess(null);
+    setErrorMessage(null);
+    try {
+      const response = await apiClient.post('/auth/resend-verification-code', {
+        email: identity.trim()
+      });
+      if (response.data?.isSuccess) {
+        setResendSuccess('Yeni doğrulama kodu e-posta adresinize gönderildi.');
+        setResendCooldown(60);
+      } else {
+        setErrorMessage(response.data?.message || 'Kod gönderilemedi.');
+      }
+    } catch {
+      setErrorMessage('Kod tekrar gönderilirken bir hata oluştu.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleVerifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (verificationCode.trim().length !== 6) {
@@ -45,6 +79,7 @@ export const LoginPage: React.FC = () => {
       return;
     }
     setErrorMessage(null);
+    setResendSuccess(null);
     setIsLoading(true);
 
     try {
@@ -54,13 +89,33 @@ export const LoginPage: React.FC = () => {
       });
 
       if (response.data?.isSuccess) {
+        try {
+          const loginRes = await apiClient.post('/auth/login', {
+            email: identity.trim(),
+            password
+          });
+          if (loginRes.data?.isSuccess && loginRes.data.data) {
+            const { accessToken, refreshToken } = loginRes.data.data;
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+            await refreshFavorites();
+            await refreshCart();
+            setIsSuccess(true);
+            setTimeout(() => {
+              navigate('/profile');
+            }, 1200);
+            return;
+          }
+        } catch {
+        }
+
         setIsSuccess(true);
         setTimeout(() => {
           setActiveTab('login');
           setStep(2);
           setVerificationCode('');
           setIsSuccess(false);
-        }, 1800);
+        }, 1500);
       } else {
         setErrorMessage(response.data?.message || 'Doğrulama başarısız oldu.');
       }
@@ -131,15 +186,10 @@ export const LoginPage: React.FC = () => {
         });
 
         if (response.data?.isSuccess) {
-          setIsSuccess(true);
-          setTimeout(() => {
-            setActiveTab('login');
-            setStep(1);
-            setIdentity('');
-            setPassword('');
-            setFullName('');
-            setIsSuccess(false);
-          }, 2000);
+          setErrorMessage(null);
+          setResendSuccess(null);
+          setResendCooldown(60);
+          setStep(3);
         } else {
           setErrorMessage(response.data?.message || 'Üye olunamadı.');
         }
@@ -412,6 +462,13 @@ export const LoginPage: React.FC = () => {
                   </div>
                 )}
 
+                {resendSuccess && (
+                  <div className="flex items-center gap-1.5 pt-1 text-emerald-600 text-xs font-semibold animate-in fade-in-50">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>{resendSuccess}</span>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -421,13 +478,22 @@ export const LoginPage: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
 
-                <div className="text-center pt-1">
+                <div className="flex items-center justify-between pt-2">
                   <button
                     type="button"
-                    onClick={() => { setStep(2); setErrorMessage(null); }}
+                    onClick={() => { setStep(2); setErrorMessage(null); setResendSuccess(null); }}
                     className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
                   >
                     Geri Dön
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={resendCooldown > 0 || resendLoading}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {resendLoading ? 'Gönderiliyor...' : resendCooldown > 0 ? `Tekrar Gönder (${resendCooldown}s)` : 'Kodu Tekrar Gönder'}
                   </button>
                 </div>
               </form>
