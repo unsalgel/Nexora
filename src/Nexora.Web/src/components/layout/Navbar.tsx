@@ -4,7 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useSettings } from '../../context/SettingsContext';
 import { decodeJwt } from '../../lib/jwt';
-import { apiClient } from '../../lib/apiClient';
+import { apiClient, logout } from '../../lib/apiClient';
 import type { ApiResponse } from '../../lib/apiClient';
 import { useQuery } from '@tanstack/react-query';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -222,9 +222,7 @@ export const Navbar: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
-                          localStorage.removeItem('accessToken');
-                          localStorage.removeItem('refreshToken');
-                          window.location.href = '/login';
+                          void logout();
                         }}
                         className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
                       >

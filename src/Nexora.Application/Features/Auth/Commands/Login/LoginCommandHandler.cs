@@ -56,6 +56,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         if (!user.IsActive)
             throw new UnauthorizedException("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
 
+        if (!user.IsEmailConfirmed)
+            throw new UnauthorizedException("Giriş yapabilmek için lütfen önce e-posta adresinizi doğrulayın.");
+
         var failedAttemptsList = await _loginAttemptService.ResetAndGetAttemptsAsync(request.Email, cancellationToken) 
             ?? new List<FailedLoginAttemptDto>();
 

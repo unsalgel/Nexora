@@ -103,6 +103,27 @@ apiClient.interceptors.response.use(
   }
 );
 
+export const logout = async (): Promise<void> => {
+  const refreshToken = localStorage.getItem('adminRefreshToken');
+  const accessToken = localStorage.getItem('adminAccessToken');
+  if (refreshToken) {
+    try {
+      await axios.post(
+        `${ENV.API_URL}/auth/revoke-token`,
+        { refreshToken },
+        {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        }
+      );
+    } catch {
+      // Ağ veya sunucu hatası durumunda dahi yerel oturum temizliğini engelleme
+    }
+  }
+  localStorage.removeItem('adminAccessToken');
+  localStorage.removeItem('adminRefreshToken');
+  window.location.href = '/login';
+};
+
 export interface ApiResponse<T> {
   isSuccess: boolean;
   data: T;

@@ -10,16 +10,21 @@ namespace Nexora.Application.Features.Users.Commands.UpdateUserRoles;
 public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRolesCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ITokenBlacklistService _tokenBlacklistService;
 
-    public UpdateUserRolesCommandHandler(IApplicationDbContext context)
+    public UpdateUserRolesCommandHandler(
+        IApplicationDbContext context,
+        ITokenBlacklistService tokenBlacklistService)
     {
         _context = context;
+        _tokenBlacklistService = tokenBlacklistService;
     }
 
     public async Task<Result<bool>> Handle(UpdateUserRolesCommand request, CancellationToken cancellationToken)
     {
         var user = await _context.Users
             .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken)
             ?? throw new NotFoundException("Kullanıcı bulunamadı.");
 
@@ -54,6 +59,7 @@ public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRo
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _tokenBlacklistService.RevokeUserAsync(user.Id, cancellationToken);
 
         return Result<bool>.Success(true, "Kullanıcı rolleri başarıyla güncellendi.");
     }

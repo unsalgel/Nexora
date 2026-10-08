@@ -26,9 +26,10 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
 
     public async Task<Result<string>> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
     {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken)
-            ?? throw new NotFoundException("Kullanıcı bulunamadı.");
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken)
+            ?? throw new BusinessValidationException("Geçersiz e-posta adresi veya doğrulama kodu.");
 
         if (user.IsEmailConfirmed)
         {

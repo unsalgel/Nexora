@@ -33,14 +33,14 @@ public sealed class ResendVerificationCodeCommandHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_WhenUserNotFound_ThrowsNotFoundException()
+    public async Task Handle_WhenUserNotFound_ReturnsGenericSuccessMessage()
     {
         var command = new ResendVerificationCodeCommand("olmayan@nexora.com");
 
-        var act = async () => await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>()
-            .WithMessage("Kullanıcı bulunamadı.");
+        result.IsSuccess.Should().BeTrue();
+        result.Data.Should().Contain("Eğer e-posta adresi sistemimizde kayıtlıysa");
     }
 
     [Fact]

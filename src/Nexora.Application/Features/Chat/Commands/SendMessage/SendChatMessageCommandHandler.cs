@@ -72,8 +72,9 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         sb.AppendLine();
         foreach (var p in mentionedProducts)
         {
-            var img = string.IsNullOrWhiteSpace(p.ImageUrl) ? "none" : p.ImageUrl;
-            sb.AppendLine($"[PRODUCT_CARD|{p.Id}|{p.Name}|{p.Price:N2} TL|{img}]");
+            var img = string.IsNullOrWhiteSpace(p.ImageUrl) ? "none" : p.ImageUrl.Replace("|", "").Replace("]", "");
+            var safeName = p.Name.Replace("|", " - ").Replace("]", " ");
+            sb.AppendLine($"[PRODUCT_CARD|{p.Id}|{safeName}|{p.Price:N2} TL|{img}]");
         }
 
         return sb.ToString().TrimEnd();
@@ -160,7 +161,7 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         {
             foreach (var p in products)
             {
-                var stockStatus = p.StockQuantity > 0 ? $"Stokta var ({p.StockQuantity} adet)" : "Tükendi";
+                var stockStatus = p.StockQuantity > 0 ? "Stokta var" : "Tükendi";
                 var imgUrl = string.IsNullOrWhiteSpace(p.ImageUrl) ? "none" : p.ImageUrl;
                 sb.AppendLine($"- ID: {p.Id} | Ürün: {p.Name} | Fiyat: {p.Price:N2} TL | Durum: {stockStatus} | Resim: {imgUrl}");
             }
@@ -182,14 +183,25 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
             foreach (var item in history.TakeLast(3))
             {
                 var role = string.Equals(item.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "asistan" : "musteri";
-                var content = item.Content.Length > 500 ? item.Content[..500] : item.Content;
+                var rawContent = item.Content ?? string.Empty;
+                var sanitizedContent = rawContent
+                    .Replace("</gecmis_konusma>", "")
+                    .Replace("</asistan>", "")
+                    .Replace("</musteri>", "")
+                    .Replace("</kullanici_mesaji>", "");
+                var content = sanitizedContent.Length > 500 ? sanitizedContent[..500] : sanitizedContent;
                 sb.AppendLine($"<{role}>{content}</{role}>");
             }
             sb.AppendLine("</gecmis_konusma>");
             sb.AppendLine();
         }
+
+        var safeQuery = (userQuery ?? string.Empty)
+            .Replace("</kullanici_mesaji>", "")
+            .Replace("</gecmis_konusma>", "");
+
         sb.AppendLine("<kullanici_mesaji>");
-        sb.AppendLine(userQuery);
+        sb.AppendLine(safeQuery);
         sb.AppendLine("</kullanici_mesaji>");
         return sb.ToString();
     }
