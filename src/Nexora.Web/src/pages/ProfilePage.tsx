@@ -8,11 +8,13 @@ import { decodeJwt } from '../lib/jwt';
 import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
+import { AxiosError } from 'axios';
 import { 
   Package, 
   Heart, 
   MapPin, 
-  User, 
+  User,
+  Mail, 
   ShoppingBag, 
   Trash2, 
   Plus, 
@@ -86,12 +88,17 @@ export const ProfilePage: React.FC = () => {
   const { success: showSuccess, error: showError } = useToast();
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<OrderDto[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Adres Yönetimi State'leri
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -129,6 +136,11 @@ export const ProfilePage: React.FC = () => {
           lastName: claims.lastName,
           email: claims.email
         });
+        setEditFirstName(claims.firstName || '');
+        setEditLastName(claims.lastName || '');
+        setEditEmail(claims.email || '');
+        fetchProfile();
+
         setNewAddress((prev) => ({
           ...prev,
           fullName: `${claims.firstName} ${claims.lastName}`.trim()
@@ -139,6 +151,81 @@ export const ProfilePage: React.FC = () => {
     }
     refreshFavorites();
   }, [navigate]);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await apiClient.get<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; isEmailConfirmed: boolean }>>('/users/me');
+      if (response.data?.isSuccess && response.data.data) {
+        const data = response.data.data;
+        setUserProfile({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email
+        });
+        setEditFirstName(data.firstName);
+        setEditLastName(data.lastName);
+        setEditEmail(data.email);
+      }
+    } catch (error) {
+      console.error('Profil bilgileri alınamadı:', error);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    const trimmedFirst = editFirstName.trim();
+    const trimmedLast = editLastName.trim();
+    const trimmedEmail = editEmail.trim();
+
+    if (!trimmedFirst || !trimmedLast) {
+      setProfileError('Ad ve soyad alanları zorunludur.');
+      return;
+    }
+
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      setProfileError('Geçerli bir e-posta adresi giriniz.');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const response = await apiClient.put<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; isEmailConfirmed: boolean }>>('/users/me', {
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+        email: trimmedEmail
+      });
+
+      if (response.data?.isSuccess && response.data.data) {
+        const updated = response.data.data;
+        setUserProfile({
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          email: updated.email
+        });
+        setEditFirstName(updated.firstName);
+        setEditLastName(updated.lastName);
+        setEditEmail(updated.email);
+        setProfileSuccess('Kişisel bilgileriniz başarıyla güncellendi.');
+        showSuccess('Profil bilgileriniz başarıyla kaydedildi.');
+      } else {
+        const errorMsg = response.data?.message || 'Profil güncellenirken bir hata oluştu.';
+        setProfileError(errorMsg);
+        showError(errorMsg);
+      }
+    } catch (error) {
+      let errorMsg = 'Profil güncellenirken bir hata oluştu.';
+      if (error instanceof AxiosError && error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      }
+      setProfileError(errorMsg);
+      showError(errorMsg);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const fetchOrders = async () => {
     setIsOrdersLoading(true);
@@ -175,6 +262,8 @@ export const ProfilePage: React.FC = () => {
       fetchOrders();
     } else if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
       fetchAddresses();
+    } else if (activeTab === 'account' && localStorage.getItem('accessToken')) {
+      fetchProfile();
     }
   }, [activeTab]);
 
@@ -767,38 +856,117 @@ export const ProfilePage: React.FC = () => {
           )}
 
           {activeTab === 'account' && (
-            <div className="space-y-4 animate-in fade-in-50">
-              <h2 className="text-base font-bold text-slate-900">Kişisel Bilgilerim</h2>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Ad</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={userProfile?.firstName || ''}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-700"
-                  />
+            <div className="space-y-6 animate-in fade-in-50">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Kişisel Bilgilerim</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Hesap bilgilerinizi ve iletişim detaylarınızı buradan güncelleyebilirsiniz.
+                  </p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Soyad</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={userProfile?.lastName || ''}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-700"
-                  />
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700">E-Posta Adresi</label>
-                  <input
-                    type="email"
-                    disabled
-                    value={userProfile?.email || ''}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-700"
-                  />
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50/80 border border-orange-100/90 rounded-xl text-orange-700 text-xs font-semibold">
+                  <User className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Profil Ayarları</span>
                 </div>
               </div>
+
+              {profileError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200/80 rounded-2xl flex items-center gap-2.5 text-rose-700 text-xs font-medium animate-in fade-in-50">
+                  <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{profileError}</span>
+                </div>
+              )}
+
+              {profileSuccess && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center gap-2.5 text-emerald-700 text-xs font-medium animate-in fade-in-50">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span>{profileSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveProfile} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">Ad *</label>
+                    <div className="relative flex items-center">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                      <input
+                        type="text"
+                        required
+                        value={editFirstName}
+                        onChange={(e) => {
+                          setEditFirstName(e.target.value);
+                          setProfileError(null);
+                          setProfileSuccess(null);
+                        }}
+                        placeholder="Adınız"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">Soyad *</label>
+                    <div className="relative flex items-center">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                      <input
+                        type="text"
+                        required
+                        value={editLastName}
+                        onChange={(e) => {
+                          setEditLastName(e.target.value);
+                          setProfileError(null);
+                          setProfileSuccess(null);
+                        }}
+                        placeholder="Soyadınız"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 block">E-Posta Adresi *</label>
+                      <span className="text-[11px] text-slate-400 font-medium">Giriş ve sipariş bildirimleri için kullanılır</span>
+                    </div>
+                    <div className="relative flex items-center">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        value={editEmail}
+                        onChange={(e) => {
+                          setEditEmail(e.target.value);
+                          setProfileError(null);
+                          setProfileSuccess(null);
+                        }}
+                        placeholder="ornek@domain.com"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isSavingProfile ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        <span>Kaydediliyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Değişiklikleri Kaydet</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </main>
