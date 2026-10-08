@@ -9,6 +9,7 @@ using Nexora.Application.Features.Auth.Commands.RevokeToken;
 using Nexora.Application.Features.Auth.Commands.ForgotPassword;
 using Nexora.Application.Features.Auth.Commands.ResetPassword;
 using Nexora.Application.Features.Auth.Commands.VerifyEmail;
+using Nexora.Application.Features.Auth.Commands.ResendVerificationCode;
 
 namespace Nexora.Api.Controllers;
 
@@ -40,6 +41,16 @@ public sealed class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Result<string>>> VerifyEmail(
         VerifyEmailCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Sender.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("resend-verification-code")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Result<string>>> ResendVerificationCode(
+        ResendVerificationCodeCommand command,
         CancellationToken cancellationToken = default)
     {
         var result = await Sender.Send(command, cancellationToken);
