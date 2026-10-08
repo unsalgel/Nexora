@@ -270,22 +270,30 @@ try
     {
         var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
 
+        var turkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "Turkey Standard Time" : "Europe/Istanbul");
+
+        var jobOptions = new RecurringJobOptions { TimeZone = turkeyTimeZone };
+
         recurringJobManager.AddOrUpdate<ICouponCleanupJob>(
             "coupon-cleanup-job",
             job => job.ProcessExpiredCouponsAsync(CancellationToken.None),
-            Cron.Hourly);
+            Cron.Hourly,
+            jobOptions);
 
         recurringJobManager.AddOrUpdate<IOrderCleanupJob>(
             "stale-orders-cleanup-job",
             job => job.CancelStalePendingOrdersAsync(CancellationToken.None),
-            "*/30 * * * *");
+            "*/30 * * * *",
+            jobOptions);
 
         recurringJobManager.AddOrUpdate<ICartCleanupJob>(
             "cart-cleanup-job",
             job => job.CleanupAbandonedCartsAsync(CancellationToken.None),
-            Cron.Daily);
+            Cron.Daily,
+            jobOptions);
 
-        Log.Information("Hangfire periyodik arka plan görevleri başarıyla zamanlandı.");
+        Log.Information("Hangfire periyodik arka plan görevleri Türkiye saatine göre başarıyla zamanlandı.");
     }
 
     _ = Task.Run(async () =>
