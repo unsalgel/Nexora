@@ -1,17 +1,20 @@
 using System.Security.Claims;
 using System.Text;
 using Asp.Versioning;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nexora.Api;
+using Nexora.Api.Filters;
 using Nexora.Api.Hubs;
 using Nexora.Api.Middlewares;
 using Nexora.Api.OpenApi;
 using Nexora.Api.Services;
 using Nexora.Application;
+using Nexora.Application.Abstractions.BackgroundJobs;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Infrastructure;
@@ -247,6 +250,12 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    DashboardTitle = "Nexora Hangfire Yönetim Paneli",
+    Authorization = [new HangfireDashboardAuthorizationFilter()]
+});
+
 app.MapControllers();
 app.MapHub<AppHub>("/hubs/app");
 
@@ -255,6 +264,29 @@ try
     Log.Information("Veritabanı kontrol ediliyor ve tohumlanıyor...");
     await DatabaseSeeder.SeedAsync(app);
     await VariantSeeder.SeedVariantsAsync(app);
+
+    // Hangfire Periyodik Görevlerin (Recurring Jobs) Tanımlanması
+    using (var scope = app.Services.CreateScope())
+    {
+        var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+        recurringJobManager.AddOrUpdate<ICouponCleanupJob>(
+            "coupon-cleanup-job",
+            job => job.ProcessExpiredCouponsAsync(CancellationToken.None),
+            Cron.Hourly);
+
+        recurringJobManager.AddOrUpdate<IOrderCleanupJob>(
+            "stale-orders-cleanup-job",
+            job => job.CancelStalePendingOrdersAsync(CancellationToken.None),
+            "*/30 * * * *");
+
+        recurringJobManager.AddOrUpdate<ICartCleanupJob>(
+            "cart-cleanup-job",
+            job => job.CleanupAbandonedCartsAsync(CancellationToken.None),
+            Cron.Daily);
+
+        Log.Information("Hangfire periyodik arka plan görevleri başarıyla zamanlandı.");
+    }
 
     _ = Task.Run(async () =>
     {

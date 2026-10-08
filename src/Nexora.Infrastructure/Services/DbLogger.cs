@@ -5,15 +5,70 @@ using Nexora.Domain.Entities;
 
 namespace Nexora.Infrastructure.Services;
 
-public sealed class DbLogger : IDbLogger
+public sealed class DbLogger(IApplicationDbContext context, ILogger<DbLogger> logger) : IDbLogger
 {
-    private readonly IApplicationDbContext _context;
-    private readonly ILogger<DbLogger> _logger;
-
-    public DbLogger(IApplicationDbContext context, ILogger<DbLogger> logger)
+    public async Task LogInformationAsync(
+        string source,
+        string message,
+        string? endpoint = null,
+        string? userEmail = null,
+        string? clientIp = null,
+        CancellationToken cancellationToken = default)
     {
-        _context = context;
-        _logger = logger;
+        try
+        {
+            var logEntry = new Log
+            {
+                Id = Guid.NewGuid(),
+                Level = "Information",
+                Message = message,
+                Source = source,
+                Endpoint = endpoint,
+                UserEmail = userEmail,
+                ClientIp = clientIp,
+                TimestampUtc = DateTime.UtcNow
+            };
+
+            context.Logs.Add(logEntry);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception loggingEx)
+        {
+            logger.LogError(loggingEx, "Veritabanına bilgi logu yazılırken beklenmeyen sorun oluştu.");
+        }
+    }
+
+    public async Task LogWarningAsync(
+        string source,
+        string message,
+        long durationMs,
+        string? endpoint = null,
+        string? userEmail = null,
+        string? clientIp = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var logEntry = new Log
+            {
+                Id = Guid.NewGuid(),
+                Level = "Warning",
+                Message = message,
+                Source = source,
+                Endpoint = endpoint,
+                UserEmail = userEmail,
+                ClientIp = clientIp,
+                ExecutionDurationMs = durationMs,
+                TimestampUtc = DateTime.UtcNow
+            };
+
+            context.Logs.Add(logEntry);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception loggingEx)
+        {
+            logger.LogError(loggingEx, "Veritabanına yavaşlık logu yazılırken beklenmeyen sorun oluştu.");
+        }
     }
 
     public async Task LogErrorAsync(
@@ -59,45 +114,12 @@ public sealed class DbLogger : IDbLogger
                 TimestampUtc = DateTime.UtcNow
             };
 
-            _context.Logs.Add(logEntry);
-            await _context.SaveChangesAsync(cancellationToken);
+            context.Logs.Add(logEntry);
+            await context.SaveChangesAsync(cancellationToken);
         }
         catch (Exception loggingEx)
         {
-            _logger.LogError(loggingEx, "Veritabanına hata logu yazılırken beklenmeyen sorun oluştu.");
-        }
-    }
-
-    public async Task LogWarningAsync(
-        string source,
-        string message,
-        long durationMs,
-        string? endpoint = null,
-        string? userEmail = null,
-        string? clientIp = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var logEntry = new Log
-            {
-                Id = Guid.NewGuid(),
-                Level = "Warning",
-                Message = message,
-                Source = source,
-                Endpoint = endpoint,
-                UserEmail = userEmail,
-                ClientIp = clientIp,
-                ExecutionDurationMs = durationMs,
-                TimestampUtc = DateTime.UtcNow
-            };
-
-            _context.Logs.Add(logEntry);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception loggingEx)
-        {
-            _logger.LogError(loggingEx, "Veritabanına yavaşlık logu yazılırken beklenmeyen sorun oluştu.");
+            logger.LogError(loggingEx, "Veritabanına hata logu yazılırken beklenmeyen sorun oluştu.");
         }
     }
 }
