@@ -30,8 +30,12 @@ public sealed class ResendVerificationCodeCommandHandler : IRequestHandler<Resen
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken)
-            ?? throw new NotFoundException("Kullanıcı bulunamadı.");
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
+
+        if (user is null)
+        {
+            return Result<string>.Success("Eğer e-posta adresi sistemimizde kayıtlıysa ve henüz doğrulanmamışsa, yeni doğrulama kodu gönderilmiştir.");
+        }
 
         if (user.IsEmailConfirmed)
         {

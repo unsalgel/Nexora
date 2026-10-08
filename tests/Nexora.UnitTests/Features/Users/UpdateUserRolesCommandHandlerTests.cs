@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
+using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Users.Commands.UpdateUserRoles;
 using Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
@@ -11,12 +13,14 @@ namespace Nexora.UnitTests.Features.Users;
 public sealed class UpdateUserRolesCommandHandlerTests : IDisposable
 {
     private readonly NexoraDbContext _context;
+    private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly UpdateUserRolesCommandHandler _handler;
 
     public UpdateUserRolesCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
-        _handler = new UpdateUserRolesCommandHandler(_context);
+        _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
+        _handler = new UpdateUserRolesCommandHandler(_context, _tokenBlacklistServiceMock.Object);
     }
 
     public void Dispose()
@@ -86,5 +90,6 @@ public sealed class UpdateUserRolesCommandHandlerTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         var userRoles = await _context.UserRoles.Where(ur => ur.UserId == admin1.Id).Include(ur => ur.Role).ToListAsync();
         userRoles.Should().ContainSingle(ur => ur.Role.Name == "Customer");
+        _tokenBlacklistServiceMock.Verify(x => x.RevokeUserAsync(admin1.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

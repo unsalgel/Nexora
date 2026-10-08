@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Package, 
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { decodeAdminJwt } from '../../lib/jwt';
 import { ENV } from '../../lib/env';
+import { logout } from '../../lib/apiClient';
 
 interface FailedAttemptDetail {
   attemptedAtUtc: string;
@@ -32,7 +33,6 @@ interface SecurityNoticeData {
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [securityNotice, setSecurityNotice] = useState<SecurityNoticeData | null>(() => {
     const stored = sessionStorage.getItem('pendingSecurityNotice');
@@ -55,9 +55,7 @@ export const AdminLayout: React.FC = () => {
   const claims = decodeAdminJwt(token);
 
   const handleLogout = () => {
-    localStorage.removeItem('adminAccessToken');
-    localStorage.removeItem('adminRefreshToken');
-    navigate('/login');
+    void logout();
   };
 
   const navItems = [

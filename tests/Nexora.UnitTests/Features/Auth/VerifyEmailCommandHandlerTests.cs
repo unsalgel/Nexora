@@ -32,14 +32,14 @@ public sealed class VerifyEmailCommandHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_WhenUserNotFound_ThrowsNotFoundException()
+    public async Task Handle_WhenUserNotFound_ThrowsBusinessValidationException()
     {
         var command = new VerifyEmailCommand("olmayan@nexora.com", "123456");
 
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>()
-            .WithMessage("Kullanıcı bulunamadı.");
+        await act.Should().ThrowAsync<BusinessValidationException>()
+            .WithMessage("Geçersiz e-posta adresi veya doğrulama kodu.");
     }
 
     [Fact]

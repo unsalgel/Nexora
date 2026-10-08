@@ -49,7 +49,8 @@ public sealed class LoginCommandHandlerTests : IDisposable
             PasswordHash = "hashed_pw",
             FirstName = "Ali",
             LastName = "Yılmaz",
-            IsActive = true
+            IsActive = true,
+            IsEmailConfirmed = true
         };
         _context.Users.Add(user);
 
@@ -69,6 +70,31 @@ public sealed class LoginCommandHandlerTests : IDisposable
         result.Data.Should().NotBeNull();
         result.Data!.AccessToken.Should().Be("access_token_123");
         result.Data.RefreshToken.Should().Be("refresh_token_456");
+    }
+
+    [Fact]
+    public async Task Handle_EmailNotConfirmed_ThrowsUnauthorizedException()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "unconfirmed@nexora.com",
+            PasswordHash = "hashed_pw",
+            FirstName = "Ali",
+            LastName = "Yılmaz",
+            IsActive = true,
+            IsEmailConfirmed = false
+        };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        var command = new LoginCommand("unconfirmed@nexora.com", "Password123!");
+        _passwordHasherMock.Setup(x => x.Verify(command.Password, user.PasswordHash)).Returns(true);
+
+        var act = async () => await _handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedException>()
+            .WithMessage("Giriş yapabilmek için lütfen önce e-posta adresinizi doğrulayın.");
     }
 
     [Fact]
@@ -120,7 +146,8 @@ public sealed class LoginCommandHandlerTests : IDisposable
             PasswordHash = "hashed_pw",
             FirstName = "Ali",
             LastName = "Yılmaz",
-            IsActive = false
+            IsActive = false,
+            IsEmailConfirmed = true
         };
         _context.Users.Add(user);
         await _context.SaveChangesAsync();

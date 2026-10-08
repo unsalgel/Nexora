@@ -96,12 +96,33 @@ apiClient.interceptors.response.use(
       } else {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
   }
 );
+
+export const logout = async (): Promise<void> => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  const accessToken = localStorage.getItem('accessToken');
+  if (refreshToken) {
+    try {
+      await axios.post(
+        `${ENV.API_URL}/auth/revoke-token`,
+        { refreshToken },
+        {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        }
+      );
+    } catch {
+      // Ağ veya sunucu hatası durumunda dahi yerel oturum temizliğini engelleme
+    }
+  }
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('nexora_ai_chat_history');
+  window.location.href = '/login';
+};
 
 export interface ApiResponse<T> {
   isSuccess: boolean;

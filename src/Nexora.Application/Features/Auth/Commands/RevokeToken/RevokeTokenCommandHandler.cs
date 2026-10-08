@@ -19,14 +19,16 @@ public sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenComma
 
     public async Task<Result<string>> Handle(RevokeTokenCommand request, CancellationToken cancellationToken)
     {
-        var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, cancellationToken)
-            ?? throw new NotFoundException("Refresh token bulunamadı.");
-
-        if (!refreshToken.IsRevoked)
+        if (!string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            refreshToken.IsRevoked = true;
-            await _context.SaveChangesAsync(cancellationToken);
+            var refreshToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, cancellationToken);
+
+            if (refreshToken is not null && !refreshToken.IsRevoked)
+            {
+                refreshToken.IsRevoked = true;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
         }
 
         // Eğer mevcut access token'ın JTI'ı iletilmişse, anında kara listeye al (kalan ömrü kadar - max 60 dk)

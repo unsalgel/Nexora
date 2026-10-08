@@ -5,7 +5,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { decodeJwt } from '../lib/jwt';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, logout } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import { AxiosError } from 'axios';
@@ -329,9 +329,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    navigate('/login');
+    void logout();
   };
 
   

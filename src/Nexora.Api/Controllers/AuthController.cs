@@ -68,7 +68,7 @@ public sealed class AuthController : ApiControllerBase
     }
 
     [HttpPost("revoke-token")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<ActionResult<Result<string>>> RevokeToken(
         RevokeTokenCommand command,
         CancellationToken cancellationToken = default)
