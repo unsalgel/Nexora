@@ -39,7 +39,6 @@ public sealed class LoginCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_ValidCredentials_ReturnsAccessTokenAndRefreshToken()
     {
-        // Arrange
         var role = new Role { Id = Guid.NewGuid(), Name = "Customer" };
         _context.Roles.Add(role);
 
@@ -64,10 +63,8 @@ public sealed class LoginCommandHandlerTests : IDisposable
 
         var command = new LoginCommand("test@nexora.com", "Password123!");
 
-        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.AccessToken.Should().Be("access_token_123");
@@ -77,7 +74,6 @@ public sealed class LoginCommandHandlerTests : IDisposable
     [Fact]
     public async Task Handle_InvalidPassword_ThrowsUnauthorizedException()
     {
-        // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -94,32 +90,29 @@ public sealed class LoginCommandHandlerTests : IDisposable
 
         var command = new LoginCommand("test@nexora.com", "WrongPassword");
 
-        // Act
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<UnauthorizedException>()
             .WithMessage("E-posta adresi veya şifre hatalı.");
     }
 
     [Fact]
-    public async Task Handle_UserNotFound_ThrowsUnauthorizedException()
+    public async Task Handle_UserNotFound_ExecutesDummyHashAndThrowsUnauthorizedException()
     {
-        // Arrange
         var command = new LoginCommand("nonexistent@nexora.com", "Password123!");
 
-        // Act
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<UnauthorizedException>()
             .WithMessage("E-posta adresi veya şifre hatalı.");
+
+        _passwordHasherMock.Verify(x => x.Verify("Password123!", It.IsAny<string>()), Times.Once);
+        _loginAttemptServiceMock.Verify(x => x.RecordFailedAttemptAsync("nonexistent@nexora.com", null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task Handle_InactiveUser_ThrowsUnauthorizedException()
     {
-        // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -134,10 +127,8 @@ public sealed class LoginCommandHandlerTests : IDisposable
 
         var command = new LoginCommand("inactive@nexora.com", "Password123!");
 
-        // Act
         var act = async () => await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
         await act.Should().ThrowAsync<UnauthorizedException>()
             .WithMessage("Hesabınız aktif değildir. Lütfen destek ekibiyle iletişime geçiniz.");
     }
