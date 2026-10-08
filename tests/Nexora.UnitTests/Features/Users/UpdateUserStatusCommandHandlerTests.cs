@@ -101,11 +101,29 @@ public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_WhenUserNotFound_ThrowsNotFoundException()
+    public async Task Handle_WhenLastAdminDeactivated_ThrowsConflictException()
     {
-        var command = new UpdateUserStatusCommand(Guid.NewGuid(), true);
+        var adminRole = await _context.Roles.FirstAsync(r => r.Name == "Admin");
+
+        var adminUser = new User
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Admin",
+            LastName = "User",
+            Email = "admin@nexora.com",
+            PasswordHash = "hash",
+            IsActive = true
+        };
+        _context.Users.Add(adminUser);
+
+        var userRole = new UserRole { UserId = adminUser.Id, RoleId = adminRole.Id, Role = adminRole, User = adminUser };
+        _context.UserRoles.Add(userRole);
+        await _context.SaveChangesAsync();
+
+        var command = new UpdateUserStatusCommand(adminUser.Id, false);
         var act = () => _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("Sistemdeki son aktif yönetici dondurulamaz.");
     }
 }

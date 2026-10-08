@@ -41,10 +41,6 @@ public sealed class AiChatService : IAiChatService
             return "Nexora Asistan şu anda yapılandırılma aşamasındadır (AI API anahtarı henüz tanımlanmamış).";
         }
 
-        var requestUri = !string.IsNullOrWhiteSpace(_apiKey)
-            ? $"{_endpoint}?key={_apiKey}"
-            : _endpoint;
-
         var requestBody = new
         {
             systemInstruction = new
@@ -71,12 +67,23 @@ public sealed class AiChatService : IAiChatService
                 maxOutputTokens = 800
             }
         };
+
         const int maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync(requestUri, requestBody, cancellationToken);
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Post, _endpoint)
+                {
+                    Content = JsonContent.Create(requestBody)
+                };
+
+                if (!string.IsNullOrWhiteSpace(_apiKey))
+                {
+                    requestMessage.Headers.Add("x-goog-api-key", _apiKey);
+                }
+
+                var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                 {

@@ -276,8 +276,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             },
             cancellationToken);
 
-        // Yönetim paneli veya dinleyen istemciler için yeni sipariş olayını yayınla
-        await _notificationService.PublishToAllAsync(
+        await _notificationService.PublishToAdminsAsync(
             "ReceiveNewOrder",
             new
             {
@@ -288,10 +287,9 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             },
             cancellationToken);
 
-        // Kritik stok kontrolü (kalan stok <= 5 ise admin/sistem geneline bildir)
         foreach (var alert in lowStockAlerts)
         {
-            await _notificationService.PublishToAllAsync(
+            await _notificationService.PublishToAdminsAsync(
                 "LowStockAlert",
                 new
                 {

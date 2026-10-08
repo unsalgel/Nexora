@@ -178,11 +178,14 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         var sb = new StringBuilder();
         if (history is { Count: > 0 })
         {
-            sb.AppendLine("Geçmiş Konuşma:");
+            sb.AppendLine("<gecmis_konusma>");
             foreach (var item in history.TakeLast(3))
             {
-                sb.AppendLine($"{item.Role}: {item.Content}");
+                var role = string.Equals(item.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "asistan" : "musteri";
+                var content = item.Content.Length > 500 ? item.Content[..500] : item.Content;
+                sb.AppendLine($"<{role}>{content}</{role}>");
             }
+            sb.AppendLine("</gecmis_konusma>");
             sb.AppendLine();
         }
         sb.AppendLine("<kullanici_mesaji>");
