@@ -23,15 +23,20 @@ public sealed class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnal
 
         var totalOrdersAllTime = await ordersQuery.CountAsync(cancellationToken);
 
+        var nonCancelledOrdersCount = await ordersQuery
+            .Where(o => o.Status != OrderStatus.Cancelled)
+            .CountAsync(cancellationToken);
+
         var totalRevenueAllTime = await ordersQuery
             .Where(o => o.Status != OrderStatus.Cancelled)
             .SumAsync(o => (decimal?)o.TotalAmount, cancellationToken) ?? 0m;
 
-        var averageOrderValue = totalOrdersAllTime > 0
-            ? Math.Round(totalRevenueAllTime / totalOrdersAllTime, 2)
+        var averageOrderValue = nonCancelledOrdersCount > 0
+            ? Math.Round(totalRevenueAllTime / nonCancelledOrdersCount, 2)
             : 0m;
 
-        var dailySales = await GetDailySalesAsync(ordersQuery, request.Days, cancellationToken);
+        var clampedDays = Math.Clamp(request.Days, 1, 365);
+        var dailySales = await GetDailySalesAsync(ordersQuery, clampedDays, cancellationToken);
         var categorySales = await GetCategorySalesAsync(cancellationToken);
         var statusDistribution = await GetStatusDistributionAsync(ordersQuery, cancellationToken);
 
@@ -133,6 +138,7 @@ public sealed class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnal
         var allStatuses = new[]
         {
             (Status: OrderStatus.Pending, Label: "Beklemede"),
+            (Status: OrderStatus.Paid, Label: "Ödendi"),
             (Status: OrderStatus.Processing, Label: "Hazırlanıyor"),
             (Status: OrderStatus.Shipped, Label: "Kargoda"),
             (Status: OrderStatus.Delivered, Label: "Teslim Edildi"),
