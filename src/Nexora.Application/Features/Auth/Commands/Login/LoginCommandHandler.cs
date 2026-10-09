@@ -70,12 +70,14 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         var accessToken = _jwtProvider.GenerateAccessToken(user, roles);
         var refreshTokenValue = _jwtProvider.GenerateRefreshToken();
+        var expirationDays = _jwtProvider.GetRefreshTokenExpirationDays();
+        if (expirationDays <= 0) expirationDays = 7;
 
         var refreshToken = new DomainEntities.RefreshToken
         {
             UserId = user.Id,
             Token = refreshTokenValue,
-            ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(expirationDays),
             IsRevoked = false
         };
 

@@ -35,12 +35,15 @@ public sealed class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, Result
             query = query.Where(u => u.IsActive == request.IsActive.Value);
         }
 
+        var page = Math.Max(request.Page, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
             .OrderByDescending(u => u.CreatedAtUtc)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(u => new UserDto(
                 u.Id,
                 u.FirstName,
@@ -53,7 +56,7 @@ public sealed class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, Result
             ))
             .ToListAsync(cancellationToken);
 
-        var pagedResult = new PagedResult<UserDto>(items, request.Page, request.PageSize, totalCount);
+        var pagedResult = new PagedResult<UserDto>(items, page, pageSize, totalCount);
 
         return Result<PagedResult<UserDto>>.Success(pagedResult);
     }

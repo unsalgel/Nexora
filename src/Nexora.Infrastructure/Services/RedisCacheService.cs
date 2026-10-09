@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using StackExchange.Redis;
 
@@ -8,15 +9,17 @@ public sealed class RedisCacheService : ICacheService
 {
     private readonly IConnectionMultiplexer _connectionMultiplexer;
     private readonly IDatabase _database;
+    private readonly ILogger<RedisCacheService> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public RedisCacheService(IConnectionMultiplexer connectionMultiplexer)
+    public RedisCacheService(IConnectionMultiplexer connectionMultiplexer, ILogger<RedisCacheService> logger)
     {
         _connectionMultiplexer = connectionMultiplexer;
         _database = connectionMultiplexer.GetDatabase();
+        _logger = logger;
     }
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
@@ -31,8 +34,9 @@ public sealed class RedisCacheService : ICacheService
 
             return JsonSerializer.Deserialize<T>(cachedData.ToString(), JsonOptions);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Redis önbellekten okuma hatası oluştu. Key: {Key}", key);
             return default;
         }
     }
@@ -46,9 +50,9 @@ public sealed class RedisCacheService : ICacheService
 
             await _database.StringSetAsync(key, jsonData, expiry);
         }
-        catch
+        catch (Exception ex)
         {
-            // Cache write failure should not break the app
+            _logger.LogWarning(ex, "Redis önbelleğe yazma hatası oluştu. Key: {Key}", key);
         }
     }
 
@@ -58,8 +62,9 @@ public sealed class RedisCacheService : ICacheService
         {
             await _database.KeyDeleteAsync(key);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Redis önbellek silme hatası oluştu. Key: {Key}", key);
         }
     }
 
@@ -81,8 +86,9 @@ public sealed class RedisCacheService : ICacheService
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Redis önbellek önek ile silme hatası oluştu. Prefix: {Prefix}", prefix);
         }
     }
 }

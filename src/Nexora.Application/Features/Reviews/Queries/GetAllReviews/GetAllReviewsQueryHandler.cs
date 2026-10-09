@@ -38,12 +38,15 @@ public sealed class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQue
             query = query.Where(r => r.Rating == request.Rating.Value);
         }
 
+        var page = Math.Max(request.Page, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
             .OrderByDescending(r => r.CreatedAtUtc)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(r => new AdminReviewDto(
                 r.Id,
                 r.ProductId,
@@ -57,7 +60,7 @@ public sealed class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQue
             ))
             .ToListAsync(cancellationToken);
 
-        var pagedResult = new PagedResult<AdminReviewDto>(items, request.Page, request.PageSize, totalCount);
+        var pagedResult = new PagedResult<AdminReviewDto>(items, page, pageSize, totalCount);
 
         return Result<PagedResult<AdminReviewDto>>.Success(pagedResult);
     }
