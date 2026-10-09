@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 
@@ -21,7 +21,6 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        // 1. Önbellek Okuma (Query ise)
         if (request is ICachableRequest cachableRequest)
         {
             var cachedResponse = await _cacheService.GetAsync<TResponse>(cachableRequest.CacheKey, cancellationToken);
@@ -34,7 +33,13 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
             _logger.LogInformation("Önbellekte Bulunamadı, Veritabanından Çekiliyor (Cache MISS): {CacheKey}", cachableRequest.CacheKey);
             var response = await next();
 
-            if (response is not null)
+            var isSuccess = response switch
+            {
+                Common.IResult res => res.IsSuccess,
+                _ => true
+            };
+
+            if (response is not null && isSuccess)
             {
                 await _cacheService.SetAsync(cachableRequest.CacheKey, response, cachableRequest.Expiration, cancellationToken);
             }
@@ -42,7 +47,6 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
             return response;
         }
 
-        // 2. Önbellek Temizleme (Command ise)
         if (request is ICacheInvalidatorRequest invalidatorRequest)
         {
             var response = await next();

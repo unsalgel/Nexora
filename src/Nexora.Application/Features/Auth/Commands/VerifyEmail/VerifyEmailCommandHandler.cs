@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -13,15 +15,18 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
     private readonly IApplicationDbContext _context;
     private readonly IEmailService _emailService;
     private readonly ILogger<VerifyEmailCommandHandler> _logger;
+    private readonly ICacheService? _cacheService;
 
     public VerifyEmailCommandHandler(
         IApplicationDbContext context,
         IEmailService emailService,
-        ILogger<VerifyEmailCommandHandler> logger)
+        ILogger<VerifyEmailCommandHandler> logger,
+        ICacheService? cacheService = null)
     {
         _context = context;
         _emailService = emailService;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<string>> Handle(VerifyEmailCommand request, CancellationToken cancellationToken)
@@ -41,14 +46,45 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
             .OrderByDescending(c => c.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (verificationCode is null || verificationCode.Code != request.Code)
+        if (verificationCode is null)
         {
-            throw new BusinessValidationException("Girdiğiniz doğrulama kodu hatalı.");
+            throw new BusinessValidationException("Geçerli bir doğrulama kodu bulunamadı. Lütfen yeni bir kod talep ediniz.");
         }
 
         if (verificationCode.ExpiresAtUtc < DateTime.UtcNow)
         {
             throw new BusinessValidationException("Doğrulama kodunun süresi dolmuş. Lütfen yeni bir kod talep ediniz.");
+        }
+
+        var inputCodeBytes = Encoding.UTF8.GetBytes(request.Code.Trim());
+        var storedCodeBytes = Encoding.UTF8.GetBytes(verificationCode.Code);
+        var isCodeMatch = inputCodeBytes.Length == storedCodeBytes.Length &&
+                          CryptographicOperations.FixedTimeEquals(inputCodeBytes, storedCodeBytes);
+
+        if (!isCodeMatch)
+        {
+            if (_cacheService != null)
+            {
+                var attemptKey = $"verify_attempts:{user.Id}:{verificationCode.Id}";
+                var attempts = (await _cacheService.GetAsync<int>(attemptKey, cancellationToken)) + 1;
+                if (attempts >= 5)
+                {
+                    verificationCode.IsUsed = true;
+                    await _context.SaveChangesAsync(cancellationToken);
+                    await _cacheService.RemoveAsync(attemptKey, cancellationToken);
+                    throw new BusinessValidationException("Çok fazla hatalı deneme yapıldığı için doğrulama kodunuz iptal edildi. Lütfen yeni bir kod talep ediniz.");
+                }
+
+                await _cacheService.SetAsync(attemptKey, attempts, TimeSpan.FromMinutes(15), cancellationToken);
+                throw new BusinessValidationException($"Girdiğiniz doğrulama kodu hatalı. Kalan deneme hakkı: {5 - attempts}.");
+            }
+
+            throw new BusinessValidationException("Girdiğiniz doğrulama kodu hatalı.");
+        }
+
+        if (_cacheService != null)
+        {
+            await _cacheService.RemoveAsync($"verify_attempts:{user.Id}:{verificationCode.Id}", cancellationToken);
         }
 
         verificationCode.IsUsed = true;

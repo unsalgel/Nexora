@@ -6,4 +6,5 @@ public interface IJwtProvider
 {
     string GenerateAccessToken(User user, IList<string> roles);
     string GenerateRefreshToken();
+    int GetRefreshTokenExpirationDays();
 }

@@ -59,4 +59,9 @@ public sealed class JwtProvider : IJwtProvider
         rng.GetBytes(randomNumber);
         return Convert.ToBase64String(randomNumber);
     }
+
+    public int GetRefreshTokenExpirationDays()
+    {
+        return _jwtSettings.RefreshTokenExpirationDays > 0 ? _jwtSettings.RefreshTokenExpirationDays : 7;
+    }
 }

@@ -105,6 +105,8 @@ public sealed class AiChatService : IAiChatService
                         await Task.Delay(1000 * attempt, cancellationToken);
                         continue;
                     }
+
+                    break;
                 }
             }
             catch (Exception ex) when (attempt < maxAttempts)

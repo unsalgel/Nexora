@@ -136,4 +136,48 @@ public sealed class VerifyEmailCommandHandlerTests : IDisposable
         user.IsEmailConfirmed.Should().BeTrue();
         code.IsUsed.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_WhenAttemptsReachLimit_InvalidatesCodeAndThrowsException()
+    {
+        var cacheMock = new Mock<ICacheService>();
+        cacheMock
+            .Setup(c => c.GetAsync<int>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(4);
+
+        var handlerWithCache = new VerifyEmailCommandHandler(
+            _context,
+            _emailServiceMock.Object,
+            _loggerMock.Object,
+            cacheMock.Object);
+
+        var user = new User
+        {
+            FirstName = "Murat",
+            LastName = "Aydın",
+            Email = "murat@nexora.com",
+            PasswordHash = "hash",
+            IsEmailConfirmed = false
+        };
+        _context.Users.Add(user);
+
+        var code = new EmailVerificationCode
+        {
+            UserId = user.Id,
+            Code = "123456",
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
+            IsUsed = false
+        };
+        _context.EmailVerificationCodes.Add(code);
+        await _context.SaveChangesAsync();
+
+        var command = new VerifyEmailCommand(user.Email, "000000");
+
+        var act = async () => await handlerWithCache.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessValidationException>()
+            .WithMessage("Çok fazla hatalı deneme yapıldığı için doğrulama kodunuz iptal edildi. Lütfen yeni bir kod talep ediniz.");
+
+        code.IsUsed.Should().BeTrue();
+    }
 }

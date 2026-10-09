@@ -1,8 +1,14 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Nexora.Application.Common;
 
-public sealed class Result<T>
+public interface IResult
+{
+    bool IsSuccess { get; }
+    string? Message { get; }
+}
+
+public sealed class Result<T> : IResult
 {
     public bool IsSuccess { get; init; }
     public T? Data { get; init; }

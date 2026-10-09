@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -22,11 +22,14 @@ public sealed class GetProductReviewsQueryHandler : IRequestHandler<GetProductRe
             .Where(r => r.ProductId == request.ProductId)
             .OrderByDescending(r => r.CreatedAtUtc);
 
+        var page = Math.Max(request.Page, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(r => new ReviewDto(
                 r.Id,
                 r.ProductId,
@@ -38,7 +41,7 @@ public sealed class GetProductReviewsQueryHandler : IRequestHandler<GetProductRe
             ))
             .ToListAsync(cancellationToken);
 
-        var pagedResult = new PagedResult<ReviewDto>(items, request.Page, request.PageSize, totalCount);
+        var pagedResult = new PagedResult<ReviewDto>(items, page, pageSize, totalCount);
 
         return Result<PagedResult<ReviewDto>>.Success(pagedResult);
     }

@@ -55,12 +55,14 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         var newAccessToken = _jwtProvider.GenerateAccessToken(user, roles);
         var newRefreshTokenValue = _jwtProvider.GenerateRefreshToken();
+        var expirationDays = _jwtProvider.GetRefreshTokenExpirationDays();
+        if (expirationDays <= 0) expirationDays = 7;
 
         var newRefreshToken = new Domain.Entities.RefreshToken
         {
             UserId = user.Id,
             Token = newRefreshTokenValue,
-            ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(expirationDays),
             IsRevoked = false
         };
 
