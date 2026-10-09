@@ -61,7 +61,7 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var verificationCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        var verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var emailVerification = new EmailVerificationCode
         {
             UserId = user.Id,

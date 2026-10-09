@@ -121,25 +121,42 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             appliedCoupon = await _context.Coupons
                 .FirstOrDefaultAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken);
 
-            if (appliedCoupon is not null && appliedCoupon.IsActive && appliedCoupon.ExpirationDateUtc > DateTime.UtcNow && appliedCoupon.CurrentUsageCount < appliedCoupon.TotalUsageLimit && rawTotal >= appliedCoupon.MinimumOrderAmount)
+            if (appliedCoupon is null || !appliedCoupon.IsActive)
             {
-                if (appliedCoupon.DiscountType == DiscountType.Percentage)
-                {
-                    discountAmount = (rawTotal * appliedCoupon.DiscountValue) / 100m;
-                    if (appliedCoupon.MaximumDiscountAmount.HasValue && discountAmount > appliedCoupon.MaximumDiscountAmount.Value)
-                    {
-                        discountAmount = appliedCoupon.MaximumDiscountAmount.Value;
-                    }
-                }
-                else
-                {
-                    discountAmount = appliedCoupon.DiscountValue;
-                }
+                throw new ConflictException("Girdiğiniz kupon kodu geçersizdir veya bulunamadı.");
+            }
 
-                if (discountAmount > rawTotal)
+            if (appliedCoupon.ExpirationDateUtc <= DateTime.UtcNow)
+            {
+                throw new ConflictException("Girdiğiniz kupon kodunun son kullanma tarihi geçmiştir.");
+            }
+
+            if (appliedCoupon.CurrentUsageCount >= appliedCoupon.TotalUsageLimit)
+            {
+                throw new ConflictException("Girdiğiniz kupon kodunun kullanım limiti dolmuştur.");
+            }
+
+            if (rawTotal < appliedCoupon.MinimumOrderAmount)
+            {
+                throw new ConflictException($"Bu kuponu kullanabilmek için sepet tutarı en az {appliedCoupon.MinimumOrderAmount:N2} TL olmalıdır.");
+            }
+
+            if (appliedCoupon.DiscountType == DiscountType.Percentage)
+            {
+                discountAmount = (rawTotal * appliedCoupon.DiscountValue) / 100m;
+                if (appliedCoupon.MaximumDiscountAmount.HasValue && discountAmount > appliedCoupon.MaximumDiscountAmount.Value)
                 {
-                    discountAmount = rawTotal;
+                    discountAmount = appliedCoupon.MaximumDiscountAmount.Value;
                 }
+            }
+            else
+            {
+                discountAmount = appliedCoupon.DiscountValue;
+            }
+
+            if (discountAmount > rawTotal)
+            {
+                discountAmount = rawTotal;
             }
         }
 
@@ -273,47 +290,54 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             throw new ConflictException("Seçilen ürün veya varyantın stoku işlem sırasında tükendi. Lütfen sepetinizi kontrol ediniz.");
         }
 
-        // Kullanıcıya sipariş alındı anlık bildirimini ilet
-        await _notificationService.PublishToUserAsync(
-            order.UserId,
-            "OrderCreated",
-            new
-            {
-                notificationId = notification.Id,
-                orderId = order.Id,
-                orderNumber = order.OrderNumber,
-                title = notification.Title,
-                message = notification.Message,
-                type = "Order",
-                totalAmount = grandTotal,
-                createdAtUtc = notification.CreatedAtUtc
-            },
-            cancellationToken);
-
-        await _notificationService.PublishToAdminsAsync(
-            "ReceiveNewOrder",
-            new
-            {
-                orderId = order.Id,
-                orderNumber = order.OrderNumber,
-                totalAmount = grandTotal,
-                createdAtUtc = order.CreatedAtUtc
-            },
-            cancellationToken);
-
-        foreach (var alert in lowStockAlerts)
+        try
         {
-            await _notificationService.PublishToAdminsAsync(
-                "LowStockAlert",
+            // Kullanıcıya sipariş alındı anlık bildirimini ilet
+            await _notificationService.PublishToUserAsync(
+                order.UserId,
+                "OrderCreated",
                 new
                 {
-                    productId = alert.ProductId,
-                    productName = alert.ProductName,
-                    productVariantId = alert.VariantId,
-                    variantSku = alert.VariantSku,
-                    remainingStock = alert.RemainingStock
+                    notificationId = notification.Id,
+                    orderId = order.Id,
+                    orderNumber = order.OrderNumber,
+                    title = notification.Title,
+                    message = notification.Message,
+                    type = "Order",
+                    totalAmount = grandTotal,
+                    createdAtUtc = notification.CreatedAtUtc
                 },
                 cancellationToken);
+
+            await _notificationService.PublishToAdminsAsync(
+                "ReceiveNewOrder",
+                new
+                {
+                    orderId = order.Id,
+                    orderNumber = order.OrderNumber,
+                    totalAmount = grandTotal,
+                    createdAtUtc = order.CreatedAtUtc
+                },
+                cancellationToken);
+
+            foreach (var alert in lowStockAlerts)
+            {
+                await _notificationService.PublishToAdminsAsync(
+                    "LowStockAlert",
+                    new
+                    {
+                        productId = alert.ProductId,
+                        productName = alert.ProductName,
+                        productVariantId = alert.VariantId,
+                        variantSku = alert.VariantSku,
+                        remainingStock = alert.RemainingStock
+                    },
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sipariş gerçek zamanlı bildirimleri iletilirken hata oluştu. OrderId: {OrderId}", order.Id);
         }
 
         var dto = new OrderDto(

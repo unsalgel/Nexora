@@ -379,7 +379,9 @@ try
 }
 catch (Exception ex)
 {
+    Environment.ExitCode = 1;
     Log.Fatal(ex, "Nexora API Başlatılırken Kritik Hata Oluştu!");
+    throw;
 }
 finally
 {

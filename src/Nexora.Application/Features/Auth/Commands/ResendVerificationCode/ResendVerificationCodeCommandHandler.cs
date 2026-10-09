@@ -51,7 +51,7 @@ public sealed class ResendVerificationCodeCommandHandler : IRequestHandler<Resen
             oldCode.IsUsed = true;
         }
 
-        var newCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        var newCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var verificationCode = new EmailVerificationCode
         {
             UserId = user.Id,

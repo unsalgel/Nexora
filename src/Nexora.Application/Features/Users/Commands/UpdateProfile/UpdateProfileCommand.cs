@@ -60,7 +60,7 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
             user.IsEmailConfirmed = false;
             emailChanged = true;
 
-            verificationCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+            verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             var emailVerification = new EmailVerificationCode
             {
                 UserId = user.Id,

@@ -48,7 +48,7 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
             oldCode.IsUsed = true;
         }
 
-        var resetCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        var resetCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
         var passwordResetCode = new PasswordResetCode
         {
