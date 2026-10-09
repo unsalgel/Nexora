@@ -27,7 +27,7 @@ public sealed class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordC
     public async Task<Result<string>> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken)
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken)
             ?? throw new BusinessValidationException("Geçersiz e-posta adresi veya sıfırlama kodu.");
 
         var resetCode = await _context.PasswordResetCodes

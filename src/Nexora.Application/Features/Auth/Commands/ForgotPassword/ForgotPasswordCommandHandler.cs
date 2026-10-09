@@ -30,7 +30,7 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users
             .AsNoTracking()
-            .Where(u => u.Email.ToLower() == normalizedEmail)
+            .Where(u => u.Email == normalizedEmail)
             .Select(u => new { u.Id, u.Email, u.FirstName, u.LastName })
             .FirstOrDefaultAsync(cancellationToken);
 

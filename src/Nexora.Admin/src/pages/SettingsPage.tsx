@@ -37,7 +37,7 @@ export const SettingsPage: React.FC = () => {
     siteTitle: '',
     contactEmail: '',
     contactPhone: '',
-    freeShippingThreshold: 150,
+    freeShippingThreshold: 500,
     shippingCost: 29.90,
     announcementText: '',
     isAnnouncementActive: true

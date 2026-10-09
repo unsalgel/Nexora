@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
@@ -25,9 +26,9 @@ public sealed class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSetting
             SiteTitle: settings.GetValueOrDefault("SiteTitle", "Nexora - Alışverişin Yeni Adresi"),
             ContactEmail: settings.GetValueOrDefault("ContactEmail", "destek@nexora.com"),
             ContactPhone: settings.GetValueOrDefault("ContactPhone", "0850 123 45 67"),
-            FreeShippingThreshold: decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold", "150"), out var fst) ? fst : 150m,
-            ShippingCost: decimal.TryParse(settings.GetValueOrDefault("ShippingCost", "29.90"), out var sc) ? sc : 29.90m,
-            AnnouncementText: settings.GetValueOrDefault("AnnouncementText", "150 TL ve Üzeri Alışverişlerde Kargo Ücretsiz!"),
+            FreeShippingThreshold: decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold", "500"), NumberStyles.Any, CultureInfo.InvariantCulture, out var fst) ? fst : 500m,
+            ShippingCost: decimal.TryParse(settings.GetValueOrDefault("ShippingCost", "29.90"), NumberStyles.Any, CultureInfo.InvariantCulture, out var sc) ? sc : 29.90m,
+            AnnouncementText: settings.GetValueOrDefault("AnnouncementText", "500 TL ve Üzeri Alışverişlerde Kargo Ücretsiz!"),
             IsAnnouncementActive: bool.TryParse(settings.GetValueOrDefault("IsAnnouncementActive", "true"), out var ia) && ia
         );
 
