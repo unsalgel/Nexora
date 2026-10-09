@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Exceptions;
 
@@ -31,7 +32,7 @@ public sealed class GlobalExceptionHandlerMiddleware
         }
         catch (Exception ex)
         {
-            var isBusinessOrClientException = ex is ValidationException || ex is DomainException;
+            var isBusinessOrClientException = ex is ValidationException || ex is DomainException || ex is DbUpdateConcurrencyException;
 
             if (isBusinessOrClientException)
             {
@@ -87,6 +88,11 @@ public sealed class GlobalExceptionHandlerMiddleware
             case DomainException domainEx:
                 statusCode = domainEx.StatusCode;
                 message = domainEx.Message;
+                break;
+
+            case DbUpdateConcurrencyException:
+                statusCode = StatusCodes.Status409Conflict;
+                message = "İşlem sırasında bir eşzamanlılık çakışması oluştu. Veriler başka bir işlem tarafından güncellenmiş olabilir. Lütfen işlemi tekrar deneyiniz.";
                 break;
 
             default:

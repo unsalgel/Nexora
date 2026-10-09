@@ -55,6 +55,16 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             throw new ConflictException("Teslim edilmiş bir siparişin durumu değiştirilemez.");
         }
 
+        if (order.Status == OrderStatus.Shipped && (request.NewStatus == OrderStatus.Pending || request.NewStatus == OrderStatus.Paid || request.NewStatus == OrderStatus.Processing))
+        {
+            throw new ConflictException("Kargoya verilmiş bir sipariş geriye dönük durumlara (Beklemede/Hazırlanıyor) alınamaz.");
+        }
+
+        if (order.Status == OrderStatus.Processing && request.NewStatus == OrderStatus.Pending)
+        {
+            throw new ConflictException("Hazırlanmakta olan bir sipariş 'Beklemede' durumuna geri alınamaz.");
+        }
+
         if (order.Status == request.NewStatus && string.IsNullOrWhiteSpace(request.TrackingNumber) && string.IsNullOrWhiteSpace(request.Carrier))
         {
             return Result<string>.Success($"Sipariş durumu zaten '{GetStatusTurkishText(request.NewStatus)}'.");
@@ -106,22 +116,29 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync(cancellationToken);
 
-        await _notificationService.PublishToUserAsync(
-            order.UserId,
-            "OrderStatusChanged",
-            new
-            {
-                notificationId = notification.Id,
-                orderId = order.Id,
-                orderNumber = order.OrderNumber,
-                title = notification.Title,
-                message = notificationMessage,
-                type = "Order",
-                newStatus = order.Status.ToString(),
-                newStatusText = GetStatusTurkishText(order.Status),
-                createdAtUtc = notification.CreatedAtUtc
-            },
-            cancellationToken);
+        try
+        {
+            await _notificationService.PublishToUserAsync(
+                order.UserId,
+                "OrderStatusChanged",
+                new
+                {
+                    notificationId = notification.Id,
+                    orderId = order.Id,
+                    orderNumber = order.OrderNumber,
+                    title = notification.Title,
+                    message = notificationMessage,
+                    type = "Order",
+                    newStatus = order.Status.ToString(),
+                    newStatusText = GetStatusTurkishText(order.Status),
+                    createdAtUtc = notification.CreatedAtUtc
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sipariş durum güncelleme anlık bildirimi iletilemedi. OrderId: {OrderId}", order.Id);
+        }
 
         var orderUser = order.User;
         if (orderUser != null && !string.IsNullOrWhiteSpace(orderUser.Email))

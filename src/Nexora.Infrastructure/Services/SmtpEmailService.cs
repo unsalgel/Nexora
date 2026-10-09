@@ -61,6 +61,7 @@ public sealed class SmtpEmailService : IEmailService
 
   public async Task SendWelcomeEmailAsync(string to, string userName, CancellationToken cancellationToken = default)
   {
+    var safeUserName = WebUtility.HtmlEncode(userName);
     var html = $@"
 <!DOCTYPE html>
 <html>
@@ -81,7 +82,7 @@ public sealed class SmtpEmailService : IEmailService
       <h1 style='margin:0; font-size:24px; font-weight:800; letter-spacing:-0.5px;'>Nexora'ya Hoş Geldiniz!</h1>
     </div>
     <div class='content'>
-      <p>Merhaba <strong>{userName}</strong>,</p>
+      <p>Merhaba <strong>{safeUserName}</strong>,</p>
       <p>Nexora ailesine katıldığınız için teşekkür ederiz. Hesabınız başarıyla oluşturuldu.</p>
       <p>Artık binlerce teknoloji, moda, yaşam ve ev kategorisindeki seçkin ürünleri güvenle keşfedebilir, sepete özel kupon fırsatlarından yararlanabilirsiniz.</p>
       <div style='text-align: center;'>
@@ -100,13 +101,25 @@ public sealed class SmtpEmailService : IEmailService
 
   public async Task SendOrderConfirmationEmailAsync(OrderDto order, string to, string userName, CancellationToken cancellationToken = default)
   {
-    var itemsRows = string.Join("", order.Items.Select(item => $@"
+    var safeUserName = WebUtility.HtmlEncode(userName);
+    var safeOrderNumber = WebUtility.HtmlEncode(order.OrderNumber);
+    var safeShippingAddress = WebUtility.HtmlEncode(order.ShippingAddress);
+
+    var itemsRows = string.Join("", order.Items.Select(item =>
+    {
+      var safeProductName = WebUtility.HtmlEncode(item.ProductName);
+      var skuSnippet = !string.IsNullOrWhiteSpace(item.VariantSKU)
+          ? $"<br><span style='font-size:11px; color:#64748b; font-family:monospace;'>SKU: {WebUtility.HtmlEncode(item.VariantSKU)}</span>"
+          : "";
+
+      return $@"
           <tr style='border-bottom: 1px solid #f1f5f9;'>
-            <td style='padding: 12px 0; font-weight: 600; color: #1e293b;'>{item.ProductName} {(string.IsNullOrWhiteSpace(item.VariantSKU) ? "" : $"<br><span style='font-size:11px; color:#64748b; font-family:monospace;'>SKU: {item.VariantSKU}</span>")}</td>
+            <td style='padding: 12px 0; font-weight: 600; color: #1e293b;'>{safeProductName} {skuSnippet}</td>
             <td style='padding: 12px 0; text-align: center; color: #64748b;'>{item.Quantity} Adet</td>
             <td style='padding: 12px 0; text-align: right; font-weight: 700; color: #ea580c;'>{item.TotalPrice:N2} TL</td>
           </tr>
-        "));
+        ";
+    }));
 
     var html = $@"
 <!DOCTYPE html>
@@ -126,15 +139,15 @@ public sealed class SmtpEmailService : IEmailService
   <div class='container'>
     <div class='header'>
       <h1 style='margin:0; font-size:22px; font-weight:800;'>Siparişiniz Alındı!</h1>
-      <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{order.OrderNumber}</p>
+      <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{safeOrderNumber}</p>
     </div>
     <div class='content'>
-      <p>Sayın <strong>{userName}</strong>,</p>
+      <p>Sayın <strong>{safeUserName}</strong>,</p>
       <p>Siparişiniz başarıyla sistemimize ulaştı ve hazırlık sürecine alındı. Siparişinizin detayları aşağıda yer almaktadır:</p>
       
       <div class='order-box'>
         <p style='margin: 0 0 6px 0; font-size: 12px; color: #64748b;'><strong>Teslimat Adresi:</strong></p>
-        <p style='margin: 0; font-size: 13px; color: #1e293b;'>{order.ShippingAddress}</p>
+        <p style='margin: 0; font-size: 13px; color: #1e293b;'>{safeShippingAddress}</p>
       </div>
 
       <table style='width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px;'>
@@ -179,11 +192,17 @@ public sealed class SmtpEmailService : IEmailService
       string? carrier,
       CancellationToken cancellationToken = default)
   {
+    var safeUserName = WebUtility.HtmlEncode(userName);
+    var safeOrderNumber = WebUtility.HtmlEncode(orderNumber);
+    var safeNewStatusText = WebUtility.HtmlEncode(newStatusText);
+    var safeCarrier = WebUtility.HtmlEncode(carrier ?? "Kargo");
+    var safeTrackingNumber = WebUtility.HtmlEncode(trackingNumber ?? string.Empty);
+
     var trackingSection = !string.IsNullOrWhiteSpace(trackingNumber)
         ? $@"<div style='background-color:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px; margin:16px 0; color:#1e40af;'>
                   <strong style='display:block; margin-bottom:4px;'>Kargo Takip Bilgileri:</strong>
-                  Kargo Firması: <strong>{carrier ?? "Kargo"}</strong><br>
-                  Takip Numarası: <strong style='font-family:monospace;'>{trackingNumber}</strong>
+                  Kargo Firması: <strong>{safeCarrier}</strong><br>
+                  Takip Numarası: <strong style='font-family:monospace;'>{safeTrackingNumber}</strong>
                 </div>"
         : "";
 
@@ -215,11 +234,11 @@ public sealed class SmtpEmailService : IEmailService
   <div class='container'>
     <div class='header'>
       <h1 style='margin:0; font-size:22px; font-weight:800;'>{headerTitle}</h1>
-      <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{orderNumber}</p>
+      <p style='margin:4px 0 0 0; font-size:13px; opacity:0.95;'>Sipariş No: #{safeOrderNumber}</p>
     </div>
     <div class='content'>
-      <p>Sayın <strong>{userName}</strong>,</p>
-      <p><strong>#{orderNumber}</strong> numaralı siparişinizin durumu <strong style='color:{statusColor}; font-size:15px;'>'{newStatusText}'</strong> olarak güncellenmiştir.</p>
+      <p>Sayın <strong>{safeUserName}</strong>,</p>
+      <p><strong>#{safeOrderNumber}</strong> numaralı siparişinizin durumu <strong style='color:{statusColor}; font-size:15px;'>'{safeNewStatusText}'</strong> olarak güncellenmiştir.</p>
       
       {trackingSection}
 
@@ -239,6 +258,9 @@ public sealed class SmtpEmailService : IEmailService
 
   public async Task SendEmailVerificationCodeEmailAsync(string to, string userName, string verificationCode, CancellationToken cancellationToken = default)
   {
+    var safeUserName = WebUtility.HtmlEncode(userName);
+    var safeVerificationCode = WebUtility.HtmlEncode(verificationCode);
+
     var html = $@"
 <!DOCTYPE html>
 <html>
@@ -259,11 +281,11 @@ public sealed class SmtpEmailService : IEmailService
       <h1 style='margin:0; font-size:24px; font-weight:800;'>E-Posta Doğrulama Kodu ✉️</h1>
     </div>
     <div class='content'>
-      <p style='text-align: left;'>Merhaba <strong>{userName}</strong>,</p>
+      <p style='text-align: left;'>Merhaba <strong>{safeUserName}</strong>,</p>
       <p style='text-align: left;'>Nexora'ya kaydolduğunuz için teşekkür ederiz. Hesabınızı güvenle aktifleştirmek için aşağıdaki 6 haneli doğrulama kodunu kullanabilirsiniz:</p>
       
       <div class='code-box'>
-        {verificationCode}
+        {safeVerificationCode}
       </div>
 
       <p style='font-size: 13px; color: #64748b; margin-top: 12px;'>Bu kod <strong>15 dakika</strong> boyunca geçerlidir.</p>
@@ -280,6 +302,9 @@ public sealed class SmtpEmailService : IEmailService
 
   public async Task SendPasswordResetCodeEmailAsync(string to, string userName, string resetCode, CancellationToken cancellationToken = default)
   {
+    var safeUserName = WebUtility.HtmlEncode(userName);
+    var safeResetCode = WebUtility.HtmlEncode(resetCode);
+
     var html = $@"
 <!DOCTYPE html>
 <html>
@@ -300,11 +325,11 @@ public sealed class SmtpEmailService : IEmailService
       <h1 style='margin:0; font-size:24px; font-weight:800;'>Şifre Sıfırlama Kodu 🔐</h1>
     </div>
     <div class='content'>
-      <p style='text-align: left;'>Merhaba <strong>{userName}</strong>,</p>
+      <p style='text-align: left;'>Merhaba <strong>{safeUserName}</strong>,</p>
       <p style='text-align: left;'>Nexora hesabınız için bir şifre sıfırlama talebinde bulunuldu. Şifrenizi yenilemek için aşağıdaki 6 haneli doğrulama kodunu kullanabilirsiniz:</p>
       
       <div class='code-box'>
-        {resetCode}
+        {safeResetCode}
       </div>
 
       <p style='font-size: 13px; color: #64748b; margin-top: 12px;'>Bu kod <strong>15 dakika</strong> boyunca geçerlidir. Eğer şifre sıfırlama talebinde siz bulunmadıysanız bu e-postayı güvenle göz ardı edebilirsiniz.</p>

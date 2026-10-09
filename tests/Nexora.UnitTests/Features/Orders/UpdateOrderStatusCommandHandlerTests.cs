@@ -140,7 +140,61 @@ public sealed class UpdateOrderStatusCommandHandlerTests : IDisposable
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        product.StockQuantity.Should().Be(7); // 5 + 2 geri yüklendi
+        product.StockQuantity.Should().Be(7);
         order.Status.Should().Be(OrderStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task Handle_WhenShippedOrderRevertedToPending_ThrowsConflictException()
+    {
+        var user = new User { FirstName = "Can", LastName = "Demir", Email = "can@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
+        var order = new Order
+        {
+            OrderNumber = "NX-TEST-004",
+            UserId = user.Id,
+            ShippingAddress = "Adres",
+            TotalAmount = 1500,
+            Status = OrderStatus.Shipped
+        };
+        _context.Orders.Add(order);
+        await _context.SaveChangesAsync();
+
+        var command = new UpdateOrderStatusCommand(order.Id, OrderStatus.Pending, null, null);
+
+        var act = async () => await _handler.Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("Kargoya verilmiş bir sipariş geriye dönük durumlara (Beklemede/Hazırlanıyor) alınamaz.");
+    }
+
+    [Fact]
+    public async Task Handle_WhenSignalRFails_StillSucceedsAndPersistsStatus()
+    {
+        var user = new User { FirstName = "Zeynep", LastName = "Kaya", Email = "zeynep@nexora.com", PasswordHash = "hash" };
+        _context.Users.Add(user);
+
+        var order = new Order
+        {
+            OrderNumber = "NX-TEST-005",
+            UserId = user.Id,
+            ShippingAddress = "Adres",
+            TotalAmount = 2500,
+            Status = OrderStatus.Processing
+        };
+        _context.Orders.Add(order);
+        await _context.SaveChangesAsync();
+
+        _notificationServiceMock
+            .Setup(n => n.PublishToUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SignalR connection timeout"));
+
+        var command = new UpdateOrderStatusCommand(order.Id, OrderStatus.Shipped, "TRK777", "MNG Kargo");
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.Shipped);
     }
 }
