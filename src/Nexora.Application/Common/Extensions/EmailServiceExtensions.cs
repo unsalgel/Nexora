@@ -12,16 +12,13 @@ public static class EmailServiceExtensions
         string errorMessage,
         params object?[] logArgs)
     {
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                await sendAction(emailService);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, errorMessage, logArgs);
-            }
-        });
+            _ = sendAction(emailService);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, errorMessage, logArgs);
+        }
     }
 }

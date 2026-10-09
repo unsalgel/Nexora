@@ -120,7 +120,7 @@ public sealed class GetSalesAnalyticsQueryHandlerTests : IDisposable
         result.Data.Should().NotBeNull();
         result.Data!.TotalOrdersAllTime.Should().Be(3); // Toplam sipariş (iptal dahil kayıt sayısı)
         result.Data.TotalRevenueAllTime.Should().Be(3000m); // 2000 + 1000 (iptal hariç)
-        result.Data.AverageOrderValue.Should().Be(1000m); // 3000 / 3
+        result.Data.AverageOrderValue.Should().Be(1500m); // 3000 / 2 (iptal edilmemis 2 siparis)
         result.Data.DailySales.Should().HaveCount(7);
         result.Data.CategorySales.Should().HaveCount(2);
 

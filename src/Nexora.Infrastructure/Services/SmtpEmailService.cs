@@ -55,7 +55,8 @@ public sealed class SmtpEmailService : IEmailService
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex, "E-posta gönderimi sırasında bir hata oluştu.");
+      _logger.LogError(ex, "E-posta gönderimi sırasında bir hata oluştu: {Message}", ex.Message);
+      throw;
     }
   }
 

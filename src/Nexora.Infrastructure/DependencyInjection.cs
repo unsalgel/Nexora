@@ -27,7 +27,8 @@ public static class DependencyInjection
             }
         });
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
-        services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddScoped<SmtpEmailService>();
+        services.AddScoped<IEmailService, HangfireEmailService>();
 
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();

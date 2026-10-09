@@ -22,6 +22,11 @@ public static class DatabaseSeeder
         var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
+        if (context.Database.IsRelational())
+        {
+            await context.Database.MigrateAsync();
+        }
+
         var adminRoleId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         // 1. Admin Kullanıcısı Güvenliği (Canlı ortamda varsayılan şifreli tohumlama engellenir)
@@ -29,9 +34,9 @@ public static class DatabaseSeeder
                             configuration.GetValue<bool>("ADMIN_SEED_ENABLED") ||
                             string.Equals(Environment.GetEnvironmentVariable("ADMIN_SEED_ENABLED"), "true", StringComparison.OrdinalIgnoreCase);
 
-        var adminEmail = configuration["ADMIN_SEED_EMAIL"]
+        var adminEmail = (configuration["ADMIN_SEED_EMAIL"]
                          ?? Environment.GetEnvironmentVariable("ADMIN_SEED_EMAIL")
-                         ?? "admin@nexora.com";
+                         ?? "admin@nexora.com").Trim().ToLowerInvariant();
 
         var adminPassword = configuration["ADMIN_SEED_PASSWORD"]
                             ?? Environment.GetEnvironmentVariable("ADMIN_SEED_PASSWORD");
