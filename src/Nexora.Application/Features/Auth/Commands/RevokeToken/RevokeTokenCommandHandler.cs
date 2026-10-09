@@ -21,7 +21,13 @@ public sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenComma
     {
         if (!string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            var refreshToken = await _context.RefreshTokens
+            var query = _context.RefreshTokens.AsQueryable();
+            if (request.UserId.HasValue && request.UserId.Value != Guid.Empty)
+            {
+                query = query.Where(rt => rt.UserId == request.UserId.Value);
+            }
+
+            var refreshToken = await query
                 .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, cancellationToken);
 
             if (refreshToken is not null && !refreshToken.IsRevoked)

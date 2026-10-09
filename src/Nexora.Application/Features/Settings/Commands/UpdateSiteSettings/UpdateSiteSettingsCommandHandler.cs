@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
@@ -46,8 +47,8 @@ public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSit
         Upsert("SiteTitle", request.SiteTitle, "Site Başlığı");
         Upsert("ContactEmail", request.ContactEmail, "İletişim E-postası");
         Upsert("ContactPhone", request.ContactPhone, "İletişim Telefonu");
-        Upsert("FreeShippingThreshold", request.FreeShippingThreshold.ToString("G"), "Ücretsiz Kargo Alt Limiti");
-        Upsert("ShippingCost", request.ShippingCost.ToString("G"), "Sabit Kargo Tutarı");
+        Upsert("FreeShippingThreshold", request.FreeShippingThreshold.ToString(CultureInfo.InvariantCulture), "Ücretsiz Kargo Alt Limiti");
+        Upsert("ShippingCost", request.ShippingCost.ToString(CultureInfo.InvariantCulture), "Sabit Kargo Tutarı");
         Upsert("AnnouncementText", request.AnnouncementText, "Üst Duyuru Metni");
         Upsert("IsAnnouncementActive", request.IsAnnouncementActive.ToString().ToLower(), "Duyuru Aktif mi");
 

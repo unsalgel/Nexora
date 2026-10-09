@@ -20,9 +20,9 @@ const defaultSettings: SiteSettings = {
   siteTitle: 'Nexora - Alışverişin Yeni Adresi',
   contactEmail: 'destek@nexora.com',
   contactPhone: '0850 123 45 67',
-  freeShippingThreshold: 150,
+  freeShippingThreshold: 500,
   shippingCost: 29.90,
-  announcementText: '150 TL ve Üzeri Alışverişlerde Kargo Ücretsiz!',
+  announcementText: '500 TL ve Üzeri Alışverişlerde Kargo Ücretsiz!',
   isAnnouncementActive: true
 };
 

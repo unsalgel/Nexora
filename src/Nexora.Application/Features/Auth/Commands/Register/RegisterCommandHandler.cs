@@ -34,7 +34,7 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         var existingUser = await _context.Users
-            .AnyAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
+            .AnyAsync(u => u.Email == normalizedEmail, cancellationToken);
 
         if (existingUser)
             throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
@@ -59,7 +59,14 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         });
 
         _context.Users.Add(user);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
+        }
 
         var verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var emailVerification = new EmailVerificationCode

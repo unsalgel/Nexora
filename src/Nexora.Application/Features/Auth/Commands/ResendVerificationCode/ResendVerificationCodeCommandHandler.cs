@@ -30,7 +30,7 @@ public sealed class ResendVerificationCodeCommandHandler : IRequestHandler<Resen
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
 
         if (user is null)
         {

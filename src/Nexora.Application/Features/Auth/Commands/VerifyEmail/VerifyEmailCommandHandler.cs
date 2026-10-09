@@ -33,7 +33,7 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken)
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken)
             ?? throw new BusinessValidationException("Geçersiz e-posta adresi veya doğrulama kodu.");
 
         if (user.IsEmailConfirmed)

@@ -19,6 +19,9 @@ public sealed class OrderCleanupJob(
 
         var staleOrders = await dbContext.Orders
             .Include(o => o.Items)
+                .ThenInclude(i => i.Product)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.ProductVariant)
             .Where(o => o.Status == OrderStatus.Pending &&
                         o.PaymentStatus == PaymentStatus.Pending &&
                         o.CreatedAtUtc <= cutoffTime)
@@ -37,27 +40,15 @@ public sealed class OrderCleanupJob(
 
             foreach (var item in order.Items)
             {
-                if (item.ProductVariantId.HasValue)
+                if (item.ProductVariant is not null)
                 {
-                    var variant = await dbContext.ProductVariants
-                        .FirstOrDefaultAsync(v => v.Id == item.ProductVariantId.Value, cancellationToken);
-
-                    if (variant != null)
-                    {
-                        variant.StockQuantity += item.Quantity;
-                        variant.UpdatedAtUtc = DateTime.UtcNow;
-                    }
+                    item.ProductVariant.StockQuantity += item.Quantity;
+                    item.ProductVariant.UpdatedAtUtc = DateTime.UtcNow;
                 }
-                else
+                else if (item.Product is not null)
                 {
-                    var product = await dbContext.Products
-                        .FirstOrDefaultAsync(p => p.Id == item.ProductId, cancellationToken);
-
-                    if (product != null)
-                    {
-                        product.StockQuantity += item.Quantity;
-                        product.UpdatedAtUtc = DateTime.UtcNow;
-                    }
+                    item.Product.StockQuantity += item.Quantity;
+                    item.Product.UpdatedAtUtc = DateTime.UtcNow;
                 }
             }
 

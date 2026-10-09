@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -187,8 +188,8 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         var settings = await _context.Settings
             .AsNoTracking()
             .ToDictionaryAsync(s => s.Key, s => s.Value, cancellationToken);
-        var freeShippingThreshold = decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold", "500"), out var fst) ? fst : 500m;
-        var shippingCost = decimal.TryParse(settings.GetValueOrDefault("ShippingCost", "29.90"), out var sc) ? sc : 29.90m;
+        var freeShippingThreshold = decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold", "500"), NumberStyles.Any, CultureInfo.InvariantCulture, out var fst) ? fst : 500m;
+        var shippingCost = decimal.TryParse(settings.GetValueOrDefault("ShippingCost", "29.90"), NumberStyles.Any, CultureInfo.InvariantCulture, out var sc) ? sc : 29.90m;
         var isFreeShipping = rawTotal >= freeShippingThreshold || rawTotal == 0;
         var shippingFee = isFreeShipping ? 0m : shippingCost;
 
