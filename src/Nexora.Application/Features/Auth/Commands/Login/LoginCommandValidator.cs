@@ -11,6 +11,7 @@ public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
             .EmailAddress().WithMessage("Lütfen geçerli bir e-posta adresi giriniz.");
 
         RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Şifre alanı boş bırakılamaz.");
+            .NotEmpty().WithMessage("Şifre alanı boş bırakılamaz.")
+            .MaximumLength(72).WithMessage("Şifre en fazla 72 karakter olabilir.");
     }
 }

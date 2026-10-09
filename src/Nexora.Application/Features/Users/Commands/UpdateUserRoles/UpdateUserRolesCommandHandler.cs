@@ -58,6 +58,15 @@ public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRo
             });
         }
 
+        var activeRefreshTokens = await _context.RefreshTokens
+            .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in activeRefreshTokens)
+        {
+            token.IsRevoked = true;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
         await _tokenBlacklistService.RevokeUserAsync(user.Id, cancellationToken);
 
