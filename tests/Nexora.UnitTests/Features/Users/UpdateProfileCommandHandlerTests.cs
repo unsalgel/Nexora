@@ -113,5 +113,9 @@ public sealed class UpdateProfileCommandHandlerTests : IDisposable
         updatedInDb.LastName.Should().Be("YeniSoyad");
         updatedInDb.Email.Should().Be("yeni@nexora.com");
         updatedInDb.IsEmailConfirmed.Should().BeFalse();
+
+        var verificationCode = await _context.EmailVerificationCodes.FirstOrDefaultAsync(c => c.UserId == user.Id);
+        verificationCode.Should().NotBeNull();
+        verificationCode!.IsUsed.Should().BeFalse();
     }
 }

@@ -16,6 +16,10 @@ public sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPassw
 
         RuleFor(x => x.NewPassword)
             .NotEmpty().WithMessage("Yeni şifre boş bırakılamaz.")
-            .MinimumLength(6).WithMessage("Yeni şifre en az 6 karakter olmalıdır.");
+            .MinimumLength(8).WithMessage("Yeni şifre en az 8 karakter olmalıdır.")
+            .MaximumLength(72).WithMessage("Yeni şifre en fazla 72 karakter olabilir.")
+            .Matches("[A-Z]").WithMessage("Yeni şifre en az 1 büyük harf içermelidir.")
+            .Matches("[a-z]").WithMessage("Yeni şifre en az 1 küçük harf içermelidir.")
+            .Matches("[0-9]").WithMessage("Yeni şifre en az 1 rakam içermelidir.");
     }
 }

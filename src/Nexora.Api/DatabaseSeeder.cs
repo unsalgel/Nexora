@@ -55,6 +55,7 @@ public static class DatabaseSeeder
                     FirstName = "Sistem",
                     LastName = "Yöneticisi",
                     IsActive = true,
+                    IsEmailConfirmed = true,
                     CreatedAtUtc = DateTime.UtcNow
                 };
 

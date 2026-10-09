@@ -60,13 +60,21 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         {
             timer.Stop();
 
-            _logger.LogError(ex, "İşlem Sırasında Hata Oluştu: {RequestName} ({ElapsedMilliseconds}ms)",
-                requestName, timer.ElapsedMilliseconds);
-
-            await _dbLogger.LogErrorAsync(
-                source: requestName,
-                ex: ex,
-                cancellationToken: cancellationToken);
+            if (ex is OperationCanceledException)
+            {
+                _logger.LogInformation("İstek iptal edildi: {RequestName} ({ElapsedMilliseconds}ms)",
+                    requestName, timer.ElapsedMilliseconds);
+            }
+            else if (ex is FluentValidation.ValidationException || ex is Domain.Exceptions.DomainException)
+            {
+                _logger.LogWarning("İş kuralı / doğrulama uyarısı: {RequestName} ({ElapsedMilliseconds}ms) - {Message}",
+                    requestName, timer.ElapsedMilliseconds, ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "İşlem sırasında beklenmeyen hata oluştu: {RequestName} ({ElapsedMilliseconds}ms)",
+                    requestName, timer.ElapsedMilliseconds);
+            }
 
             throw;
         }

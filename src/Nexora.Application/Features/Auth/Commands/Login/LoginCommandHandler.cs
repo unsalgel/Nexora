@@ -14,17 +14,20 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
     private readonly ILoginAttemptService _loginAttemptService;
+    private readonly ITokenBlacklistService _tokenBlacklistService;
 
     public LoginCommandHandler(
         IApplicationDbContext context,
         IPasswordHasher passwordHasher,
         IJwtProvider jwtProvider,
-        ILoginAttemptService loginAttemptService)
+        ILoginAttemptService loginAttemptService,
+        ITokenBlacklistService tokenBlacklistService)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
         _loginAttemptService = loginAttemptService;
+        _tokenBlacklistService = tokenBlacklistService;
     }
 
     private const string DummyPasswordHash = "$2a$11$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
@@ -58,6 +61,8 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
 
         if (!user.IsEmailConfirmed)
             throw new UnauthorizedException("Giriş yapabilmek için lütfen önce e-posta adresinizi doğrulayın.");
+
+        await _tokenBlacklistService.UnrevokeUserAsync(user.Id, cancellationToken);
 
         var failedAttemptsList = await _loginAttemptService.ResetAndGetAttemptsAsync(request.Email, cancellationToken) 
             ?? new List<FailedLoginAttemptDto>();

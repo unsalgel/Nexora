@@ -25,30 +25,43 @@ public sealed class GlobalExceptionHandlerMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("İstemci bağlantısı veya istek iptal edildi.");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Bir hata oluştu: {Message}", ex.Message);
+            var isBusinessOrClientException = ex is ValidationException || ex is DomainException;
 
-            var userEmail = context.User?.FindFirst(ClaimTypes.Email)?.Value 
-                ?? context.User?.FindFirst("email")?.Value 
-                ?? "Anonim";
-
-            var endpoint = $"{context.Request.Method} {context.Request.Path}";
-            var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Bilinmiyor";
-
-            try
+            if (isBusinessOrClientException)
             {
-                await dbLogger.LogErrorAsync(
-                    source: "GlobalExceptionHandler",
-                    ex: ex,
-                    endpoint: endpoint,
-                    userEmail: userEmail,
-                    clientIp: clientIp,
-                    cancellationToken: context.RequestAborted);
+                _logger.LogWarning("İş kuralı veya doğrulama hatası: {Type} - {Message}", ex.GetType().Name, ex.Message);
             }
-            catch (Exception dbEx)
+            else
             {
-                _logger.LogWarning(dbEx, "Hata detayları veritabanına kaydedilemedi.");
+                _logger.LogError(ex, "Sunucu tarafında beklenmeyen bir hata oluştu: {Message}", ex.Message);
+
+                var userEmail = context.User?.FindFirst(ClaimTypes.Email)?.Value 
+                    ?? context.User?.FindFirst("email")?.Value 
+                    ?? "Anonim";
+
+                var endpoint = $"{context.Request.Method} {context.Request.Path}";
+                var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Bilinmiyor";
+
+                try
+                {
+                    await dbLogger.LogErrorAsync(
+                        source: "GlobalExceptionHandler",
+                        ex: ex,
+                        endpoint: endpoint,
+                        userEmail: userEmail,
+                        clientIp: clientIp,
+                        cancellationToken: context.RequestAborted);
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogWarning(dbEx, "Hata detayları veritabanına kaydedilemedi.");
+                }
             }
 
             await HandleExceptionAsync(context, ex);
