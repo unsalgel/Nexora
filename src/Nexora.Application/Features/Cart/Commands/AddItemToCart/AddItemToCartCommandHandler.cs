@@ -31,7 +31,6 @@ public sealed class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartC
                 ?? throw new NotFoundException("Seçilen ürün varyantı bulunamadı.");
         }
 
-        // Stok Kontrolü
         var availableStock = variant?.StockQuantity ?? product.StockQuantity;
 
         var cart = await _context.Carts

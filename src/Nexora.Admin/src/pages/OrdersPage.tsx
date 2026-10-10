@@ -32,7 +32,6 @@ export const OrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderDto | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   
-  // Kargo güncelleme formu için yerel state'ler
   const [carrierInput, setCarrierInput] = useState('Yurtiçi Kargo');
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
   const [isShippingOpen, setIsShippingOpen] = useState(false);
@@ -498,7 +497,7 @@ export const OrdersPage: React.FC = () => {
                     disabled={updateStatusMutation.isPending || !trackingNumberInput.trim()}
                     onClick={() => updateStatusMutation.mutate({
                       orderId: selectedOrder.id,
-                      newStatus: 4, // Shipped
+                      newStatus: 4,
                       carrier: carrierInput,
                       trackingNumber: trackingNumberInput.trim()
                     })}

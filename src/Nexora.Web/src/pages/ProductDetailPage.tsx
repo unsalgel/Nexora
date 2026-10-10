@@ -149,7 +149,6 @@ const ProductDetailContent: React.FC = () => {
 
   const product = productData?.data;
 
-  // Son Gezilenler geçmişine kaydet (Trendyol / Hepsiburada mantığı)
   React.useEffect(() => {
     if (product) {
       try {
@@ -168,9 +167,7 @@ const ProductDetailContent: React.FC = () => {
           ...filtered
         ].slice(0, 8);
         localStorage.setItem('nexora_recent_views', JSON.stringify(updated));
-      } catch {
-        // Safe fail
-      }
+      } catch {}
     }
   }, [product]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -181,7 +178,6 @@ const ProductDetailContent: React.FC = () => {
   const variants = useMemo(() => (product?.variants || []).filter(variant => variant.isActive), [product?.variants]);
   const selectedVariant = variants.find(v => v.id === selectedVariantId) || null;
 
-  // Otomatik ilk aktif varyantı seçme
   useEffect(() => {
     if (variants.length > 0 && (!selectedVariantId || !variants.some(variant => variant.id === selectedVariantId))) {
       const firstAvailable = variants.find(v => v.stockQuantity > 0) || variants[0];
