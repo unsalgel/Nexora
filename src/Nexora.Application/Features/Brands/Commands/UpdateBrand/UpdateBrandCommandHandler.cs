@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Exceptions;
@@ -9,10 +10,17 @@ namespace Nexora.Application.Features.Brands.Commands.UpdateBrand;
 public sealed class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandCommand, Result<string>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService? _notificationService;
+    private readonly ILogger<UpdateBrandCommandHandler>? _logger;
 
-    public UpdateBrandCommandHandler(IApplicationDbContext context)
+    public UpdateBrandCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService? notificationService = null,
+        ILogger<UpdateBrandCommandHandler>? logger = null)
     {
         _context = context;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(UpdateBrandCommand request, CancellationToken cancellationToken)
@@ -34,6 +42,17 @@ public sealed class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandComma
 
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        if (_notificationService is not null)
+        {
+            await _notificationService.PublishToAllSafelyAsync("BrandStatusChanged", new
+            {
+                id = brand.Id,
+                name = brand.Name,
+                logoUrl = brand.LogoUrl,
+                isActive = brand.IsActive
+            }, _logger, cancellationToken);
+        }
 
         return Result<string>.Success("Marka başarıyla güncellendi.");
     }

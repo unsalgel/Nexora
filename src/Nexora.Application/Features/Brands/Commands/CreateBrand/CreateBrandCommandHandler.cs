@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
@@ -10,10 +11,17 @@ namespace Nexora.Application.Features.Brands.Commands.CreateBrand;
 public sealed class CreateBrandCommandHandler : IRequestHandler<CreateBrandCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService? _notificationService;
+    private readonly ILogger<CreateBrandCommandHandler>? _logger;
 
-    public CreateBrandCommandHandler(IApplicationDbContext context)
+    public CreateBrandCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService? notificationService = null,
+        ILogger<CreateBrandCommandHandler>? logger = null)
     {
         _context = context;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<Guid>> Handle(CreateBrandCommand request, CancellationToken cancellationToken)
@@ -36,6 +44,17 @@ public sealed class CreateBrandCommandHandler : IRequestHandler<CreateBrandComma
         _context.Brands.Add(brand);
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        if (_notificationService is not null)
+        {
+            await _notificationService.PublishToAllSafelyAsync("BrandStatusChanged", new
+            {
+                id = brand.Id,
+                name = brand.Name,
+                logoUrl = brand.LogoUrl,
+                isActive = brand.IsActive
+            }, _logger, cancellationToken);
+        }
 
         return Result<Guid>.Success(brand.Id, "Marka başarıyla oluşturuldu.");
     }

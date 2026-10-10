@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Exceptions;
@@ -9,10 +10,17 @@ namespace Nexora.Application.Features.Brands.Commands.DeleteBrand;
 public sealed class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandCommand, Result<string>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IRealTimeNotificationService? _notificationService;
+    private readonly ILogger<DeleteBrandCommandHandler>? _logger;
 
-    public DeleteBrandCommandHandler(IApplicationDbContext context)
+    public DeleteBrandCommandHandler(
+        IApplicationDbContext context,
+        IRealTimeNotificationService? notificationService = null,
+        ILogger<DeleteBrandCommandHandler>? logger = null)
     {
         _context = context;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(DeleteBrandCommand request, CancellationToken cancellationToken)
@@ -23,6 +31,17 @@ public sealed class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandComma
 
         brand.IsDeleted = true;
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_notificationService is not null)
+        {
+            await _notificationService.PublishToAllSafelyAsync("BrandStatusChanged", new
+            {
+                id = brand.Id,
+                name = brand.Name,
+                logoUrl = brand.LogoUrl,
+                isActive = false
+            }, _logger, cancellationToken);
+        }
 
         return Result<string>.Success("Marka başarıyla silindi.");
     }

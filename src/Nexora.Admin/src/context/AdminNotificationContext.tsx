@@ -5,7 +5,6 @@ import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/si
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, AlertTriangle, X, ShoppingBag } from 'lucide-react';
 import { ENV } from '../lib/env';
-import type { CategoryStatusChangedPayload } from '../types/category';
 
 interface AdminNotification {
   id: string;
@@ -121,16 +120,16 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
     });
 
-    connection.on('CategoryStatusChanged', (payload: CategoryStatusChangedPayload) => {
+    connection.on('CategoryStatusChanged', () => {
       if (isCancelled) return;
-
-      addNotification(
-        'info',
-        'Kategori Durumu Güncellendi',
-        `"${payload.name}" kategorisi ${payload.isActive ? 'aktif' : 'pasif'} duruma getirildi.`
-      );
-
       for (const key of ['admin-categories-list', 'admin-categories-dropdown', 'admin-dashboard-categories', 'admin-products', 'admin-dashboard-products']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    });
+
+    connection.on('BrandStatusChanged', () => {
+      if (isCancelled) return;
+      for (const key of ['admin-brands-list', 'admin-brands-dropdown', 'admin-dashboard-brands', 'admin-products', 'admin-dashboard-products']) {
         void queryClient.invalidateQueries({ queryKey: [key] });
       }
     });
@@ -145,6 +144,7 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       connection.off('ReceiveNewOrder');
       connection.off('LowStockAlert');
       connection.off('CategoryStatusChanged');
+      connection.off('BrandStatusChanged');
       stop();
     };
   }, [addNotification, queryClient, token]);
