@@ -2,8 +2,6 @@
 
 Nexora, canlı sistemlerdeki doğruluk ve güvenlik pratiklerini öğrenmek için geliştirilen MIT lisanslı bir e-ticaret hobi projesidir. API, müşteri vitrini ve yönetim paneli aynı depoda bulunur. Ödeme servisi mock'tur; gerçek tahsilat veya canlıya çıkış iddiası yoktur.
 
-[Kalite iş akışı](https://github.com/unsalgel/Nexora/actions/workflows/security-scan.yml) · [Code review](docs/reviews/Nexora-Code-Review-2026-10-10.html) · [Operasyon notları](docs/operations.md) · [Lisanslar](THIRD-PARTY-NOTICES.md)
-
 ## Mimari ve kapsam
 
 - `Nexora.Domain`: entity'ler ve iş kuralı tipleri.
@@ -75,8 +73,8 @@ dotnet test Nexora.sln -c Release --collect:"XPlat Code Coverage"
 
 Frontend başına `npm run lint`, `npm run build`, `npm audit --audit-level=high` çalıştırın. CI bunları, backend testlerini, PostgreSQL/Redis entegrasyon kontrollerini, container başlangıç smoke kontrolünü, NuGet audit, Gitleaks, dependency review ve CodeQL'i çalıştıracak şekilde tanımlıdır. Bir workflow tanımı branch protection'ın etkin olduğunu veya uzaktaki son koşunun geçtiğini kanıtlamaz.
 
-Test sayısı ve coverage oranı sabit belgelenmez; güncel TRX/coverage artifact'ini esas alın. InMemory birim testleri gerçek PostgreSQL constraint, SQL ve transaction davranışını doğrulamaz. Gerçek altyapı testlerini yerel olarak çalıştırmak için `NEXORA_TEST_POSTGRES` / `NEXORA_TEST_REDIS` ayarlarını ve [operasyon notlarını](docs/operations.md) kullanın. Bu ayarlarda ayrılmış test DB'si kullanılır.
+Test sayısı ve coverage oranı sabit belgelenmez; güncel TRX/coverage artifact'ini esas alın. InMemory birim testleri gerçek PostgreSQL constraint, SQL ve transaction davranışını doğrulamaz. Gerçek altyapı testlerini yerel olarak çalıştırmak için `NEXORA_TEST_POSTGRES` / `NEXORA_TEST_REDIS` ayarlarını kullanın. Bu ayarlarda ayrılmış test DB'si kullanılır.
 
 ## Üretim hedefi
 
-TLS/reverse proxy, doğru origin/proxy listesi, secret store, paylaşılan kalıcı key/storage, ayrı migration hesabı, restore/rollback ve yük ölçümleri ayrı doğrulama gerektirir. Bunlar bu hobi projesinin otomatik olarak production-ready olduğu anlamına gelmez. .NET 10 geçişinde build/test/audit ve container kontrolünün tekrar geçmesi gerekir. [Güvenlik politikası](SECURITY.md) ve [operasyon runbook'u](docs/operations.md) bakım/kurtarma adımlarını içerir.
+TLS/reverse proxy, doğru origin/proxy listesi, secret store, paylaşılan kalıcı key/storage, ayrı migration hesabı, restore/rollback ve yük ölçümleri ayrı doğrulama gerektirir. Bunlar bu hobi projesinin otomatik olarak production-ready olduğu anlamına gelmez. .NET 10 geçişinde build/test/audit ve container kontrolünün tekrar geçmesi gerekir. [Güvenlik politikası](SECURITY.md) bakım adımlarını içerir.
