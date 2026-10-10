@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
@@ -11,19 +12,23 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
 {
     private readonly IApplicationDbContext _context;
     private readonly IRealTimeNotificationService? _notificationService;
+    private readonly ILogger<CreateCategoryCommandHandler>? _logger;
 
     public CreateCategoryCommandHandler(
         IApplicationDbContext context,
-        IRealTimeNotificationService? notificationService = null)
+        IRealTimeNotificationService? notificationService = null,
+        ILogger<CreateCategoryCommandHandler>? logger = null)
     {
         _context = context;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<Guid>> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("category-tree", cancellationToken);
         var nameExists = await _context.Categories
-            .AnyAsync(c => c.Name == request.Name && !c.IsDeleted, cancellationToken);
+            .AnyAsync(c => c.Name == request.Name, cancellationToken);
 
         if (nameExists)
             throw new ConflictException("Bu isimde bir kategori zaten mevcut.");
@@ -48,17 +53,18 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         if (_notificationService is not null)
         {
-            await _notificationService.PublishToAllAsync("CategoryStatusChanged", new
+            await _notificationService.PublishToAllSafelyAsync("CategoryStatusChanged", new
             {
                 id = category.Id,
                 name = category.Name,
                 description = category.Description,
                 parentCategoryId = category.ParentCategoryId,
                 isActive = category.IsActive
-            }, cancellationToken);
+            }, _logger, cancellationToken);
         }
 
         return Result<Guid>.Success(category.Id, "Kategori başarıyla oluşturuldu.");

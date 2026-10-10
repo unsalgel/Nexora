@@ -18,6 +18,7 @@ public sealed class AddProductImageCommandHandler : IRequestHandler<AddProductIm
 
     public async Task<Result<Guid>> Handle(AddProductImageCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
         var product = await _context.Products
             .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken)
@@ -41,6 +42,7 @@ public sealed class AddProductImageCommandHandler : IRequestHandler<AddProductIm
 
         _context.ProductImages.Add(productImage);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<Guid>.Success(productImage.Id, "Ürün görseli başarıyla eklendi.");
     }

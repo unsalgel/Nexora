@@ -9,6 +9,11 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
     public void Configure(EntityTypeBuilder<ProductVariant> builder)
     {
         builder.ToTable("ProductVariants");
+        builder.ToTable("ProductVariants", t =>
+        {
+            t.HasCheckConstraint("CK_ProductVariants_Stock", "\"StockQuantity\" >= 0");
+            t.HasCheckConstraint("CK_ProductVariants_Price", "\"Price\" > 0");
+        });
 
         builder.HasKey(pv => pv.Id);
 
@@ -38,7 +43,7 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
             .HasForeignKey(pv => pv.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Property<uint>("xmin")
+        builder.Property(p => p.Version).HasColumnName("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();

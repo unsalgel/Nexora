@@ -29,6 +29,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.PasswordHash)
             .IsRequired();
+        builder.Property(u => u.SecurityStamp).IsConcurrencyToken();
+        builder.Property(u => u.PendingEmail).HasMaxLength(100);
 
         builder.Property(u => u.IsActive)
             .HasDefaultValue(true);

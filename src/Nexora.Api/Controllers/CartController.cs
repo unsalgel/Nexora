@@ -7,6 +7,7 @@ using Nexora.Application.Features.Cart.Commands.RemoveItemFromCart;
 using Nexora.Application.Features.Cart.Commands.UpdateCartItemQuantity;
 using Nexora.Application.Features.Cart.Dtos;
 using Nexora.Application.Features.Cart.Queries.GetUserCart;
+using Nexora.Application.Features.Cart.Queries.GetCartQuote;
 
 namespace Nexora.Api.Controllers;
 
@@ -30,6 +31,12 @@ public sealed class CartController : ApiControllerBase
         var safeCommand = command with { UserId = GetCurrentUserId() };
         var result = await Sender.Send(safeCommand, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    [HttpPost("quote")]
+    public async Task<ActionResult<Result<CartQuoteDto>>> GetQuote(GetCartQuoteQuery query, CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(query with { UserId = GetCurrentUserId() }, cancellationToken));
     }
 
     [HttpPut("items/{cartItemId:guid}")]

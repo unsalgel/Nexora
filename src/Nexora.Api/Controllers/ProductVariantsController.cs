@@ -18,7 +18,7 @@ public sealed class ProductVariantsController : ApiControllerBase
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetProductVariantsByProductIdQuery(productId), cancellationToken);
+        var result = await Sender.Send(new GetProductVariantsByProductIdQuery(productId, IsAdmin), cancellationToken);
         return Ok(result);
     }
 

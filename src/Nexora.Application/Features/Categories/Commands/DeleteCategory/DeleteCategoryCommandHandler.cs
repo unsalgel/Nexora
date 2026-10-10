@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Exceptions;
@@ -10,17 +11,21 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
 {
     private readonly IApplicationDbContext _context;
     private readonly IRealTimeNotificationService? _notificationService;
+    private readonly ILogger<DeleteCategoryCommandHandler>? _logger;
 
     public DeleteCategoryCommandHandler(
         IApplicationDbContext context,
-        IRealTimeNotificationService? notificationService = null)
+        IRealTimeNotificationService? notificationService = null,
+        ILogger<DeleteCategoryCommandHandler>? logger = null)
     {
         _context = context;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<string>> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("category-tree", cancellationToken);
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => c.Id == request.Id && !c.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Silinecek kategori bulunamadı.");
@@ -33,17 +38,18 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
 
         category.IsDeleted = true;
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         if (_notificationService is not null)
         {
-            await _notificationService.PublishToAllAsync("CategoryStatusChanged", new
+            await _notificationService.PublishToAllSafelyAsync("CategoryStatusChanged", new
             {
                 id = category.Id,
                 name = category.Name,
                 description = category.Description,
                 parentCategoryId = category.ParentCategoryId,
                 isActive = false
-            }, cancellationToken);
+            }, _logger, cancellationToken);
         }
 
         return Result<string>.Success("Kategori başarıyla silindi.");

@@ -5,4 +5,5 @@ public sealed record UserProfileDto(
     string FirstName,
     string LastName,
     string Email,
-    bool IsEmailConfirmed);
+    bool IsEmailConfirmed,
+    string? PendingEmail = null);

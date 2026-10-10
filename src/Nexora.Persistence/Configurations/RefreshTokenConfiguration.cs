@@ -24,6 +24,8 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
 
         builder.Property(rt => rt.IsRevoked)
             .HasDefaultValue(false);
+        builder.Property(rt => rt.IsRevoked).IsConcurrencyToken();
+        builder.HasIndex(rt => new { rt.UserId, rt.SessionId });
 
         builder.HasOne(rt => rt.User)
             .WithMany(u => u.RefreshTokens)

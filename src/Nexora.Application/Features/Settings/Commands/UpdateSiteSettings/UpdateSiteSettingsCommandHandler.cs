@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Settings.Dtos;
@@ -12,17 +13,21 @@ public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSit
 {
     private readonly IApplicationDbContext _context;
     private readonly IRealTimeNotificationService _notificationService;
+    private readonly ILogger<UpdateSiteSettingsCommandHandler>? _logger;
 
     public UpdateSiteSettingsCommandHandler(
         IApplicationDbContext context,
-        IRealTimeNotificationService notificationService)
+        IRealTimeNotificationService notificationService,
+        ILogger<UpdateSiteSettingsCommandHandler>? logger = null)
     {
         _context = context;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<Result<SiteSettingsDto>> Handle(UpdateSiteSettingsCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("site-settings", cancellationToken);
         var existingSettings = await _context.Settings.ToListAsync(cancellationToken);
         var settingsDict = existingSettings.ToDictionary(s => s.Key);
 
@@ -53,6 +58,7 @@ public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSit
         Upsert("IsAnnouncementActive", request.IsAnnouncementActive.ToString().ToLower(), "Duyuru Aktif mi");
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = new SiteSettingsDto(
             request.SiteTitle,
@@ -64,7 +70,7 @@ public sealed class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSit
             request.IsAnnouncementActive
         );
 
-        await _notificationService.PublishToAllAsync("SiteSettingsUpdated", dto, cancellationToken);
+        await _notificationService.PublishToAllSafelyAsync("SiteSettingsUpdated", dto, _logger, cancellationToken);
 
         return Result<SiteSettingsDto>.Success(dto, "Site ayarları başarıyla güncellendi.");
     }

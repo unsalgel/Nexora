@@ -1,5 +1,7 @@
+import { useCartQuote } from '../hooks/useCartQuote';
+import { getQuotedCartItems } from '../lib/cartQuote';
 import { SafeImage } from '../components/common/SafeImage';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useSettings } from '../context/SettingsContext';
@@ -19,7 +21,7 @@ interface OrderDto {
 }
 
 export const CheckoutPage: React.FC = () => {
-  const { cart, clearCart, refreshCart } = useCart();
+  const { cart, refreshCart, isMutating } = useCart();
   const { settings } = useSettings();
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +29,7 @@ export const CheckoutPage: React.FC = () => {
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
+  const quoteQuery = useCartQuote(appliedCoupon?.couponCode);
 
   // Kayıtlı Adresler
   const [savedAddresses, setSavedAddresses] = useState<AddressDto[]>([]);
@@ -76,6 +79,7 @@ export const CheckoutPage: React.FC = () => {
           setIsNewAddressFormOpen(true);
         }
       } catch {
+        setErrorMessage('Kayıtlı adresler yüklenemedi. Adresinizi elle girebilir veya sayfayı yenileyebilirsiniz.');
         setIsNewAddressFormOpen(true);
       }
     };
@@ -137,6 +141,7 @@ export const CheckoutPage: React.FC = () => {
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    if (isMutating || !quoteQuery.data || quoteQuery.isFetching || quoteQuery.isError) { setErrorMessage('Lütfen güncel sepet tutarının hesaplanmasını bekleyin.'); return; }
     setIsLoading(true);
 
     const cleanCardNumber = card.number.replace(/\s+/g, '');
@@ -180,6 +185,7 @@ export const CheckoutPage: React.FC = () => {
 
       const response = await apiClient.post<ApiResponse<OrderDto>>('/orders', {
         shippingAddress: fullShippingAddress,
+        expectedTotalAmount: quoteQuery.data.totalAmount,
         couponCode: appliedCoupon?.couponCode || null,
         paymentInfo: {
           cardHolderName: card.holder.trim(),
@@ -212,13 +218,13 @@ export const CheckoutPage: React.FC = () => {
           }
         }
 
-        await clearCart();
         await refreshCart();
       } else {
         setErrorMessage(response.data?.message || 'Ödeme ve sipariş işlemi başarısız.');
       }
     } catch (err: unknown) {
       const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+      if (error.response?.status === 409) await refreshCart();
       const apiErrors = error.response?.data?.errors;
       if (apiErrors && apiErrors.length > 0) {
         setErrorMessage(apiErrors[0]);
@@ -231,12 +237,12 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const cardBrand = getCardBrand(card.number);
-  const cartItems = cart?.items || [];
-  const cartGrandTotal = cart?.grandTotal || 0;
-  const isFreeShipping = cartGrandTotal >= settings.freeShippingThreshold || cartGrandTotal === 0;
-  const shippingFee = isFreeShipping ? 0 : settings.shippingCost;
-  const discountAmount = appliedCoupon ? appliedCoupon.calculatedDiscountAmount : 0;
-  const payableTotal = Math.max(0, cartGrandTotal + shippingFee - discountAmount);
+  const cartItems = useMemo(() => getQuotedCartItems(cart?.items || [], quoteQuery.data), [cart?.items, quoteQuery.data]);
+  const subtotal = quoteQuery.data?.subtotal ?? cart?.grandTotal ?? 0;
+  const isFreeShipping = subtotal >= settings.freeShippingThreshold || subtotal === 0;
+  const shippingFee = quoteQuery.data?.shippingFee ?? (isFreeShipping ? 0 : settings.shippingCost);
+  const discountAmount = quoteQuery.data?.discountAmount ?? 0;
+  const payableTotal = quoteQuery.data?.totalAmount ?? 0;
 
   if (createdOrderNumber) {
     return (
@@ -397,8 +403,8 @@ export const CheckoutPage: React.FC = () => {
                 <div className="space-y-4 pt-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Adres Başlığı (Örn: Evim, İşyeri, Yazlık)</label>
-                      <input
+                      <label htmlFor="checkoutpage-field-1" className="text-xs font-bold text-slate-700 block mb-1.5">Adres Başlığı (Örn: Evim, İşyeri, Yazlık)</label>
+                      <input id="checkoutpage-field-1"
                         type="text"
                         maxLength={50}
                         placeholder="Örn: Evim"
@@ -409,8 +415,8 @@ export const CheckoutPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Ad Soyad *</label>
-                      <input
+                      <label htmlFor="checkoutpage-field-2" className="text-xs font-bold text-slate-700 block mb-1.5">Ad Soyad *</label>
+                      <input id="checkoutpage-field-2"
                         type="text"
                         required
                         maxLength={100}
@@ -422,8 +428,8 @@ export const CheckoutPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Telefon Numarası *</label>
-                      <input
+                      <label htmlFor="checkoutpage-field-3" className="text-xs font-bold text-slate-700 block mb-1.5">Telefon Numarası *</label>
+                      <input id="checkoutpage-field-3"
                         type="tel"
                         required
                         maxLength={11}
@@ -462,8 +468,8 @@ export const CheckoutPage: React.FC = () => {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Açık Adres (Cadde, Mahalle, Sokak, No, Daire) *</label>
-                      <textarea
+                      <label htmlFor="checkoutpage-field-4" className="text-xs font-bold text-slate-700 block mb-1.5">Açık Adres (Cadde, Mahalle, Sokak, No, Daire) *</label>
+                      <textarea id="checkoutpage-field-4"
                         rows={3}
                         required
                         maxLength={500}
@@ -579,9 +585,10 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                {quoteQuery.isError && <p role="alert" className="text-xs text-rose-600">Sepet tutarı hesaplanamadı. Kuponu/sepeti kontrol edin. <button type="button" onClick={() => quoteQuery.refetch()}>Tekrar dene</button></p>}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Kart Üzerindeki İsim</label>
-                  <input
+                  <label htmlFor="checkoutpage-field-5" className="text-xs font-bold text-slate-700 block mb-1">Kart Üzerindeki İsim</label>
+                  <input id="checkoutpage-field-5"
                     type="text"
                     required
                     maxLength={100}
@@ -594,8 +601,8 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Kart Numarası</label>
-                  <input
+                  <label htmlFor="checkoutpage-field-6" className="text-xs font-bold text-slate-700 block mb-1">Kart Numarası</label>
+                  <input id="checkoutpage-field-6"
                     type="text"
                     required
                     maxLength={19}
@@ -609,8 +616,8 @@ export const CheckoutPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Son Kullanma Tarihi</label>
-                    <input
+                    <label htmlFor="checkoutpage-field-7" className="text-xs font-bold text-slate-700 block mb-1">Son Kullanma Tarihi</label>
+                    <input id="checkoutpage-field-7"
                       type="text"
                       required
                       maxLength={5}
@@ -622,8 +629,8 @@ export const CheckoutPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Güvenlik Kodu (CVV)</label>
-                    <input
+                    <label htmlFor="checkoutpage-field-8" className="text-xs font-bold text-slate-700 block mb-1">Güvenlik Kodu (CVV)</label>
+                    <input id="checkoutpage-field-8"
                       type="password"
                       required
                       maxLength={4}
@@ -639,11 +646,11 @@ export const CheckoutPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || isMutating || quoteQuery.isFetching || !quoteQuery.data || quoteQuery.isError}
                   className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
                 >
                   <Lock className="w-4 h-4" />
-                  <span>{isLoading ? 'Ödeme Doğrulanıyor...' : `${payableTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL Güvenli Öde`}</span>
+                  <span>{quoteQuery.isFetching ? 'Tutar hesaplanıyor...' : isLoading ? 'Ödeme Doğrulanıyor...' : `${payableTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL Güvenli Öde`}</span>
                 </button>
               </form>
             </div>
@@ -682,7 +689,7 @@ export const CheckoutPage: React.FC = () => {
             <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
               <div className="flex justify-between text-slate-500 font-medium">
                 <span>Ara Toplam</span>
-                <span>{cartGrandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                <span>{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
               </div>
               <div className="flex justify-between text-slate-500 font-medium">
                 <span>Kargo</span>

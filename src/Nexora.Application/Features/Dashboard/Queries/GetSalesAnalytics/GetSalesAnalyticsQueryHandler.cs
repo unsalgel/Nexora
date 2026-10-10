@@ -59,18 +59,11 @@ public sealed class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnal
     {
         var startDate = DateTime.UtcNow.Date.AddDays(-days + 1);
 
-        var rawOrders = await ordersQuery
+        var groupedByDate = await ordersQuery
             .Where(o => o.CreatedAtUtc >= startDate && o.Status != OrderStatus.Cancelled)
-            .Select(o => new
-            {
-                Date = o.CreatedAtUtc.Date,
-                o.TotalAmount
-            })
-            .ToListAsync(cancellationToken);
-
-        var groupedByDate = rawOrders
-            .GroupBy(o => o.Date)
-            .ToDictionary(g => g.Key, g => new { Total = g.Sum(x => x.TotalAmount), Count = g.Count() });
+            .GroupBy(o => o.CreatedAtUtc.Date)
+            .Select(g => new { Date = g.Key, Total = g.Sum(o => o.TotalAmount), Count = g.Count() })
+            .ToDictionaryAsync(g => g.Date, g => new { g.Total, g.Count }, cancellationToken);
 
         var result = new List<DailySalesPointDto>(days);
 

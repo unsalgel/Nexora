@@ -15,7 +15,6 @@ public sealed class LoginCommandHandlerTests : IDisposable
     private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly Mock<IJwtProvider> _jwtProviderMock;
     private readonly Mock<ILoginAttemptService> _loginAttemptServiceMock;
-    private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly LoginCommandHandler _handler;
 
     public LoginCommandHandlerTests()
@@ -24,14 +23,13 @@ public sealed class LoginCommandHandlerTests : IDisposable
         _passwordHasherMock = new Mock<IPasswordHasher>();
         _jwtProviderMock = new Mock<IJwtProvider>();
         _loginAttemptServiceMock = new Mock<ILoginAttemptService>();
-        _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
 
         _handler = new LoginCommandHandler(
             _context,
             _passwordHasherMock.Object,
             _jwtProviderMock.Object,
             _loginAttemptServiceMock.Object,
-            _tokenBlacklistServiceMock.Object);
+            TestSecurity.Protector);
     }
 
     public void Dispose()
@@ -62,7 +60,7 @@ public sealed class LoginCommandHandlerTests : IDisposable
         await _context.SaveChangesAsync();
 
         _passwordHasherMock.Setup(x => x.Verify("Password123!", "hashed_pw")).Returns(true);
-        _jwtProviderMock.Setup(x => x.GenerateAccessToken(It.IsAny<User>(), It.IsAny<IList<string>>())).Returns("access_token_123");
+        _jwtProviderMock.Setup(x => x.GenerateAccessToken(It.IsAny<User>(), It.IsAny<IList<string>>(), It.IsAny<Guid>())).Returns("access_token_123");
         _jwtProviderMock.Setup(x => x.GenerateRefreshToken()).Returns("refresh_token_456");
 
         var command = new LoginCommand("test@nexora.com", "Password123!");
@@ -73,7 +71,6 @@ public sealed class LoginCommandHandlerTests : IDisposable
         result.Data.Should().NotBeNull();
         result.Data!.AccessToken.Should().Be("access_token_123");
         result.Data.RefreshToken.Should().Be("refresh_token_456");
-        _tokenBlacklistServiceMock.Verify(x => x.UnrevokeUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Nexora.Domain.Entities;
@@ -15,6 +16,12 @@ public static class VariantSeeder
     {
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<NexoraDbContext>();
+        var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        if (!environment.IsDevelopment() && !configuration.GetValue<bool>("DemoSeedEnabled"))
+        {
+            return;
+        }
 
         // Zaten varyant eklenmişse çık
         if (await context.ProductVariants.AnyAsync()) return;

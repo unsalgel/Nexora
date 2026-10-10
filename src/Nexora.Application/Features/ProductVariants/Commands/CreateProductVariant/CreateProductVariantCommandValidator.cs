@@ -14,6 +14,7 @@ public sealed class CreateProductVariantCommandValidator : AbstractValidator<Cre
             .MaximumLength(50).WithMessage("Varyant SKU kodu en fazla 50 karakter olabilir.");
 
         RuleFor(x => x.Price)
+            .PrecisionScale(18, 2, true).WithMessage("Fiyat en fazla iki ondalık basamaklı olmalıdır.")
             .GreaterThan(0).WithMessage("Varyant fiyatı 0'dan büyük olmalıdır.");
 
         RuleFor(x => x.StockQuantity)

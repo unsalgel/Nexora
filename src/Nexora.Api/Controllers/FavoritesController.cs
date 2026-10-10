@@ -5,6 +5,7 @@ using Nexora.Application.Features.Favorites.Commands.AddFavorite;
 using Nexora.Application.Features.Favorites.Commands.RemoveFavorite;
 using Nexora.Application.Features.Favorites.Dtos;
 using Nexora.Application.Features.Favorites.Queries.GetUserFavorites;
+using Nexora.Application.Features.Favorites.Queries.GetFavoriteIds;
 
 namespace Nexora.Api.Controllers;
 
@@ -32,6 +33,12 @@ public sealed class FavoritesController : ApiControllerBase
         var command = new AddFavoriteCommand(userId, productId);
         var result = await Sender.Send(command, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    [HttpGet("ids")]
+    public async Task<ActionResult<Result<List<Guid>>>> GetFavoriteIds(CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(new GetFavoriteIdsQuery(GetCurrentUserId()), cancellationToken));
     }
 
     [HttpDelete("{productId:guid}")]

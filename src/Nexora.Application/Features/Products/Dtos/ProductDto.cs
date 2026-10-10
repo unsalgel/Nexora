@@ -13,4 +13,5 @@ public sealed record ProductDto(
     string BrandName,
     bool IsActive,
     List<ProductImageDto> Images,
-    List<ProductVariantDto>? Variants = null);
+    List<ProductVariantDto>? Variants = null,
+    uint Version = 0);

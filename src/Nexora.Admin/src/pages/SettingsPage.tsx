@@ -136,8 +136,8 @@ export const SettingsPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">Site Başlığı</label>
-                <input
+                <label htmlFor="settingspage-field-1" className="text-xs font-bold text-slate-700 block">Site Başlığı</label>
+                <input id="settingspage-field-1"
                   type="text"
                   required
                   value={formData.siteTitle}
@@ -148,11 +148,11 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
+                <label htmlFor="settingspage-field-2" className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-slate-400" />
                   Destek E-postası
                 </label>
-                <input
+                <input id="settingspage-field-2"
                   type="email"
                   required
                   value={formData.contactEmail}
@@ -163,11 +163,11 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
+                <label htmlFor="settingspage-field-3" className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-slate-400" />
                   İletişim Telefonu
                 </label>
-                <input
+                <input id="settingspage-field-3"
                   type="text"
                   required
                   value={formData.contactPhone}
@@ -187,8 +187,8 @@ export const SettingsPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">Ücretsiz Kargo Alt Limiti (TL)</label>
-                <input
+                <label htmlFor="settingspage-field-4" className="text-xs font-bold text-slate-700 block">Ücretsiz Kargo Alt Limiti (TL)</label>
+                <input id="settingspage-field-4"
                   type="number"
                   step="any"
                   min="0"
@@ -200,8 +200,8 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">Sabit Kargo Ücreti (TL)</label>
-                <input
+                <label htmlFor="settingspage-field-5" className="text-xs font-bold text-slate-700 block">Sabit Kargo Ücreti (TL)</label>
+                <input id="settingspage-field-5"
                   type="number"
                   step="any"
                   min="0"
@@ -230,8 +230,8 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">Duyuru Metni</label>
-              <input
+              <label htmlFor="settingspage-field-6" className="text-xs font-bold text-slate-700 block">Duyuru Metni</label>
+              <input id="settingspage-field-6"
                 type="text"
                 required
                 value={formData.announcementText}

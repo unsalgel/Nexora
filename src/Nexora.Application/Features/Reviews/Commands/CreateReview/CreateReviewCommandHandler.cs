@@ -19,6 +19,7 @@ public sealed class CreateReviewCommandHandler : IRequestHandler<CreateReviewCom
 
     public async Task<Result<Guid>> Handle(CreateReviewCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"review:{request.ProductId}", cancellationToken);
         var productExists = await _context.Products
             .AnyAsync(p => p.Id == request.ProductId && p.IsActive && !p.IsDeleted, cancellationToken);
 
@@ -54,6 +55,7 @@ public sealed class CreateReviewCommandHandler : IRequestHandler<CreateReviewCom
 
         _context.Reviews.Add(review);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<Guid>.Success(review.Id, "Yorumunuz başarıyla eklendi.");
     }

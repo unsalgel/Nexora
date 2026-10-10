@@ -1,0 +1,53 @@
+# Yalnızca izole test verisi: mevcut geliştirme veritabanı/volümleri kullanılmaz.
+services:
+  api:
+    profiles: ["smoke"]
+    image: nexora-review-api:local
+    build:
+      context: .
+      dockerfile: src/Nexora.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=nexora_tests;Username=nexora_test;Password=local-test-only"
+      ConnectionStrings__Redis: "redis:6379,abortConnect=false"
+      JWT_SECRET_KEY: "nexora-isolated-smoke-key-2026-32-bytes-minimum"
+      ADMIN_SEED_ENABLED: "true"
+      ADMIN_SEED_EMAIL: "smoke-admin@nexora.local"
+      ADMIN_SEED_PASSWORD: "SmokeTestOnly123*"
+      Database__AutoMigrate: "true"
+      DemoSeedEnabled: "false"
+      DataProtection__KeysPath: /app/data/keys
+      Frontend__BaseUrl: http://localhost:5173
+    ports:
+      - "127.0.0.1:18085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexora_test
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: nexora_tests
+    ports:
+      - "127.0.0.1:17432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexora_test -d nexora_tests"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:16379:6379"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

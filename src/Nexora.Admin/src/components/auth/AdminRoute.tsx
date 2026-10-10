@@ -1,20 +1,20 @@
-﻿import React from 'react';
+import { useAccessToken, clearSession } from '../../lib/session';
+import React, { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { decodeAdminJwt } from '../../lib/jwt';
 
 export const AdminRoute: React.FC = () => {
-  const token = localStorage.getItem('adminAccessToken');
+  const token = useAccessToken();
 
+  const claims = token ? decodeAdminJwt(token) : null;
+  const isAdmin = !!claims?.roles.includes('Admin');
+  useEffect(() => { if (token && !isAdmin) clearSession(); }, [token, isAdmin]);
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  const claims = decodeAdminJwt(token);
-  const isAdmin = claims?.roles.includes('Admin');
 
   if (!isAdmin) {
-    localStorage.removeItem('adminAccessToken');
-    localStorage.removeItem('adminRefreshToken');
     return <Navigate to="/login" replace />;
   }
 

@@ -1,4 +1,3 @@
-using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -31,6 +30,7 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
 
     public async Task<Result<string>> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"order:{request.OrderId}", cancellationToken);
         var order = await _context.Orders
             .Include(o => o.User)
             .Include(o => o.Items)
@@ -51,7 +51,7 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
             throw new ConflictException("Hazırlanmakta olan veya kargoya verilmiş siparişler iptal edilemez. Lütfen müşteri hizmetleri ile iletişime geçiniz.");
         }
 
-        order.Status = OrderStatus.Cancelled;
+        order.ChangeStatus(OrderStatus.Cancelled);
 
         // Stokları iade et
         foreach (var item in order.Items)
@@ -76,42 +76,40 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
         };
 
         _context.Notifications.Add(notification);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // SignalR anlık bildirimi ilet
-        await _notificationService.PublishToUserAsync(
-            order.UserId,
-            "OrderStatusChanged",
-            new
-            {
-                notificationId = notification.Id,
-                orderId = order.Id,
-                orderNumber = order.OrderNumber,
-                title = notification.Title,
-                message = notification.Message,
-                type = "Order",
-                newStatus = OrderStatus.Cancelled.ToString(),
-                newStatusText = "İptal Edildi",
-                createdAtUtc = notification.CreatedAtUtc
-            },
-            cancellationToken);
-
-        // E-Posta bildirimi
         if (order.User is not null && !string.IsNullOrWhiteSpace(order.User.Email))
         {
             var customerName = $"{order.User.FirstName} {order.User.LastName}".Trim();
-            _emailService.SendInBackground(
-                svc => svc.SendOrderStatusChangedEmailAsync(
-                    order.User.Email,
-                    customerName,
-                    order.OrderNumber,
-                    "İptal Edildi",
-                    null,
-                    null,
-                    CancellationToken.None),
-                _logger,
-                "Sipariş iptal e-postası gönderilemedi. OrderId: {OrderId}",
-                order.Id);
+            await _emailService.SendOrderStatusChangedEmailAsync(order.User.Email, customerName, order.OrderNumber,
+                "İptal Edildi", null, null, cancellationToken);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        try
+        {
+            // SignalR anlık bildirimi ilet
+            await _notificationService.PublishToUserAsync(
+                order.UserId,
+                "OrderStatusChanged",
+                new
+                {
+                    notificationId = notification.Id,
+                    orderId = order.Id,
+                    orderNumber = order.OrderNumber,
+                    title = notification.Title,
+                    message = notification.Message,
+                    type = "Order",
+                    newStatus = OrderStatus.Cancelled.ToString(),
+                    newStatusText = "İptal Edildi",
+                    createdAtUtc = notification.CreatedAtUtc
+                },
+                cancellationToken);
+
+            }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sipariş iptal anlık bildirimi iletilemedi. OrderId: {OrderId}", order.Id);
         }
 
         return Result<string>.Success("Siparişiniz başarıyla iptal edildi.");

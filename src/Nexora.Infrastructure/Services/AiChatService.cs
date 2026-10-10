@@ -83,7 +83,7 @@ public sealed class AiChatService : IAiChatService
                     requestMessage.Headers.Add("x-goog-api-key", _apiKey);
                 }
 
-                var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -109,6 +109,7 @@ public sealed class AiChatService : IAiChatService
                     break;
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex) when (attempt < maxAttempts)
             {
                 _logger.LogWarning(ex, "Gemini API bağlantı hatası. Yeniden deneniyor... Deneme: {Attempt}/{MaxAttempts}", attempt, maxAttempts);

@@ -9,6 +9,11 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
     public void Configure(EntityTypeBuilder<Coupon> builder)
     {
         builder.ToTable("Coupons");
+        builder.ToTable("Coupons", t =>
+        {
+            t.HasCheckConstraint("CK_Coupons_Discount", "\"DiscountValue\" > 0 AND \"MinimumOrderAmount\" >= 0 AND (\"MaximumDiscountAmount\" IS NULL OR \"MaximumDiscountAmount\" >= 0) AND (\"DiscountType\" = 'FixedAmount' OR (\"DiscountType\" = 'Percentage' AND \"DiscountValue\" <= 100))");
+            t.HasCheckConstraint("CK_Coupons_Usage", "\"TotalUsageLimit\" > 0 AND \"CurrentUsageCount\" >= 0 AND \"CurrentUsageCount\" <= \"TotalUsageLimit\"");
+        });
 
         builder.HasKey(c => c.Id);
 

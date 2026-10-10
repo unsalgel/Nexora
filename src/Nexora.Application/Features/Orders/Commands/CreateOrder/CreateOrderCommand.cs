@@ -8,4 +8,5 @@ public sealed record CreateOrderCommand(
     Guid UserId,
     string ShippingAddress,
     PaymentRequestDto PaymentInfo,
-    string? CouponCode = null) : IRequest<Result<OrderDto>>;
+    string? CouponCode = null,
+    decimal? ExpectedTotalAmount = null) : IRequest<Result<OrderDto>>;

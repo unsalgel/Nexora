@@ -1,3 +1,4 @@
+import { Pagination } from '../components/ui/Pagination';
 import { SafeImage } from '../components/common/SafeImage';
 import { EmptyState } from '../components/common/EmptyState';
 import { ProductGridSkeleton } from '../components/common/ProductCardSkeleton';
@@ -9,15 +10,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Filter, 
-  ChevronDown, 
+  ChevronDown,
+  ChevronRight,
   Star, 
   Heart, 
   ShoppingBag, 
   Search, 
   SlidersHorizontal, 
-  X, 
-  ChevronLeft,
-  ChevronRight
+  X,
 } from 'lucide-react';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -37,6 +37,8 @@ interface BrandDto {
 }
 
 interface ProductListDto {
+  averageRating: number;
+  reviewCount: number;
   id: string;
   name: string;
   sku: string;
@@ -98,12 +100,15 @@ export const ProductsPage: React.FC = () => {
   });
 
   const { data: productsData, isLoading, isError, error } = useQuery<ApiResponse<PagedResponse<ProductListDto>>>({
-    queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy],
+    queryKey: ['products', page, selectedCategoryId, selectedBrandId, searchTerm, sortBy, appliedMinPrice, appliedMaxPrice],
     queryFn: async () => {
       const params: Record<string, string | number | boolean | undefined> = {
         page,
         pageSize: PRODUCTS_PER_PAGE,
         isActive: true,
+        sortBy,
+        minPrice: appliedMinPrice || undefined,
+        maxPrice: appliedMaxPrice || undefined,
       };
       if (selectedCategoryId !== 'all') params.categoryId = selectedCategoryId;
       if (selectedBrandId !== 'all') params.brandId = selectedBrandId;
@@ -119,26 +124,12 @@ export const ProductsPage: React.FC = () => {
   const pagedProducts = productsData?.data;
   const products = pagedProducts?.items || [];
 
-  const filteredProducts = React.useMemo(() => {
-    let result = [...products];
-    if (appliedMinPrice !== '') {
-      result = result.filter(p => p.price >= parseFloat(appliedMinPrice));
-    }
-    if (appliedMaxPrice !== '') {
-      result = result.filter(p => p.price <= parseFloat(appliedMaxPrice));
-    }
-    
-    if (sortBy === 'price-asc') {
-      result.sort((a, b) => a.price - b.price);
-    } else if (sortBy === 'price-desc') {
-      result.sort((a, b) => b.price - a.price);
-    }
-    return result;
-  }, [products, appliedMinPrice, appliedMaxPrice, sortBy]);
+  const filteredProducts = products;
 
   const handleApplyPrice = () => {
     setAppliedMinPrice(minPrice);
     setAppliedMaxPrice(maxPrice);
+    setPage(1);
   };
 
   const handleResetFilters = () => {
@@ -190,7 +181,7 @@ export const ProductsPage: React.FC = () => {
               <Filter className="w-5 h-5 text-orange-500" />
               <span>Filtrele</span>
             </h3>
-            <button onClick={() => setIsMobileFilterOpen(false)} className="p-2 text-slate-500">
+            <button aria-label="Kapat" onClick={() => setIsMobileFilterOpen(false)} className="p-2 text-slate-500">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -232,7 +223,7 @@ export const ProductsPage: React.FC = () => {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Katalogda ara..."
+                  aria-label="Katalogda ürün ara" placeholder="Katalogda ara..."
                   value={searchInputValue}
                   onChange={(e) => setSearchInputValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -243,7 +234,7 @@ export const ProductsPage: React.FC = () => {
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                 />
-                <button 
+                <button aria-label="Ara"
                   onClick={() => { setSearchTerm(searchInputValue); setPage(1); }}
                   className="absolute right-2.5 top-2.5 text-slate-400 hover:text-orange-500"
                 >
@@ -259,14 +250,14 @@ export const ProductsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  placeholder="Min"
+                  aria-label="En düşük fiyat" min="0" placeholder="Min"
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
                 />
                 <input
                   type="number"
-                  placeholder="Max"
+                  aria-label="En yüksek fiyat" min="0" placeholder="Max"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
@@ -288,7 +279,7 @@ export const ProductsPage: React.FC = () => {
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Marka ara..."
+                  aria-label="Marka ara" placeholder="Marka ara..."
                   value={brandSearch}
                   onChange={(e) => setBrandSearch(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
@@ -349,7 +340,7 @@ export const ProductsPage: React.FC = () => {
               <div className="relative">
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Ürün sıralaması" onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 pr-8 text-xs font-bold text-slate-700 appearance-none focus:outline-none focus:border-orange-500 cursor-pointer"
                 >
                   <option value="featured">Akıllı Sıralama (Önerilen)</option>
@@ -386,7 +377,7 @@ export const ProductsPage: React.FC = () => {
                   to={`/products/${product.id}`}
                   className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden card-shadow flex flex-col justify-between relative group"
                 >
-                  <button
+                  <button aria-label="Favorilere Ekle"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -394,7 +385,7 @@ export const ProductsPage: React.FC = () => {
                         id: product.id, 
                         title: product.name, 
                         price: product.price, 
-                        oldPrice: product.price * 1.25, 
+                        oldPrice: 0,
                         image: resolveImageUrl(product.mainImageUrl)
                       });
                     }}
@@ -423,22 +414,19 @@ export const ProductsPage: React.FC = () => {
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <div className="flex items-center text-amber-400">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span className="font-semibold text-slate-800 ml-1 text-xs">4.8</span>
+                        <span className="font-semibold text-slate-800 ml-1 text-xs">{product.averageRating.toFixed(1)}</span>
                       </div>
-                      <span>(120)</span>
+                      <span>({product.reviewCount})</span>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <div>
-                        <span className="text-[11px] text-slate-400 line-through block">
-                          {(product.price * 1.25).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-                        </span>
                         <span className="text-base font-bold text-slate-900">
                           {product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} <span className="text-xs font-bold">TL</span>
                         </span>
                       </div>
 
-                      <button
+                      <button aria-label="Sepete Ekle"
                         onClick={(e) => handleAddToCart(product.id, e)}
                         className={`p-2 rounded-xl transition-all active:scale-95 shadow-sm ${
                           addedCartItems[product.id]
@@ -457,38 +445,7 @@ export const ProductsPage: React.FC = () => {
           )}
         </QueryBoundary>
 
-          {pagedProducts && pagedProducts.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-6">
-              <button 
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                disabled={!pagedProducts.hasPreviousPage}
-                className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              {Array.from({ length: pagedProducts.totalPages }).map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setPage(idx + 1)}
-                  className={`w-9 h-9 font-bold text-xs rounded-xl ${
-                    page === idx + 1 
-                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' 
-                      : 'border border-slate-200 hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
-              <button 
-                onClick={() => setPage(prev => Math.min(prev + 1, pagedProducts.totalPages))}
-                disabled={!pagedProducts.hasNextPage}
-                className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 disabled:opacity-40"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
+          <Pagination page={page} totalPages={pagedProducts?.totalPages || 0} onPageChange={setPage} isLoading={isLoading} />
         </main>
       </div>
     </div>

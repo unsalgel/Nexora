@@ -24,7 +24,7 @@ public sealed class ResendVerificationCodeCommandHandlerTests : IDisposable
         _emailServiceMock = new Mock<IEmailService>();
         _loggerMock = new Mock<ILogger<ResendVerificationCodeCommandHandler>>();
 
-        _handler = new ResendVerificationCodeCommandHandler(_context, _emailServiceMock.Object, _loggerMock.Object);
+        _handler = new ResendVerificationCodeCommandHandler(_context, _emailServiceMock.Object, TestSecurity.Protector);
     }
 
     public void Dispose()
@@ -62,7 +62,7 @@ public sealed class ResendVerificationCodeCommandHandlerTests : IDisposable
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Data.Should().Contain("zaten doğrulanmış");
+        result.Data.Should().Be(ResendVerificationCodeCommandHandler.GenericResponse);
     }
 
     [Fact]
@@ -81,13 +81,16 @@ public sealed class ResendVerificationCodeCommandHandlerTests : IDisposable
         var existingCode = new EmailVerificationCode
         {
             UserId = user.Id,
-            Code = "111111",
+            Code = "old-digest",
+            TargetEmail = user.Email,
             ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
             IsUsed = false
         };
         _context.EmailVerificationCodes.Add(existingCode);
         await _context.SaveChangesAsync();
 
+        existingCode.CreatedAtUtc = DateTime.UtcNow.AddMinutes(-2);
+        await _context.SaveChangesAsync();
         var command = new ResendVerificationCodeCommand("can@nexora.com");
 
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -102,6 +105,6 @@ public sealed class ResendVerificationCodeCommandHandlerTests : IDisposable
             .ToListAsync();
 
         newCodes.Should().HaveCount(1);
-        newCodes[0].Code.Should().HaveLength(6);
+        newCodes[0].Code.Should().HaveLength(64);
     }
 }

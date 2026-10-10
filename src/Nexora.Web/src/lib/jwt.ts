@@ -1,4 +1,4 @@
-﻿export interface UserClaims {
+export interface UserClaims {
   id: string;
   email: string;
   firstName: string;
@@ -54,7 +54,7 @@ export function decodeJwt(token: string): UserClaims | null {
     const roles = Array.isArray(rolesClaim) ? rolesClaim : [rolesClaim];
 
     return { id, email, firstName, lastName, roles };
-  } catch (e) {
+  } catch {
     return null;
   }
 }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Users.Dtos;
+using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Users.Queries.GetProfile;
 
@@ -25,7 +26,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Re
 
         if (user is null)
         {
-            return Result<UserProfileDto>.Failure("Kullanıcı bulunamadı.");
+            throw new NotFoundException("Kullanıcı bulunamadı.");
         }
 
         var dto = new UserProfileDto(
@@ -33,7 +34,8 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Re
             user.FirstName,
             user.LastName,
             user.Email,
-            user.IsEmailConfirmed);
+            user.IsEmailConfirmed,
+            user.PendingEmail);
 
         return Result<UserProfileDto>.Success(dto);
     }

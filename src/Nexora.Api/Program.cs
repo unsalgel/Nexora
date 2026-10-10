@@ -105,37 +105,18 @@ builder.Services.AddAuthentication(options =>
     {
         OnTokenValidated = async context =>
         {
-            var blacklistService = context.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
-            var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (Guid.TryParse(userIdClaim, out var userId))
+            var validator = context.HttpContext.RequestServices.GetRequiredService<AuthenticationSessionValidator>();
+            try
             {
-                if (await blacklistService.IsUserRevokedAsync(userId, context.HttpContext.RequestAborted))
-                {
-                    context.Fail("Kullanıcı hesabı askıya alınmıştır veya dondurulmuştur.");
-                    return;
-                }
-
-                var dbContext = context.HttpContext.RequestServices.GetRequiredService<IApplicationDbContext>();
-                var isUserActive = await dbContext.Users
-                    .AsNoTracking()
-                    .Where(u => u.Id == userId)
-                    .Select(u => (bool?)u.IsActive)
-                    .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
-
-                if (isUserActive == false)
-                {
-                    await blacklistService.RevokeUserAsync(userId, context.HttpContext.RequestAborted);
-                    context.Fail("Kullanıcı hesabı askıya alınmıştır veya dondurulmuştur.");
-                    return;
-                }
+                if (!await validator.IsValidAsync(context.Principal, context.HttpContext.RequestAborted))
+                    context.Fail("Bu oturum sonlandırılmıştır. Lütfen yeniden giriş yapın.");
             }
-
-            var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
-
-            if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenRevokedAsync(jti, context.HttpContext.RequestAborted))
+            catch (OperationCanceledException) when (context.HttpContext.RequestAborted.IsCancellationRequested) { throw; }
+            catch (Exception ex)
             {
-                context.Fail("Bu oturum veya erişim anahtarı sonlandırılmıştır.");
+                context.HttpContext.RequestServices.GetRequiredService<ILogger<AuthenticationSessionValidator>>()
+                    .LogWarning(ex, "Oturum doğrulaması tamamlanamadı.");
+                context.Fail("Oturum doğrulanamadı.");
             }
         },
         OnMessageReceived = context =>
@@ -152,6 +133,9 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddSignalR();
+builder.Services.AddScoped<AuthenticationSessionValidator>();
+builder.Services.AddSingleton<HubConnectionRegistry>();
+builder.Services.AddHostedService<HubSessionMonitor>();
 builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
 
 builder.Services.AddControllers();
@@ -175,7 +159,8 @@ builder.Services.AddApiVersioning(options =>
 });
 
 builder.Services.AddHealthChecks()
-    .AddCheck<DatabaseHealthCheck>("database");
+    .AddCheck<DatabaseHealthCheck>("database")
+    .AddCheck<Nexora.Api.HealthChecks.RedisHealthCheck>("redis");
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -187,6 +172,10 @@ builder.Services.AddRateLimiter(options =>
             "Çok fazla başarısız veya ardışık istekte bulundunuz. Lütfen 1 dakika sonra tekrar deneyiniz.");
         await context.HttpContext.Response.WriteAsJsonAsync(response, cancellationToken: token);
     };
+
+    options.AddPolicy("AuthPolicy", httpContext => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon", _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
     options.AddPolicy("AiChatPolicy", httpContext =>
     {
@@ -204,9 +193,7 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
         var path = httpContext.Request.Path.Value ?? string.Empty;
-        if (path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("/coupons/validate", StringComparison.OrdinalIgnoreCase))
+        if (path.Contains("/coupons/validate", StringComparison.OrdinalIgnoreCase))
         {
             var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
             return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
@@ -259,18 +246,16 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
 
-if (app.Environment.IsDevelopment())
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.Loopback);
+forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+foreach (var address in builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>() ?? [])
 {
-    forwardedHeadersOptions.KnownNetworks.Clear();
-    forwardedHeadersOptions.KnownProxies.Clear();
-}
-else
-{
-    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("10.0.0.0"), 8));
-    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("172.16.0.0"), 12));
-    forwardedHeadersOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(System.Net.IPAddress.Parse("192.168.0.0"), 16));
-    forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.Loopback);
-    forwardedHeadersOptions.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+    if (!System.Net.IPAddress.TryParse(address, out var trustedProxy))
+        throw new InvalidOperationException("ReverseProxy:KnownProxies yalnız geçerli IP adresleri içermelidir.");
+    if (!forwardedHeadersOptions.KnownProxies.Contains(trustedProxy))
+        forwardedHeadersOptions.KnownProxies.Add(trustedProxy);
 }
 
 app.UseForwardedHeaders(forwardedHeadersOptions);
@@ -310,7 +295,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
-app.MapHub<AppHub>("/hubs/app");
+app.MapHub<AppHub>("/hubs/app", options => options.CloseOnAuthenticationExpiration = true);
 
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -337,6 +322,10 @@ try
             OperatingSystem.IsWindows() ? "Turkey Standard Time" : "Europe/Istanbul");
 
         var jobOptions = new RecurringJobOptions { TimeZone = turkeyTimeZone };
+
+        recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.EmailOutboxDispatchJob>("email-outbox-dispatch", job => job.DispatchAsync(CancellationToken.None), Cron.Minutely, jobOptions);
+        recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.FileCleanupJob>("file-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);
+        recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.AuthCleanupJob>("auth-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);
 
         recurringJobManager.AddOrUpdate<ICouponCleanupJob>(
             "coupon-cleanup-job",
