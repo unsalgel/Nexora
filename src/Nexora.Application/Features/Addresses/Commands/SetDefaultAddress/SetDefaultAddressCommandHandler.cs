@@ -17,6 +17,7 @@ public sealed class SetDefaultAddressCommandHandler : IRequestHandler<SetDefault
 
     public async Task<Result<string>> Handle(SetDefaultAddressCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"addresses:{request.UserId}", cancellationToken);
         var targetAddress = await _context.UserAddresses
             .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId && !a.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Adres bulunamadı.");
@@ -30,8 +31,10 @@ public sealed class SetDefaultAddressCommandHandler : IRequestHandler<SetDefault
             addr.IsDefault = false;
         }
 
+        await _context.SaveChangesAsync(cancellationToken);
         targetAddress.IsDefault = true;
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Varsayılan adres başarıyla güncellendi.");
     }

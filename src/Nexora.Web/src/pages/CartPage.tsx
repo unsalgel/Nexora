@@ -1,6 +1,8 @@
+import { useCartQuote } from '../hooks/useCartQuote';
+import { getQuotedCartItems } from '../lib/cartQuote';
 import { SafeImage } from '../components/common/SafeImage';
 import { EmptyState } from '../components/common/EmptyState';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Ticket, ShoppingBag, ArrowLeft, Check, X, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -13,20 +15,21 @@ import type { AxiosError } from 'axios';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, isLoading, updateQuantity, removeFromCart } = useCart();
+  const { cart, isLoading, isError, isMutating, refreshCart, updateQuantity, removeFromCart } = useCart();
   const { showToast } = useToast();
   const { settings } = useSettings();
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const quoteQuery = useCartQuote(appliedCoupon?.couponCode);
 
-  const cartItems = cart?.items || [];
-  const cartGrandTotal = cart?.grandTotal || 0;
-  const isFreeShipping = cartGrandTotal >= settings.freeShippingThreshold || cartGrandTotal === 0;
-  const shippingFee = isFreeShipping ? 0 : settings.shippingCost;
-  const discountAmount = appliedCoupon ? appliedCoupon.calculatedDiscountAmount : 0;
-  const payableTotal = Math.max(0, cartGrandTotal + shippingFee - discountAmount);
+  const cartItems = useMemo(() => getQuotedCartItems(cart?.items || [], quoteQuery.data), [cart?.items, quoteQuery.data]);
+  const subtotal = quoteQuery.data?.subtotal ?? cart?.grandTotal ?? 0;
+  const isFreeShipping = subtotal >= settings.freeShippingThreshold || subtotal === 0;
+  const shippingFee = quoteQuery.data?.shippingFee ?? (isFreeShipping ? 0 : settings.shippingCost);
+  const discountAmount = quoteQuery.data?.discountAmount ?? 0;
+  const payableTotal = quoteQuery.data?.totalAmount ?? 0;
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +42,7 @@ export const CartPage: React.FC = () => {
       setIsApplyingCoupon(true);
       const response = await apiClient.post<ApiResponse<CouponValidationResultDto>>('/coupons/validate', {
         code: couponCode.trim(),
-        cartTotalAmount: cartGrandTotal
+        cartTotalAmount: subtotal
       });
 
       if (response.data?.isSuccess && response.data.data) {
@@ -62,6 +65,7 @@ export const CartPage: React.FC = () => {
     showToast('Kupon sepetten kaldırıldı.', 'info');
   };
 
+  if (isError) return <p role="alert" className="p-8 text-rose-600">Sepet yüklenemedi. <button onClick={() => void refreshCart()}>Tekrar dene</button></p>;
   if (isLoading && !cart) {
     return (
       <div className="min-h-[60vh] flex justify-center items-center">
@@ -112,10 +116,10 @@ export const CartPage: React.FC = () => {
                   <Link to={`/products/${item.productId}`} className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug hover:text-orange-600 transition-colors block">
                     {item.productName}
                   </Link>
-                  <span className="text-[10px] text-emerald-600 font-bold block">Kargo Bedava</span>
+
 
                   <div className="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
-                    <button
+                    <button aria-label="Miktarı azalt"
                       type="button" 
                       onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity - 1); }}
                       className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm cursor-pointer"
@@ -123,7 +127,7 @@ export const CartPage: React.FC = () => {
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="w-8 text-center font-bold text-xs text-slate-900 tabular-nums">{item.quantity}</span>
-                    <button
+                    <button aria-label="Miktarı artır"
                       type="button" 
                       onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity + 1); }}
                       className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm cursor-pointer"
@@ -141,7 +145,7 @@ export const CartPage: React.FC = () => {
                   </span>
                 </div>
 
-                <button
+                <button aria-label="Ürünü Sil"
                   type="button" 
                   onClick={(e) => { e.preventDefault(); removeFromCart(item.id); }}
                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
@@ -175,12 +179,12 @@ export const CartPage: React.FC = () => {
                       <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Uygulandı</span>
                     </div>
                     <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                      -{appliedCoupon.calculatedDiscountAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL İndirim
+                      -{discountAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL İndirim
                     </p>
                   </div>
                 </div>
 
-                <button
+                <button aria-label="Kuponu Kaldır"
                   type="button"
                   onClick={handleRemoveCoupon}
                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
@@ -193,7 +197,7 @@ export const CartPage: React.FC = () => {
               <form onSubmit={handleApplyCoupon} className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Kupon Kodu (Örn: NEXORA100)"
+                  aria-label="İndirim kuponu kodu" placeholder="Kupon Kodu (Örn: NEXORA100)"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   disabled={isApplyingCoupon}
@@ -217,12 +221,12 @@ export const CartPage: React.FC = () => {
             <div className="space-y-2.5 text-xs text-slate-600 font-medium">
               <div className="flex justify-between">
                 <span>Ürünlerin Toplamı</span>
-                <span className="font-bold text-slate-900">{cartGrandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
+                <span className="font-bold text-slate-900">{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</span>
               </div>
               
               <div className="flex justify-between">
                 <span>Kargo Ücreti</span>
-                <span className="font-bold text-emerald-600">{shippingFee === 0 ? 'BEDAVA' : `${shippingFee} TL`}</span>
+                <span className="font-bold text-emerald-600">{shippingFee === 0 ? 'BEDAVA' : `${shippingFee.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL`}</span>
               </div>
 
               {discountAmount > 0 && (
@@ -243,7 +247,9 @@ export const CartPage: React.FC = () => {
               </div>
             </div>
 
+            {quoteQuery.isError && <p role="alert" className="text-xs text-rose-600">Sepet tutarı hesaplanamadı. <button type="button" onClick={() => quoteQuery.refetch()}>Tekrar dene</button></p>}
             <button
+              disabled={isMutating || quoteQuery.isFetching || !quoteQuery.data || quoteQuery.isError}
               onClick={() => {
                 if (appliedCoupon) {
                   sessionStorage.setItem('appliedCoupon', JSON.stringify(appliedCoupon));
@@ -254,13 +260,13 @@ export const CartPage: React.FC = () => {
               }}
               className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all active:scale-95 pt-3 cursor-pointer"
             >
-              <span>Sepeti Onayla ve Öde</span>
+              <span>{quoteQuery.isFetching ? 'Tutar hesaplanıyor...' : 'Sepeti Onayla ve Öde'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium pt-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Güvenli 256-Bit SSL Ödeme Altyapısı</span>
+              <span>Ödeme adımı simülasyondur</span>
             </div>
           </div>
 

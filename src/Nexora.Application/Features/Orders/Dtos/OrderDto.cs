@@ -11,6 +11,10 @@ public sealed record OrderDto(
     DateTime CreatedAtUtc,
     List<OrderItemDto> Items,
     string? TrackingNumber = null,
-    string? Carrier = null);
+    string? Carrier = null,
+    decimal? Subtotal = null,
+    decimal? DiscountAmount = null,
+    decimal? ShippingFee = null,
+    string? CouponCode = null);
 
 

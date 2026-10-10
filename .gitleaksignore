@@ -1,0 +1,2 @@
+# Gitleaks ignore list
+7a87bc817de3a08fba737b19a97a793f36d61093:docs/reviews/security-fixes.md:generic-api-key:24

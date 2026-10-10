@@ -65,18 +65,22 @@ interface ProductDto {
   isActive: boolean;
   images: ProductImageDto[];
   mainImageUrl?: string;
+  averageRating: number;
+  reviewCount: number;
 }
+
+const EMPTY_PRODUCTS: ProductDto[] = [];
 
 export const HomePage: React.FC = () => {
   const { toggleFavorite: toggleFavStore, isFavorite: checkIsFav } = useFavorites();
   const { addToCart } = useCart();
   const [addedCartItems, setAddedCartItems] = useState<{ [key: string]: boolean }>({});
 
-  const { data: productsData } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
+  const { data: productsData, isLoading, isError, refetch } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
     queryKey: ['home-products'],
     queryFn: async () => {
       const response = await apiClient.get<ApiResponse<PagedResponse<ProductDto>>>('/products', {
-        params: { page: 1, pageSize: 8 }
+        params: { page: 1, pageSize: 8, isActive: true }
       });
       return response.data;
     }
@@ -107,7 +111,7 @@ export const HomePage: React.FC = () => {
     }
   };
 
-  const featuredCategories = [
+  const categoryStyles = [
     { name: 'Süper Fırsatlar', icon: Zap, color: 'from-orange-500 to-amber-500', shadow: 'shadow-orange-500/20' },
     { name: 'Elektronik', icon: Laptop, color: 'from-blue-500 to-cyan-500', shadow: 'shadow-blue-500/20' },
     { name: 'Moda & Giyim', icon: Shirt, color: 'from-pink-500 to-rose-500', shadow: 'shadow-pink-500/20' },
@@ -118,75 +122,40 @@ export const HomePage: React.FC = () => {
     { name: 'Tüm Kategoriler', icon: LayoutGrid, color: 'from-slate-600 to-slate-800', shadow: 'shadow-slate-500/20' }
   ];
 
-  const dbProducts = productsData?.data?.items || [];
-
-  // 1. Gerçek Son Gezilenler (localStorage) - Yalnızca veritabanında hala aktif olanlar gösterilir
-  const [localRecentViews, setLocalRecentViews] = useState<RecentViewItem[]>([]);
-
-  React.useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('nexora_recent_views') || '[]');
-      if (Array.isArray(stored) && stored.length > 0) {
-        // Eğer veritabanı ürün listesi geldiyse, silinmiş/pasife alınmış olanları eliyoruz
-        if (dbProducts.length > 0) {
-          const activeIds = new Set(dbProducts.map(p => p.id));
-          const validViews = stored.filter((p: RecentViewItem) => activeIds.has(p.id));
-          
-          if (validViews.length !== stored.length) {
-            localStorage.setItem('nexora_recent_views', JSON.stringify(validViews));
-          }
-          setLocalRecentViews(validViews);
-        } else {
-          setLocalRecentViews(stored);
-        }
-      }
-    } catch {
-      // Safe fallback
-    }
-  }, [dbProducts]);
-
-  const recentlyViewed: HomeProductItem[] = localRecentViews.map((p, idx) => {
-    // Eğer localStorage'daki resim boş veya kırık ise db'deki orijinal üründen al
-    const matchedDb = dbProducts.find(dp => dp.id === p.id);
-    const rawImg = p.mainImageUrl || p.image || p.imageUrl || matchedDb?.mainImageUrl;
-    return {
-      id: p.id,
-      title: p.name || p.title || matchedDb?.name || 'Ürün',
-      price: p.price,
-      oldPrice: p.price * 1.15,
-      rating: 4.8,
-      reviews: 142 + idx * 8,
-      imageUrl: resolveImageUrl(rawImg),
-      badge: 'SON GEZDİĞİN',
-      coupon: 'Hızlı Teslimat'
-    };
+  const { data: categoryData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => (await apiClient.get<ApiResponse<{ id: string; name: string; isActive: boolean }[]>>('/categories')).data.data
   });
+  const featuredCategories = (categoryData || []).filter(category => category.isActive).slice(0, 7).map((category, index) => ({ ...categoryStyles[index], id: category.id, name: category.name }));
+  featuredCategories.push({ ...categoryStyles[7], id: '', name: 'Tüm Kategoriler' });
+  const dbProducts = productsData?.data?.items || EMPTY_PRODUCTS;
 
-  // 2. Çok Satanlar / Flaş Fırsatlar (Katalogdaki popüler ürünler)
-  const bestSellers: HomeProductItem[] = dbProducts.slice(0, 4).map((p, idx) => ({
-    id: p.id,
-    title: p.name,
-    price: p.price,
-    oldPrice: p.price * 1.25,
-    rating: 4.9,
-    reviews: 320 + idx * 24,
-    imageUrl: resolveImageUrl(p.mainImageUrl),
-    badge: 'ÇOK SATAN',
-    coupon: 'Kupon Fırsatı'
-  }));
-
-  // 3. Sana Özel Seçilenler
-  const personalizedOffers: HomeProductItem[] = dbProducts.slice(4, 8).map((p, idx) => ({
-    id: p.id,
-    title: p.name,
-    price: p.price,
-    oldPrice: p.price * 1.2,
-    rating: 4.7,
-    reviews: 89 + idx * 11,
-    imageUrl: resolveImageUrl(p.mainImageUrl),
-    badge: 'SANA ÖZEL',
-    coupon: 'Kargo Bedava'
-  }));
+  const [localRecentViews] = useState<RecentViewItem[]>(() => {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem('nexora_recent_views') || '[]');
+      return Array.isArray(stored) ? stored.filter((item): item is RecentViewItem => !!item && typeof item.id === 'string').slice(0, 8) : [];
+    } catch { return []; }
+  });
+  const recentIds = localRecentViews.map(item => item.id).join(',');
+  const { data: recentProductsData, isError: isRecentError, isLoading: isRecentLoading, refetch: refetchRecent } = useQuery({
+    queryKey: ['recent-products', recentIds],
+    queryFn: async () => {
+      const response = await apiClient.get<ApiResponse<PagedResponse<ProductDto>>>('/products', { params: { ids: recentIds, pageSize: 8, isActive: true } });
+      return response.data.data.items;
+    },
+    enabled: !!recentIds,
+  });
+  const toHomeItem = (product: ProductDto): HomeProductItem => ({
+    id: product.id, title: product.name, price: product.price, oldPrice: 0,
+    rating: product.averageRating, reviews: product.reviewCount,
+    imageUrl: resolveImageUrl(product.mainImageUrl),
+  });
+  const recentlyViewed = localRecentViews.flatMap(item => {
+    const product = recentProductsData?.find(product => product.id === item.id);
+    return product ? [{ ...toHomeItem(product), badge: 'SON GEZDİĞİN' }] : [];
+  });
+  const bestSellers = dbProducts.slice(0, 4).map(toHomeItem);
+  const personalizedOffers = dbProducts.slice(4, 8).map(toHomeItem);
 
   const renderProductGrid = (productsList: HomeProductItem[]) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -202,7 +171,7 @@ export const HomePage: React.FC = () => {
             </div>
           )}
 
-          <button
+          <button aria-label="Favorilere Ekle"
             onClick={(e) => toggleFavorite(product, e)}
             className="absolute top-3 right-3 z-10 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 shadow-sm transition-all border border-slate-100 active:scale-90"
             title="Favorilere Ekle"
@@ -237,7 +206,7 @@ export const HomePage: React.FC = () => {
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
               <div>
-                {product.oldPrice && (
+                {product.oldPrice > 0 && (
                   <span className="text-[10px] text-slate-400 line-through block">
                     {product.oldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                   </span>
@@ -247,7 +216,7 @@ export const HomePage: React.FC = () => {
                 </span>
               </div>
 
-              <button
+              <button aria-label="Sepete Ekle"
                 onClick={(e) => handleAddToCart(product.id, e)}
                 className={`p-2 rounded-xl transition-all active:scale-95 shadow-sm ${
                   addedCartItems[product.id] ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-orange-500 text-slate-700 hover:text-white'
@@ -265,17 +234,19 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="space-y-10 pb-16">
+      {isLoading && <p role="status" className="text-sm text-slate-500">Ürünler yükleniyor...</p>}
+      {isError && <p role="alert" className="text-sm text-rose-600">Ürünler yüklenemedi. <button type="button" onClick={() => refetch()}>Tekrar dene</button></p>}
       
       {/* 1. Popüler Kategoriler (Trendyol Stili Dairesel İkonlar) */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Popüler Kategorileri Keşfet</h2>
+        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Kategorileri Keşfet</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
           {featuredCategories.map((category, idx) => {
             const IconComponent = category.icon;
             return (
               <Link 
                 key={idx}
-                to="/products"
+                to={category.id ? `/products?categoryId=${category.id}` : '/products'}
                 className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col items-center justify-center text-center gap-3 hover:border-orange-500/30 transition-all group"
               >
                 <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${category.color} flex items-center justify-center text-white shadow-md ${category.shadow} group-hover:scale-105 transition-transform`}>
@@ -306,7 +277,7 @@ export const HomePage: React.FC = () => {
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          {renderProductGrid(recentlyViewed)}
+          {isRecentError ? <p role="alert" className="text-rose-600 text-xs">Son gezilen ürünler yüklenemedi. <button onClick={() => void refetchRecent()}>Tekrar dene</button></p> : isRecentLoading ? <p>Ürünler yükleniyor...</p> : renderProductGrid(recentlyViewed)}
         </section>
       )}
 
@@ -316,7 +287,7 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <div className="w-2.5 h-6 bg-amber-500 rounded-full" />
             <div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Günün Çok Satanları</h2>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Yeni Ürünler</h2>
               <p className="text-xs text-slate-500">Kullanıcıların bu hafta en çok sipariş verdiği popüler ürünler</p>
             </div>
           </div>
@@ -335,8 +306,8 @@ export const HomePage: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <div className="w-2.5 h-6 bg-rose-500 rounded-full" />
               <div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sana Özel Seçilenler</h2>
-                <p className="text-xs text-slate-500">Zevkine ve ilgine göre listelenen avantajlı modeller</p>
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Katalogdan Seçilenler</h2>
+                <p className="text-xs text-slate-500">Ürün kataloğumuzdan seçilen modeller</p>
               </div>
             </div>
             <Link to="/products" className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1">

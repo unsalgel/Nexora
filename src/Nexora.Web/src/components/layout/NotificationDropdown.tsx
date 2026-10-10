@@ -1,3 +1,4 @@
+import { Dialog } from '../ui/Dialog';
 import React, { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
@@ -21,7 +22,7 @@ export const NotificationDropdown: React.FC = () => {
     setIsOpen, 
     markAsRead, 
     markAllAsRead, 
-    isLoading 
+    isLoading, isError, hasMore, loadMore, fetchNotifications
   } = useNotifications();
   
   const navigate = useNavigate();
@@ -103,8 +104,7 @@ export const NotificationDropdown: React.FC = () => {
   };
 
   return (
-    <div
-      ref={dropdownRef}
+    <Dialog containerRef={dropdownRef} label="Bildirimler" onClose={() => setIsOpen(false)}
       className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 font-sans"
     >
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
@@ -134,7 +134,7 @@ export const NotificationDropdown: React.FC = () => {
           )}
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            aria-label="Bildirimleri kapat" onClick={() => setIsOpen(false)}
             className="w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
@@ -143,7 +143,7 @@ export const NotificationDropdown: React.FC = () => {
       </div>
 
       <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
-        {isLoading && notifications.length === 0 ? (
+        {isError ? (<p role="alert" className="p-5 text-rose-600 text-xs">Bildirimler yüklenemedi. <button onClick={() => void fetchNotifications()}>Tekrar dene</button></p>) : isLoading && notifications.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs">
             Bildirimler yükleniyor...
           </div>
@@ -162,7 +162,7 @@ export const NotificationDropdown: React.FC = () => {
             const { icon, bg } = getNotificationIcon(notif.type);
             return (
               <div
-                key={notif.id}
+                key={notif.id} role="button" tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void handleNotificationClick(notif); } }}
                 onClick={() => handleNotificationClick(notif)}
                 className={`p-3 transition-colors cursor-pointer flex gap-3 items-start relative group hover:bg-slate-50 ${
                   !notif.isRead ? 'bg-orange-50/25' : 'bg-white'
@@ -198,11 +198,12 @@ export const NotificationDropdown: React.FC = () => {
         )}
       </div>
 
+      {hasMore && <button type="button" disabled={isLoading} onClick={() => void loadMore()} className="w-full p-3 text-xs">Daha fazla bildirim yükle</button>}
       <div className="p-2.5 border-t border-slate-100 bg-slate-50/50 text-center">
         <p className="text-[10px] text-slate-400">
-          Bildirimler son 30 günlük geçmişinizi kapsar.
+          Bildirim geçmişiniz sayfalar halinde yüklenir.
         </p>
       </div>
-    </div>
+    </Dialog>
   );
 };

@@ -17,12 +17,16 @@ public sealed class UpdateProductCommandHandler : IRequestHandler<UpdateProductC
 
     public async Task<Result<string>> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
         var product = await _context.Products
             .FirstOrDefaultAsync(p => p.Id == request.Id && !p.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Güncellenecek ürün bulunamadı.");
 
+        if (request.Version == 0 || request.Version != product.Version)
+            throw new ConflictException("Ürün bilgileri değişti. Sayfayı yenileyip tekrar deneyiniz.");
+
         var skuExists = await _context.Products
-            .AnyAsync(p => p.SKU == request.SKU && p.Id != request.Id && !p.IsDeleted, cancellationToken);
+            .AnyAsync(p => p.SKU == request.SKU && p.Id != request.Id, cancellationToken);
 
         if (skuExists)
             throw new ConflictException("Bu SKU koduna sahip başka bir ürün zaten mevcut.");
@@ -80,6 +84,7 @@ public sealed class UpdateProductCommandHandler : IRequestHandler<UpdateProductC
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Ürün başarıyla güncellendi.");
     }

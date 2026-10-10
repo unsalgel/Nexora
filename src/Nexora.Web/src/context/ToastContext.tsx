@@ -79,7 +79,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           >
             {getIcon(toast.type)}
             <p className="text-xs font-semibold flex-1 leading-snug">{toast.message}</p>
-            <button
+            <button aria-label="Kapat"
               onClick={() => removeToast(toast.id)}
               className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
             >

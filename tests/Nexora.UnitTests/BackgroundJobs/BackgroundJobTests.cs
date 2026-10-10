@@ -190,7 +190,9 @@ public sealed class BackgroundJobTests : IDisposable
         await _context.SaveChangesAsync();
 
         staleItem.CreatedAtUtc = DateTime.UtcNow.AddDays(-35);
-        await _context.SaveChangesAsync();
+        staleItem.UpdatedAtUtc = null;
+        // Geçmiş tarihli test kaydı hazırlanırken audit damgasını tekrar üretme.
+        _context.SaveChanges();
 
         var loggerMock = new Mock<ILogger<CartCleanupJob>>();
         var dbLoggerMock = new Mock<IDbLogger>();
@@ -211,5 +213,21 @@ public sealed class BackgroundJobTests : IDisposable
             null,
             null,
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CleanupAbandonedCartsAsync_PreservesRecentlyUpdatedOldItems()
+    {
+        var cart = new Cart { Id = Guid.NewGuid(), UserId = Guid.NewGuid() };
+        var item = new CartItem { Id = Guid.NewGuid(), CartId = cart.Id, ProductId = Guid.NewGuid(), Quantity = 2 };
+        _context.Carts.Add(cart);
+        _context.CartItems.Add(item);
+        await _context.SaveChangesAsync();
+        item.CreatedAtUtc = DateTime.UtcNow.AddDays(-60);
+        item.UpdatedAtUtc = DateTime.UtcNow.AddDays(-1);
+        _context.SaveChanges();
+        var job = new CartCleanupJob(_context, new Mock<ILogger<CartCleanupJob>>().Object, new Mock<IDbLogger>().Object);
+        await job.CleanupAbandonedCartsAsync(CancellationToken.None);
+        (await _context.CartItems.FindAsync(item.Id)).Should().NotBeNull();
     }
 }

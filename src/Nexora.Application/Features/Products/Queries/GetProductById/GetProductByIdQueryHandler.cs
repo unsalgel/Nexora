@@ -50,8 +50,8 @@ public sealed class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQ
                             .Select(vav => new ProductVariantAttributeValueDto(
                                 vav.ProductAttributeValue.ProductAttribute.Name,
                                 vav.ProductAttributeValue.Value))
-                            .ToList()))
-                    .ToList()))
+                            .ToList(), v.Version))
+                    .ToList(), p.Version))
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Ürün bulunamadı.");
 

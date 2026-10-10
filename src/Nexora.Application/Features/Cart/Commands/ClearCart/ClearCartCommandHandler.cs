@@ -17,6 +17,7 @@ public sealed class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, 
 
     public async Task<Result<string>> Handle(ClearCartCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
         var cart = await _context.Carts
             .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken)
@@ -27,6 +28,7 @@ public sealed class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, 
 
         _context.CartItems.RemoveRange(cart.Items);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Sepetiniz başarıyla temizlendi.");
     }

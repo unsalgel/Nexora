@@ -1,3 +1,4 @@
+import { useAccessToken } from '../../lib/session';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
@@ -61,7 +62,7 @@ export const Navbar: React.FC = () => {
 
   const categories = categoriesData?.data || [];
 
-  const token = localStorage.getItem('accessToken');
+  const token = useAccessToken();
   const isLoggedIn = !!token;
   let userName = '';
 
@@ -146,7 +147,7 @@ export const Navbar: React.FC = () => {
                 placeholder="Aradığınız ürün, marka veya kategoriyi yazınız..."
                 className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-5 pr-14 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all shadow-inner"
               />
-              <button 
+              <button aria-label="Ara"
                 type="submit"
                 className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full flex items-center justify-center shadow-md shadow-orange-500/20 hover:opacity-90 transition-opacity cursor-pointer"
                 title="Ara"
@@ -312,7 +313,7 @@ export const Navbar: React.FC = () => {
               placeholder="Ürün, marka veya kategori ara..."
               className="w-full bg-slate-100 border border-slate-200 rounded-full pl-4 pr-10 py-2 text-xs text-slate-900"
             />
-            <button 
+            <button aria-label="Ara"
               type="submit"
               className="absolute right-1 top-1 bottom-1 px-3 bg-orange-500 text-white rounded-full flex items-center justify-center"
             >
@@ -325,7 +326,7 @@ export const Navbar: React.FC = () => {
       <div className="bg-white border-t border-slate-100 hidden md:block relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex items-center">
           {canScrollLeft && (
-            <button
+            <button aria-label="Sola Kaydır"
               onClick={() => scrollCategories('left')}
               className="p-1 text-slate-400 hover:text-orange-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer mr-1 shrink-0 animate-in fade-in"
               title="Sola Kaydır"
@@ -358,7 +359,7 @@ export const Navbar: React.FC = () => {
           </ul>
 
           {canScrollRight && (
-            <button
+            <button aria-label="Sağa Kaydır"
               onClick={() => scrollCategories('right')}
               className="p-1 text-slate-400 hover:text-orange-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer ml-1 shrink-0 animate-in fade-in"
               title="Sağa Kaydır"

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
+using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Reviews.Commands.DeleteReview;
 
@@ -21,7 +22,7 @@ public sealed class DeleteReviewCommandHandler : IRequestHandler<DeleteReviewCom
 
         if (review is null)
         {
-            return Result<bool>.Failure("Yorum bulunamadı.");
+            throw new NotFoundException("Yorum bulunamadı.");
         }
 
         _context.Reviews.Remove(review);

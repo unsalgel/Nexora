@@ -48,7 +48,7 @@ public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery
                 i.Quantity,
                 i.TotalPrice)).ToList(),
             order.TrackingNumber,
-            order.Carrier);
+            order.Carrier, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.CouponCode);
 
         return Result<OrderDto>.Success(dto);
     }

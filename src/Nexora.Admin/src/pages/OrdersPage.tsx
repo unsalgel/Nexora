@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+import { Dialog } from '../components/ui/Dialog';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { 
   ShoppingBag, 
@@ -38,7 +39,7 @@ export const OrdersPage: React.FC = () => {
 
   const pageSize = 20;
 
-  const { data: ordersData, isLoading, refetch } = useQuery<ApiResponse<PagedResponse<AdminOrderDto>>>({
+  const { data: ordersData, isLoading, isError, refetch } = useQuery<ApiResponse<PagedResponse<AdminOrderDto>>>({
     queryKey: ['admin-orders-list', page, statusFilter, searchTerm],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<AdminOrderDto>>>('/orders/admin', {
@@ -86,7 +87,9 @@ export const OrdersPage: React.FC = () => {
       return res.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
+      for (const key of ['admin-orders-list', 'admin-dashboard-orders', 'admin-dashboard-analytics', 'admin-dashboard-inventory', 'admin-products', 'admin-dashboard-products']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
       if (selectedOrder && selectedOrder.id === variables.orderId) {
         const statusMap: Record<number, string> = {
           1: 'Pending',
@@ -179,6 +182,7 @@ export const OrdersPage: React.FC = () => {
     'Kolay Gelsin'
   ];
 
+  if (isError) return <div role="alert" className="p-6 text-rose-600">Veriler yüklenemedi. <button onClick={() => void refetch()}>Tekrar dene</button></div>;
   return (
     <div className="space-y-6 pb-12 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -331,7 +335,7 @@ export const OrdersPage: React.FC = () => {
                         {getStatusBadge(order.status)}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
+                        <button aria-label="Detay Görüntüle"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenOrder(order);
@@ -375,7 +379,7 @@ export const OrdersPage: React.FC = () => {
       </div>
 
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <Dialog label="Sipariş ayrıntısı" onClose={() => setSelectedOrder(null)} className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div
             className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
@@ -390,7 +394,7 @@ export const OrdersPage: React.FC = () => {
                   Sipariş Tarihi: {new Date(selectedOrder.createdAtUtc).toLocaleString('tr-TR')}
                 </p>
               </div>
-              <button
+              <button aria-label="Kapat"
                 onClick={() => setSelectedOrder(null)}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -462,8 +466,8 @@ export const OrdersPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600">Kargo Firması</label>
-                    <select
+                    <label htmlFor="orderspage-field-1" className="text-[11px] font-bold text-slate-600">Kargo Firması</label>
+                    <select id="orderspage-field-1"
                       value={carrierInput}
                       onChange={(e) => setCarrierInput(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-orange-500"
@@ -475,10 +479,10 @@ export const OrdersPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600">Takip Numarası</label>
+                    <label htmlFor="orderspage-field-2" className="text-[11px] font-bold text-slate-600">Takip Numarası</label>
                     <div className="relative">
                       <Hash className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
+                      <input id="orderspage-field-2"
                         type="text"
                         value={trackingNumberInput}
                         onChange={(e) => setTrackingNumberInput(e.target.value)}
@@ -575,7 +579,7 @@ export const OrdersPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

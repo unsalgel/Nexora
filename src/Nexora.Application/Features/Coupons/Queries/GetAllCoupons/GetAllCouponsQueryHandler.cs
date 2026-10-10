@@ -20,6 +20,7 @@ public sealed class GetAllCouponsQueryHandler : IRequestHandler<GetAllCouponsQue
         var coupons = await _context.Coupons
             .Where(c => !c.IsDeleted)
             .OrderByDescending(c => c.CreatedAtUtc)
+            .ThenBy(c => c.Id)
             .Select(c => new CouponDto(
                 c.Id,
                 c.Code,

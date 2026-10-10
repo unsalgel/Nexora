@@ -21,7 +21,7 @@ public sealed class GetProductVariantsByProductIdQueryHandler : IRequestHandler<
             .AsNoTracking()
             .Include(v => v.VariantAttributeValues)
                 .ThenInclude(vav => vav.ProductAttributeValue)
-            .Where(v => v.ProductId == request.ProductId && v.IsActive && !v.IsDeleted)
+            .Where(v => v.ProductId == request.ProductId && (request.IncludeInactive || v.IsActive) && !v.IsDeleted)
             .Select(v => new ProductVariantDto(
                 v.Id,
                 v.ProductId,
@@ -29,7 +29,7 @@ public sealed class GetProductVariantsByProductIdQueryHandler : IRequestHandler<
                 v.Price,
                 v.StockQuantity,
                 v.IsActive,
-                v.VariantAttributeValues.Select(vav => vav.ProductAttributeValue.Value).ToList()))
+                v.VariantAttributeValues.Select(vav => vav.ProductAttributeValue.Value).ToList(), v.Version))
             .ToListAsync(cancellationToken);
 
         return Result<List<ProductVariantDto>>.Success(variants);

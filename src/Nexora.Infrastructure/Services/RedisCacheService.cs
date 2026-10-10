@@ -79,11 +79,15 @@ public sealed class RedisCacheService : ICacheService
                 if (!server.IsConnected)
                     continue;
 
-                var keys = server.Keys(pattern: pattern).ToArray();
-                if (keys.Length > 0)
+                var batch = new List<RedisKey>(256);
+                await foreach (var key in server.KeysAsync(pattern: pattern, pageSize: 256).WithCancellation(cancellationToken))
                 {
-                    await _database.KeyDeleteAsync(keys);
+                    batch.Add(key);
+                    if (batch.Count < 256) continue;
+                    await _database.KeyDeleteAsync(batch.ToArray());
+                    batch.Clear();
                 }
+                if (batch.Count > 0) await _database.KeyDeleteAsync(batch.ToArray());
             }
         }
         catch (Exception ex)

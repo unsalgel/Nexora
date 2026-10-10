@@ -1,3 +1,4 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -309,7 +310,7 @@ export const UsersPage: React.FC = () => {
                             <span className="text-xs text-slate-400">Müşteri</span>
                           )}
                         </div>
-                        <button
+                        <button aria-label="Rolleri Düzenle"
                           onClick={() => openRoleModal(user)}
                           className="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                           title="Rolleri Düzenle"
@@ -364,7 +365,7 @@ export const UsersPage: React.FC = () => {
             Toplam <span className="font-semibold text-slate-700">{totalCount}</span> kullanıcı
           </p>
           <div className="flex items-center space-x-2">
-            <button
+            <button aria-label="Önceki"
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage <= 1 || isLoading}
               className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -374,7 +375,7 @@ export const UsersPage: React.FC = () => {
             <span className="text-xs font-medium text-slate-700 px-2">
               Sayfa {currentPage} / {totalPages}
             </span>
-            <button
+            <button aria-label="Sonraki"
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage >= totalPages || isLoading}
               className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -386,14 +387,14 @@ export const UsersPage: React.FC = () => {
       </div>
 
       {roleModalUser && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <Dialog label="Kullanıcı rolleri" onClose={() => setRoleModalUser(null)} className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-600" />
                 <span>Yetki Rollerini Yönet</span>
               </h3>
-              <button 
+              <button aria-label="Kapat"
                 onClick={() => setRoleModalUser(null)}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
@@ -464,7 +465,7 @@ export const UsersPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

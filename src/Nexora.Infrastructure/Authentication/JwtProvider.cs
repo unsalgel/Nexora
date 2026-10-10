@@ -18,11 +18,13 @@ public sealed class JwtProvider : IJwtProvider
         _jwtSettings = jwtSettings.Value;
     }
 
-    public string GenerateAccessToken(User user, IList<string> roles)
+    public string GenerateAccessToken(User user, IList<string> roles, Guid sessionId)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("security_stamp", user.SecurityStamp.ToString()),
+            new("sid", sessionId.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.GivenName, user.FirstName),

@@ -6,6 +6,7 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
 {
     public UpdateProfileCommandValidator()
     {
+        RuleFor(x => x.CurrentPassword).MaximumLength(72);
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("Ad alanı zorunludur.")
             .MinimumLength(2).WithMessage("Ad en az 2 karakter olmalıdır.")

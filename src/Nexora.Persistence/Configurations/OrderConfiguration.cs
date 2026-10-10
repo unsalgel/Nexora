@@ -26,6 +26,12 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.TotalAmount)
             .IsRequired()
             .HasPrecision(18, 2);
+        builder.Property(o => o.Subtotal).HasPrecision(18, 2);
+        builder.Property(o => o.DiscountAmount).HasPrecision(18, 2);
+        builder.Property(o => o.ShippingFee).HasPrecision(18, 2);
+        builder.Property(o => o.CouponCode).HasMaxLength(50);
+        builder.Property(o => o.Version).HasColumnName("xmin").HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
 
         builder.Property(o => o.Status)
             .IsRequired()

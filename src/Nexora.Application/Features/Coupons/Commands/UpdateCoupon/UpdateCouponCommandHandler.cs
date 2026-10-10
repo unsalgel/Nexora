@@ -25,12 +25,15 @@ public sealed class UpdateCouponCommandHandler : IRequestHandler<UpdateCouponCom
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var duplicateCode = await _context.Coupons
-            .AnyAsync(c => c.Code == normalizedCode && c.Id != request.Id && !c.IsDeleted, cancellationToken);
+            .AnyAsync(c => c.Code == normalizedCode && c.Id != request.Id, cancellationToken);
 
         if (duplicateCode)
         {
             throw new ConflictException($"'{normalizedCode}' koduna sahip başka bir kupon zaten mevcuttur.");
         }
+
+        if (request.TotalUsageLimit < coupon.CurrentUsageCount)
+            throw new BusinessValidationException("Kullanım limiti mevcut kullanım sayısından düşük olamaz.");
 
         coupon.Code = normalizedCode;
         coupon.DiscountType = request.DiscountType;

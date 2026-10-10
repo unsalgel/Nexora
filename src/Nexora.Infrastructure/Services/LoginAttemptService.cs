@@ -1,127 +1,56 @@
-using Microsoft.Extensions.Caching.Memory;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Auth.Dtos;
 using Nexora.Domain.Exceptions;
+using StackExchange.Redis;
 
 namespace Nexora.Infrastructure.Services;
 
-public sealed class LoginAttemptService : ILoginAttemptService
+public sealed class LoginAttemptService(IConnectionMultiplexer redis) : ILoginAttemptService
 {
-    private readonly IMemoryCache _memoryCache;
-    private static readonly object Lock = new();
-
-    public LoginAttemptService(IMemoryCache memoryCache)
+    private IDatabase Database => redis.GetDatabase();
+    private static string Key(string email) => "login_attempt:{" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(email.Trim().ToLowerInvariant()))) + "}";
+    public async Task CheckAttemptAsync(string email, CancellationToken ct = default)
     {
-        _memoryCache = memoryCache;
-    }
-
-    private sealed class AttemptState
-    {
-        public int FailedCount { get; set; }
-        public DateTime? LockedUntilUtc { get; set; }
-        public List<FailedLoginAttemptDto> Details { get; set; } = new();
-    }
-
-    private static string GetCacheKey(string email) => $"login_attempt:{email.Trim().ToLowerInvariant()}";
-
-    public Task CheckAttemptAsync(string email, CancellationToken cancellationToken = default)
-    {
-        var key = GetCacheKey(email);
-
-        if (_memoryCache.TryGetValue<AttemptState>(key, out var state) && state != null)
+        try
         {
-            if (state.LockedUntilUtc.HasValue && state.LockedUntilUtc.Value > DateTime.UtcNow)
-            {
-                var remaining = state.LockedUntilUtc.Value - DateTime.UtcNow;
-                string timeStr;
-
-                if (remaining.TotalDays >= 1)
-                {
-                    var hours = (int)Math.Ceiling(remaining.TotalHours);
-                    timeStr = hours > 24 ? "1 gün" : $"{hours} saat";
-                }
-                else if (remaining.TotalHours >= 1)
-                {
-                    var hours = (int)Math.Ceiling(remaining.TotalHours);
-                    timeStr = $"{hours} saat";
-                }
-                else if (remaining.TotalMinutes >= 1)
-                {
-                    var minutes = (int)Math.Ceiling(remaining.TotalMinutes);
-                    timeStr = $"{minutes} dakika";
-                }
-                else
-                {
-                    var seconds = (int)Math.Ceiling(remaining.TotalSeconds);
-                    timeStr = $"{seconds} saniye";
-                }
-
-                throw new TooManyRequestsException(
-                    $"Güvenliğiniz nedeniyle hesabınız geçici olarak korumaya alınmıştır. Lütfen {timeStr} sonra tekrar deneyiniz.");
-            }
+            var until = await Database.HashGetAsync(Key(email), "until").WaitAsync(ct);
+            if (until.TryParse(out long milliseconds) && milliseconds > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                throw new TooManyRequestsException("Hesabınız geçici olarak korumaya alınmıştır. Lütfen daha sonra tekrar deneyiniz.");
         }
-
-        return Task.CompletedTask;
+        catch (RedisException) { throw new SecurityStateUnavailableException(); }
     }
-
-    public Task RecordFailedAttemptAsync(string email, string? ipAddress, CancellationToken cancellationToken = default)
+    public async Task RecordFailedAttemptAsync(string email, string? ipAddress, CancellationToken ct = default)
     {
-        var key = GetCacheKey(email);
-
-        lock (Lock)
+        const string script = """
+            local n=redis.call('HINCRBY',KEYS[1],'count',1)
+            local seconds=0
+            if n>=10 then seconds=86400 elseif n>=8 then seconds=1800 elseif n==7 then seconds=900 elseif n==6 then seconds=300 elseif n==5 then seconds=60 end
+            if seconds>0 then redis.call('HSET',KEYS[1],'until',ARGV[1]+seconds*1000) end
+            redis.call('EXPIRE',KEYS[1],172800)
+            redis.call('LPUSH',KEYS[2],ARGV[2])
+            redis.call('LTRIM',KEYS[2],0,19)
+            redis.call('EXPIRE',KEYS[2],172800)
+            return n
+            """;
+        try
         {
-            if (!_memoryCache.TryGetValue<AttemptState>(key, out var state) || state == null)
-            {
-                state = new AttemptState { FailedCount = 0 };
-            }
-
-            state.FailedCount++;
-            state.Details.Add(new FailedLoginAttemptDto(DateTime.UtcNow, ipAddress));
-
-            // Kademeli Katlamalı (Exponential) Kilitleme Mantığı:
-            // 1-4 deneme: Uyarı verilir, kilitlenmez
-            // 5. deneme: 1 Dakika
-            // 6. deneme: 5 Dakika
-            // 7. deneme: 15 Dakika
-            // 8-9. deneme: 30 Dakika
-            // 10+ deneme: 1 Gün (24 Saat)
-            TimeSpan? lockDuration = state.FailedCount switch
-            {
-                >= 10 => TimeSpan.FromDays(1),
-                >= 8 => TimeSpan.FromMinutes(30),
-                7 => TimeSpan.FromMinutes(15),
-                6 => TimeSpan.FromMinutes(5),
-                5 => TimeSpan.FromMinutes(1),
-                _ => null
-            };
-
-            if (lockDuration.HasValue)
-            {
-                state.LockedUntilUtc = DateTime.UtcNow.Add(lockDuration.Value);
-            }
-
-            // Hafızada son başarısızlıktan itibaren 48 saat saklanır
-            _memoryCache.Set(key, state, TimeSpan.FromDays(2));
+            var key = Key(email);
+            await Database.ScriptEvaluateAsync(script, [key, key + ":details"],
+                [DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), JsonSerializer.Serialize(new FailedLoginAttemptDto(DateTime.UtcNow, ipAddress))]).WaitAsync(ct);
         }
-
-        return Task.CompletedTask;
+        catch (RedisException) { throw new SecurityStateUnavailableException(); }
     }
-
-    public Task<List<FailedLoginAttemptDto>> ResetAndGetAttemptsAsync(string email, CancellationToken cancellationToken = default)
+    public async Task<List<FailedLoginAttemptDto>> ResetAndGetAttemptsAsync(string email, CancellationToken ct = default)
     {
-        var key = GetCacheKey(email);
-        List<FailedLoginAttemptDto> attempts = new();
-
-        lock (Lock)
+        try
         {
-            if (_memoryCache.TryGetValue<AttemptState>(key, out var state) && state != null)
-            {
-                attempts = new List<FailedLoginAttemptDto>(state.Details);
-            }
-
-            _memoryCache.Remove(key);
+            var key = Key(email);
+            var result = await Database.ScriptEvaluateAsync("local details=redis.call('LRANGE',KEYS[2],0,-1); redis.call('DEL',KEYS[1],KEYS[2]); return details", [key, key + ":details"]).WaitAsync(ct);
+            return ((RedisResult[]?)result ?? []).Select(v => JsonSerializer.Deserialize<FailedLoginAttemptDto>((string)v!)!).Reverse().ToList();
         }
-
-        return Task.FromResult(attempts);
+        catch (RedisException) { throw new SecurityStateUnavailableException(); }
     }
 }

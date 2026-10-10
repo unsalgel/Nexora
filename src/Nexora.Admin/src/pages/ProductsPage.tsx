@@ -1,3 +1,4 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2 } from 'lucide-react';
@@ -27,6 +28,7 @@ interface ProductListItemDto {
 }
 
 interface ProductDetailDto {
+  version: number;
   id: string;
   name: string;
   sku: string;
@@ -70,6 +72,7 @@ export const ProductsPage: React.FC = () => {
 
   const { showToast } = useAdminToast();
 
+  const [version, setVersion] = useState(0);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
@@ -110,7 +113,7 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  const { data: productsData, isLoading } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
+  const { data: productsData, isLoading, isError, refetch } = useQuery<ApiResponse<PagedResponse<ProductListItemDto>>>({
     queryKey: ['admin-products', page, searchTerm, selectedCategory, selectedBrand, statusFilter],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<ProductListItemDto>>>('/products', {
@@ -127,7 +130,7 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  const { data: categoriesData } = useQuery<ApiResponse<CategoryDto[]>>({
+  const { data: categoriesData, isError: isCategoriesError } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-categories-dropdown'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<CategoryDto[]>>('/categories');
@@ -135,7 +138,7 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  const { data: brandsData } = useQuery<ApiResponse<BrandDto[]>>({
+  const { data: brandsData, isError: isBrandsError } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-brands-dropdown'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<BrandDto[]>>('/brands');
@@ -152,6 +155,7 @@ export const ProductsPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setFormError(null);
+      if (editingProductId && !version) throw new Error('Ürün sürümü yüklenemedi. Düzenleme penceresini yeniden açın.');
       if (editingProductId) {
         const res = await apiClient.put(`/products/${editingProductId}`, {
           name,
@@ -162,7 +166,8 @@ export const ProductsPage: React.FC = () => {
           categoryId,
           brandId,
           isActive,
-          mainImageUrl: imageUrl || null
+          mainImageUrl: imageUrl || null,
+          version
         });
         return res.data;
       } else {
@@ -182,6 +187,7 @@ export const ProductsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
       showToast('success', editingProductId ? 'Ürün başarıyla güncellendi.' : 'Yeni ürün başarıyla oluşturuldu.');
       closeModal();
     },
@@ -195,19 +201,7 @@ export const ProductsPage: React.FC = () => {
     mutationFn: async ({ product, newStatus }: { product: ProductListItemDto; newStatus: boolean }) => {
       setTogglingProductId(product.id);
       
-      const detailRes = await apiClient.get<ApiResponse<ProductDetailDto>>(`/products/${product.id}`);
-      const p = detailRes.data?.data;
-
-      const res = await apiClient.put(`/products/${product.id}`, {
-        name: p?.name || product.name,
-        sku: p?.sku || product.sku,
-        description: p?.description || '',
-        price: p?.price ?? product.price,
-        stockQuantity: p?.stockQuantity ?? product.stockQuantity,
-        categoryId: p?.categoryId || product.categoryId,
-        brandId: p?.brandId || product.brandId,
-        isActive: newStatus
-      });
+      const res = await apiClient.patch(`/products/${product.id}/status`, { isActive: newStatus });
       return res.data;
     },
     onSuccess: (_, variables) => {
@@ -257,6 +251,7 @@ export const ProductsPage: React.FC = () => {
   };
 
   const openEditModal = async (item: ProductListItemDto) => {
+    setVersion(0);
     setEditingProductId(item.id);
     setIsDetailLoading(true);
     setFormError(null);
@@ -266,6 +261,7 @@ export const ProductsPage: React.FC = () => {
       const res = await apiClient.get<ApiResponse<ProductDetailDto>>(`/products/${item.id}`);
       if (res.data?.isSuccess && res.data.data) {
         const p = res.data.data;
+        setVersion(p.version);
         setName(p.name);
         setSku(p.sku);
         setDescription(p.description || '');
@@ -276,7 +272,7 @@ export const ProductsPage: React.FC = () => {
         setIsActive(p.isActive);
         setImageUrl(p.images?.find(i => i.isMain)?.imageUrl || p.images?.[0]?.imageUrl || '');
       }
-    } catch (error) {
+    } catch {
       setFormError('Ürün detayları yüklenirken bir sorun oluştu.');
     } finally {
       setIsDetailLoading(false);
@@ -289,6 +285,8 @@ export const ProductsPage: React.FC = () => {
     setFormError(null);
   };
 
+  if (isCategoriesError || isBrandsError) return <div role="alert" className="p-6 text-rose-600">Ürün kategori veya marka seçenekleri yüklenemedi. <button onClick={() => { void queryClient.invalidateQueries({ queryKey: ['admin-categories-dropdown'] }); void queryClient.invalidateQueries({ queryKey: ['admin-brands-dropdown'] }); }}>Tekrar dene</button></div>;
+  if (isError) return <div role="alert" className="p-6 text-rose-600">Veriler yüklenemedi. <button onClick={() => void refetch()}>Tekrar dene</button></div>;
   return (
     <div className="space-y-6 pb-12 font-sans">
       
@@ -438,14 +436,14 @@ export const ProductsPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <button aria-label="Düzenle"
                           onClick={() => openEditModal(product)}
                           className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                           title="Düzenle"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
+                        <button aria-label="Sil"
                           onClick={() => setProductToDelete({ id: product.id, name: product.name })}
                           className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Sil"
@@ -486,7 +484,7 @@ export const ProductsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <Dialog label="Ürün düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -496,7 +494,7 @@ export const ProductsPage: React.FC = () => {
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">Katalog ve stok detaylarını doldurun</p>
               </div>
-              <button
+              <button aria-label="Kapat"
                 onClick={closeModal}
                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
@@ -524,8 +522,8 @@ export const ProductsPage: React.FC = () => {
                 className="space-y-4"
               >
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Ürün Adı</label>
-                  <input
+                  <label htmlFor="productspage-field-1" className="text-xs font-semibold text-slate-700">Ürün Adı</label>
+                  <input id="productspage-field-1"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -536,8 +534,8 @@ export const ProductsPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">SKU (Stok Kodu)</label>
-                    <input
+                    <label htmlFor="productspage-field-2" className="text-xs font-semibold text-slate-700">SKU (Stok Kodu)</label>
+                    <input id="productspage-field-2"
                       type="text"
                       value={sku}
                       onChange={(e) => setSku(e.target.value)}
@@ -547,8 +545,8 @@ export const ProductsPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Stok Miktarı</label>
-                    <input
+                    <label htmlFor="productspage-field-3" className="text-xs font-semibold text-slate-700">Stok Miktarı</label>
+                    <input id="productspage-field-3"
                       type="number"
                       min="0"
                       value={stockQuantity}
@@ -561,8 +559,8 @@ export const ProductsPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Fiyat (TL)</label>
-                    <input
+                    <label htmlFor="productspage-field-4" className="text-xs font-semibold text-slate-700">Fiyat (TL)</label>
+                    <input id="productspage-field-4"
                       type="number"
                       step="0.01"
                       min="0"
@@ -592,8 +590,8 @@ export const ProductsPage: React.FC = () => {
                   />
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Ürün Görseli</label>
-                    <input
+                    <label htmlFor="productspage-field-5" className="text-xs font-semibold text-slate-700">Ürün Görseli</label>
+                    <input id="productspage-field-5"
                       ref={fileInputRef}
                       type="file"
                       accept="image/png, image/jpeg, image/webp"
@@ -623,7 +621,7 @@ export const ProductsPage: React.FC = () => {
                           >
                             Değiştir
                           </button>
-                          <button
+                          <button aria-label="Görseli Kaldır"
                             type="button"
                             onClick={() => setImageUrl('')}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
@@ -672,8 +670,8 @@ export const ProductsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Ürün Açıklaması</label>
-                  <textarea
+                  <label htmlFor="productspage-field-6" className="text-xs font-semibold text-slate-700">Ürün Açıklaması</label>
+                  <textarea id="productspage-field-6"
                     rows={3}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -705,7 +703,7 @@ export const ProductsPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={saveMutation.isPending}
+                    disabled={saveMutation.isPending || (!!editingProductId && !version)}
                     className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {saveMutation.isPending ? 'Kaydediliyor...' : editingProductId ? 'Güncelle' : 'Ürünü Oluştur'}
@@ -715,7 +713,7 @@ export const ProductsPage: React.FC = () => {
             )}
 
           </div>
-        </div>
+        </Dialog>
       )}
 
       <ConfirmModal

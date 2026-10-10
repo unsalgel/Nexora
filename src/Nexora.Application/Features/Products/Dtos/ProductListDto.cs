@@ -9,4 +9,6 @@ public sealed record ProductListDto(
     string CategoryName,
     string BrandName,
     string? MainImageUrl,
-    bool IsActive);
+    bool IsActive,
+    double AverageRating = 0,
+    int ReviewCount = 0);

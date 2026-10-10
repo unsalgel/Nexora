@@ -18,8 +18,9 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
 
     public async Task<Result<Guid>> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
         var skuExists = await _context.Products
-            .AnyAsync(p => p.SKU == request.SKU && !p.IsDeleted, cancellationToken);
+            .AnyAsync(p => p.SKU == request.SKU, cancellationToken);
 
         if (skuExists)
             throw new ConflictException("Bu SKU koduna sahip bir ürün zaten mevcut.");
@@ -72,6 +73,7 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<Guid>.Success(product.Id, "Ürün başarıyla oluşturuldu.");
     }

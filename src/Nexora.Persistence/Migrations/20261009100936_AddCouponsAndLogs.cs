@@ -25,7 +25,6 @@ namespace Nexora.Persistence.Migrations
                     ""IsDeleted"" boolean NOT NULL,
                     ""CreatedAtUtc"" timestamp with time zone NOT NULL,
                     ""UpdatedAtUtc"" timestamp with time zone NULL,
-                    ""xmin"" xid NOT NULL DEFAULT (0)::xid,
                     CONSTRAINT ""PK_Coupons"" PRIMARY KEY (""Id"")
                 );
 
@@ -47,8 +46,6 @@ namespace Nexora.Persistence.Migrations
                     CONSTRAINT ""PK_logs"" PRIMARY KEY (""id"")
                 );
 
-                ALTER TABLE ""ProductVariants"" ADD COLUMN IF NOT EXISTS ""xmin"" xid NOT NULL DEFAULT (0)::xid;
-                ALTER TABLE ""Products"" ADD COLUMN IF NOT EXISTS ""xmin"" xid NOT NULL DEFAULT (0)::xid;
             ");
         }
 
@@ -58,8 +55,6 @@ namespace Nexora.Persistence.Migrations
             migrationBuilder.Sql(@"
                 DROP TABLE IF EXISTS ""logs"";
                 DROP TABLE IF EXISTS ""Coupons"";
-                ALTER TABLE ""ProductVariants"" DROP COLUMN IF EXISTS ""xmin"";
-                ALTER TABLE ""Products"" DROP COLUMN IF EXISTS ""xmin"";
             ");
         }
     }

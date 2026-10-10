@@ -1,3 +1,4 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layers, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw } from 'lucide-react';
@@ -8,12 +9,7 @@ import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { useAdminToast } from '../context/AdminToastContext';
 
-interface CategoryDto {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-}
+import type { CategoryDto } from '../types/category';
 
 export const CategoriesPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -32,7 +28,7 @@ export const CategoriesPage: React.FC = () => {
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
   const [togglingCategoryId, setTogglingCategoryId] = useState<string | null>(null);
 
-  const { data: categoriesData, isLoading, refetch } = useQuery<ApiResponse<CategoryDto[]>>({
+  const { data: categoriesData, isLoading, isError, refetch } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-categories-list', statusFilter],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<CategoryDto[]>>('/categories', {
@@ -57,6 +53,7 @@ export const CategoriesPage: React.FC = () => {
           name,
           description: description || undefined,
           isActive,
+          parentCategoryId: editingCategory.parentCategoryId || null,
         });
         return res.data;
       } else {
@@ -86,7 +83,8 @@ export const CategoriesPage: React.FC = () => {
       const res = await apiClient.put(`/categories/${category.id}`, {
         name: category.name,
         description: category.description || undefined,
-        isActive: newStatus
+        isActive: newStatus,
+        parentCategoryId: category.parentCategoryId || null
       });
       return res.data;
     },
@@ -166,6 +164,7 @@ export const CategoriesPage: React.FC = () => {
     setFormError(null);
   };
 
+  if (isError) return <div role="alert" className="p-6 text-rose-600">Veriler yüklenemedi. <button onClick={() => void refetch()}>Tekrar dene</button></div>;
   return (
     <div className="space-y-6 pb-12 font-sans">
       
@@ -180,7 +179,7 @@ export const CategoriesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <button aria-label="Kategorileri Yenile"
             onClick={() => refetch()}
             className="p-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Kategorileri Yenile"
@@ -269,14 +268,14 @@ export const CategoriesPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <button aria-label="Düzenle"
                           onClick={() => openEditModal(cat)}
                           className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                           title="Düzenle"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
+                        <button aria-label="Sil"
                           onClick={() => setCategoryToDelete({ id: cat.id, name: cat.name })}
                           className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Sil"
@@ -294,7 +293,7 @@ export const CategoriesPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <Dialog label="Kategori düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -303,7 +302,7 @@ export const CategoriesPage: React.FC = () => {
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">Kategori detaylarını girin</p>
               </div>
-              <button
+              <button aria-label="Kapat"
                 onClick={closeModal}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -326,10 +325,10 @@ export const CategoriesPage: React.FC = () => {
               className="space-y-4"
             >
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="categoriespage-field-1" className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Kategori Adı <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <input id="categoriespage-field-1"
                   type="text"
                   required
                   value={name}
@@ -340,10 +339,10 @@ export const CategoriesPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="categoriespage-field-2" className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Açıklama
                 </label>
-                <textarea
+                <textarea id="categoriespage-field-2"
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -383,7 +382,7 @@ export const CategoriesPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Dialog>
       )}
 
       <ConfirmModal

@@ -1,10 +1,11 @@
+import { Dialog } from '../ui/Dialog';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { Bell, X, CheckCheck, Package, Tag, ShieldCheck, Info, ChevronRight, Clock } from 'lucide-react';
 
 export const NotificationDrawer: React.FC = () => {
-  const { notifications, unreadCount, isOpen, setIsOpen, markAsRead, markAllAsRead, isLoading } = useNotifications();
+  const { notifications, unreadCount, isOpen, setIsOpen, markAsRead, markAllAsRead, isLoading, isError, hasMore, loadMore, fetchNotifications } = useNotifications();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -51,8 +52,8 @@ export const NotificationDrawer: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      <div onClick={() => setIsOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
+    <Dialog label="Bildirimler" onClose={() => setIsOpen(false)} className="fixed inset-0 z-50 overflow-hidden">
+      <div aria-label="Bildirimleri kapat" onClick={() => setIsOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-slate-200/80">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -72,13 +73,13 @@ export const NotificationDrawer: React.FC = () => {
                   <span className="hidden sm:inline">Tümünü Oku</span>
                 </button>
               )}
-              <button onClick={() => setIsOpen(false)} className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <button aria-label="Kapat" onClick={() => setIsOpen(false)} className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-            {isLoading && notifications.length === 0 ? (
+            {isError ? (<p role="alert" className="p-5 text-rose-600 text-xs">Bildirimler yüklenemedi. <button onClick={() => void fetchNotifications()}>Tekrar dene</button></p>) : isLoading && notifications.length === 0 ? (
               <div className="p-12 text-center text-slate-400 text-sm">Bildirimler yükleniyor...</div>
             ) : notifications.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-8 text-center">
@@ -92,7 +93,7 @@ export const NotificationDrawer: React.FC = () => {
               notifications.map((notif) => {
                 const { icon, bg } = getNotificationIcon(notif.type);
                 return (
-                  <div key={notif.id} onClick={() => handleNotificationClick(notif)} className={'p-4 transition-all cursor-pointer flex gap-3.5 items-start relative group hover:bg-slate-50/80 ' + (!notif.isRead ? 'bg-orange-50/20' : 'bg-white')}>
+                  <div key={notif.id} role="button" tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void handleNotificationClick(notif); } }} onClick={() => handleNotificationClick(notif)} className={'p-4 transition-all cursor-pointer flex gap-3.5 items-start relative group hover:bg-slate-50/80 ' + (!notif.isRead ? 'bg-orange-50/20' : 'bg-white')}>
                     {!notif.isRead && <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500 ring-4 ring-orange-100" />}
                     <div className={'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border mt-0.5 ' + bg}>{icon}</div>
                     <div className="flex-1 pr-4">
@@ -109,11 +110,12 @@ export const NotificationDrawer: React.FC = () => {
               })
             )}
           </div>
+          {hasMore && <button type="button" disabled={isLoading} onClick={() => void loadMore()} className="w-full p-3 text-xs">Daha fazla bildirim yükle</button>}
           <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
-            <p className="text-[11px] text-slate-400">Bildirimler son 30 günlük geçmişinizi kapsar.</p>
+            <p className="text-[11px] text-slate-400">Bildirim geçmişiniz sayfalar halinde yüklenir.</p>
           </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

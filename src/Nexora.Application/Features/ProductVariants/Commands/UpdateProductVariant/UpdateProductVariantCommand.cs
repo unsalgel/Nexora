@@ -8,4 +8,5 @@ public sealed record UpdateProductVariantCommand(
     string SKU,
     decimal Price,
     int StockQuantity,
-    bool IsActive) : IRequest<Result<string>>;
+    bool IsActive,
+    uint Version = 0) : IRequest<Result<string>>;

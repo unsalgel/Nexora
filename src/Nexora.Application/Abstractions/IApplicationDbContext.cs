@@ -30,6 +30,8 @@ public interface IApplicationDbContext
     DbSet<Log> Logs { get; }
     DbSet<PasswordResetCode> PasswordResetCodes { get; }
     DbSet<EmailVerificationCode> EmailVerificationCodes { get; }
+    DbSet<OutboxMessage> OutboxMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<IApplicationTransaction> BeginTransactionAsync(string lockKey, CancellationToken cancellationToken = default);
 }

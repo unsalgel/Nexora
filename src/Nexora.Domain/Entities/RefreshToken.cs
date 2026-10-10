@@ -6,6 +6,7 @@ public sealed class RefreshToken : BaseEntity
     public User User { get; set; } = default!;
 
     public string Token { get; set; } = default!;
+    public Guid SessionId { get; set; } = Guid.NewGuid();
     public DateTime ExpiresAtUtc { get; set; }
     public bool IsRevoked { get; set; }
 }

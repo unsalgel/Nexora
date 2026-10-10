@@ -23,6 +23,7 @@ import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { AdminOrderDto } from '../types/order';
 import type { SalesAnalyticsDto } from '../types/dashboard';
 
+interface InventoryDto { totalInventoryValue: number; lowStockCount: number; lowStockProducts: { id: string; name: string; sku: string; stockQuantity: number; productVariantId?: string }[] }
 interface ProductDto {
   id: string;
   name: string;
@@ -49,7 +50,7 @@ export const DashboardPage: React.FC = () => {
   const [analyticsDays, setAnalyticsDays] = useState<number>(30);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  const { data: analyticsData, isLoading: isAnalyticsLoading, refetch: refetchAnalytics } = useQuery<ApiResponse<SalesAnalyticsDto>>({
+  const { data: analyticsData, isLoading: isAnalyticsLoading, isError: isAnalyticsError, refetch: refetchAnalytics } = useQuery<ApiResponse<SalesAnalyticsDto>>({
     queryKey: ['admin-dashboard-analytics', analyticsDays],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<SalesAnalyticsDto>>('/dashboard/analytics', {
@@ -59,7 +60,7 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  const { data: productsData, isLoading: isProductsLoading, refetch: refetchProducts } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
+  const { data: productsData, isLoading: isProductsLoading, isError: isProductsError, refetch: refetchProducts } = useQuery<ApiResponse<PagedResponse<ProductDto>>>({
     queryKey: ['admin-dashboard-products'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<ProductDto>>>('/products', {
@@ -69,7 +70,7 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  const { data: categoriesData, isLoading: isCatLoading, refetch: refetchCategories } = useQuery<ApiResponse<CategoryDto[]>>({
+  const { data: categoriesData, isLoading: isCatLoading, isError: isCategoriesError, refetch: refetchCategories } = useQuery<ApiResponse<CategoryDto[]>>({
     queryKey: ['admin-dashboard-categories'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<CategoryDto[]>>('/categories');
@@ -77,7 +78,7 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  const { data: brandsData, isLoading: isBrandsLoading, refetch: refetchBrands } = useQuery<ApiResponse<BrandDto[]>>({
+  const { data: brandsData, isLoading: isBrandsLoading, isError: isBrandsError, refetch: refetchBrands } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-dashboard-brands'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<BrandDto[]>>('/brands');
@@ -85,7 +86,7 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
-  const { data: ordersData, isLoading: isOrdersLoading, refetch: refetchOrders } = useQuery<ApiResponse<PagedResponse<AdminOrderDto>>>({
+  const { data: ordersData, isLoading: isOrdersLoading, isError: isOrdersError, refetch: refetchOrders } = useQuery<ApiResponse<PagedResponse<AdminOrderDto>>>({
     queryKey: ['admin-dashboard-orders'],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<PagedResponse<AdminOrderDto>>>('/orders/admin', {
@@ -95,6 +96,14 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
+  const { data: inventoryData, isLoading: isInventoryLoading, isError: isInventoryError, refetch: refetchInventory } = useQuery({
+    queryKey: ['admin-dashboard-inventory'],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<InventoryDto>>('/dashboard/inventory');
+      if (!res.data.isSuccess) throw new Error(res.data.message);
+      return res.data.data;
+    }
+  });
   const analytics = analyticsData?.data;
   const products = productsData?.data?.items || [];
   const totalProductCount = productsData?.data?.totalCount || 0;
@@ -103,14 +112,16 @@ export const DashboardPage: React.FC = () => {
   const orders = ordersData?.data?.items || [];
   const totalOrderCount = ordersData?.data?.totalCount || 0;
 
-  const totalInventoryValue = products.reduce((acc, p) => acc + (p.price * p.stockQuantity), 0);
-  const lowStockProducts = products.filter(p => p.stockQuantity <= 30);
+  const totalInventoryValue = inventoryData?.totalInventoryValue || 0;
+  const lowStockProducts = inventoryData?.lowStockProducts || [];
+  const lowStockCount = inventoryData?.lowStockCount || 0;
 
-  const isLoading = isProductsLoading || isCatLoading || isBrandsLoading || isOrdersLoading || isAnalyticsLoading;
+  const isLoading = isInventoryLoading || isProductsLoading || isCatLoading || isBrandsLoading || isOrdersLoading || isAnalyticsLoading;
 
   const handleRefreshAll = async () => {
     setIsRefreshing(true);
     await Promise.all([
+      refetchInventory(),
       refetchAnalytics(),
       refetchProducts(),
       refetchCategories(),
@@ -155,6 +166,7 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  if (isInventoryError || isAnalyticsError || isProductsError || isCategoriesError || isBrandsError || isOrdersError) return <div role="alert" className="p-6 text-rose-600">Panel verileri yüklenemedi. <button onClick={() => void handleRefreshAll()}>Tekrar dene</button></div>;
   return (
     <div className="space-y-6 sm:space-y-8 pb-12 font-sans max-w-[1600px] mx-auto px-1 sm:px-2">
       {/* 1. Üst Başlık & Eylem Çubuğu */}
@@ -167,7 +179,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <button aria-label="Tüm Verileri Yenile"
             onClick={handleRefreshAll}
             disabled={isRefreshing}
             className="p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
@@ -598,21 +610,22 @@ export const DashboardPage: React.FC = () => {
                 <span>Kritik Stok Uyarısı</span>
               </h3>
               <span className="px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">
-                {lowStockProducts.length} Ürün
+                {lowStockCount} Stok kaydı (ana ürün/varyant)
               </span>
             </div>
 
             <div className="space-y-2.5">
-              {lowStockProducts.length === 0 ? (
+              {lowStockCount > 5 && <p className="text-xs text-slate-500">İlk 5 kayıt gösteriliyor. Tüm stokları ürünler ekranından inceleyebilirsiniz.</p>}
+              {lowStockCount === 0 ? (
                 <div className="py-8 text-center text-xs font-medium text-slate-400">
                   Kritik stok seviyesinde ürün bulunmuyor.
                 </div>
               ) : (
                 lowStockProducts.slice(0, 5).map((item) => (
-                  <div key={item.id} className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between gap-3 hover:border-amber-200 transition-colors">
+                  <div key={item.productVariantId || item.id} className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between gap-3 hover:border-amber-200 transition-colors">
                     <div className="min-w-0">
                       <span className="text-xs font-semibold text-slate-800 block truncate">{item.name}</span>
-                      <span className="text-[10px] text-slate-400">{item.categoryName}</span>
+                      <span className="text-[10px] text-slate-400">{item.sku}</span>
                     </div>
                     <span className="text-xs font-bold text-amber-600 shrink-0 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                       {item.stockQuantity} kaldı

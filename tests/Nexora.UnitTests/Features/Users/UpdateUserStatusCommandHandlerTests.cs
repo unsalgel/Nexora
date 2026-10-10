@@ -13,14 +13,12 @@ namespace Nexora.UnitTests.Features.Users;
 public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
 {
     private readonly NexoraDbContext _context;
-    private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly UpdateUserStatusCommandHandler _handler;
 
     public UpdateUserStatusCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
-        _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
-        _handler = new UpdateUserStatusCommandHandler(_context, _tokenBlacklistServiceMock.Object);
+        _handler = new UpdateUserStatusCommandHandler(_context);
     }
 
     public void Dispose()
@@ -72,7 +70,6 @@ public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
         var tokens = await _context.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync();
         tokens.Should().OnlyContain(t => t.IsRevoked);
 
-        _tokenBlacklistServiceMock.Verify(x => x.RevokeUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -97,7 +94,6 @@ public sealed class UpdateUserStatusCommandHandlerTests : IDisposable
         var updatedUser = await _context.Users.FindAsync(user.Id);
         updatedUser!.IsActive.Should().BeTrue();
 
-        _tokenBlacklistServiceMock.Verify(x => x.UnrevokeUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
