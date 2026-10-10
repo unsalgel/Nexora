@@ -1,26 +1,26 @@
-import { SafeImage } from '../components/common/SafeImage';
+import { useQuery } from '@tanstack/react-query';
+import {
+  ChevronRight,
+  Dumbbell,
+  Flower2,
+  Heart,
+  Home,
+  Laptop,
+  LayoutGrid,
+  Shirt,
+  ShoppingBag,
+  Star,
+  Watch,
+  Zap
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { SafeImage } from '../components/common/SafeImage';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
-import { apiClient } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { apiClient } from '../lib/apiClient';
 import { resolveImageUrl } from '../lib/imageUtils';
-import { 
-  ShoppingBag, 
-  Heart, 
-  Star, 
-  Laptop,
-  Shirt,
-  Home,
-  Watch,
-  Dumbbell,
-  Zap,
-  Flower2,
-  LayoutGrid,
-  ChevronRight
-} from 'lucide-react';
 
 interface ProductImageDto {
   id: string;
@@ -101,7 +101,7 @@ export const HomePage: React.FC = () => {
   const handleAddToCart = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const success = await addToCart(productId, 1);
     if (success) {
       setAddedCartItems(prev => ({ ...prev, [productId]: true }));
@@ -124,9 +124,14 @@ export const HomePage: React.FC = () => {
 
   const { data: categoryData } = useQuery({
     queryKey: ['categories'],
-    queryFn: async () => (await apiClient.get<ApiResponse<{ id: string; name: string; isActive: boolean }[]>>('/categories')).data.data
+    queryFn: async () => (await apiClient.get<ApiResponse<{ id: string; name: string; isActive: boolean }[]>>('/categories')).data
   });
-  const featuredCategories = (categoryData || []).filter(category => category.isActive).slice(0, 7).map((category, index) => ({ ...categoryStyles[index], id: category.id, name: category.name }));
+  const categoriesList: { id: string; name: string; isActive: boolean }[] = Array.isArray(categoryData)
+    ? categoryData
+    : Array.isArray((categoryData as any)?.data)
+      ? (categoryData as any).data
+      : [];
+  const featuredCategories = categoriesList.filter(category => category.isActive).slice(0, 7).map((category, index) => ({ ...categoryStyles[index], id: category.id, name: category.name }));
   featuredCategories.push({ ...categoryStyles[7], id: '', name: 'Tüm Kategoriler' });
   const dbProducts = productsData?.data?.items || EMPTY_PRODUCTS;
 
@@ -218,9 +223,8 @@ export const HomePage: React.FC = () => {
 
               <button aria-label="Sepete Ekle"
                 onClick={(e) => handleAddToCart(product.id, e)}
-                className={`p-2 rounded-xl transition-all active:scale-95 shadow-sm ${
-                  addedCartItems[product.id] ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-orange-500 text-slate-700 hover:text-white'
-                }`}
+                className={`p-2 rounded-xl transition-all active:scale-95 shadow-sm ${addedCartItems[product.id] ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-orange-500 text-slate-700 hover:text-white'
+                  }`}
                 title="Sepete Ekle"
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -236,7 +240,7 @@ export const HomePage: React.FC = () => {
     <div className="space-y-10 pb-16">
       {isLoading && <p role="status" className="text-sm text-slate-500">Ürünler yükleniyor...</p>}
       {isError && <p role="alert" className="text-sm text-rose-600">Ürünler yüklenemedi. <button type="button" onClick={() => refetch()}>Tekrar dene</button></p>}
-      
+
       {/* 1. Popüler Kategoriler (Trendyol Stili Dairesel İkonlar) */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">Kategorileri Keşfet</h2>
@@ -244,7 +248,7 @@ export const HomePage: React.FC = () => {
           {featuredCategories.map((category, idx) => {
             const IconComponent = category.icon;
             return (
-              <Link 
+              <Link
                 key={idx}
                 to={category.id ? `/products?categoryId=${category.id}` : '/products'}
                 className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col items-center justify-center text-center gap-3 hover:border-orange-500/30 transition-all group"
