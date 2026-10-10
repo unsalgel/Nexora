@@ -17,7 +17,6 @@ export const SecurityNoticeBanner: React.FC = () => {
   const [notice, setNotice] = useState<SecurityNoticeData | null>(null);
 
   useEffect(() => {
-    // Sadece oturum açılmış sayfalarda (login & register harici) göster
     if (location.pathname !== '/login' && location.pathname !== '/register') {
       const stored = sessionStorage.getItem('pendingSecurityNotice');
       if (stored) {
@@ -40,7 +39,6 @@ export const SecurityNoticeBanner: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200/80 p-6 space-y-5 animate-in zoom-in-95 duration-200">
-        {/* Clean Header */}
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">
@@ -58,12 +56,10 @@ export const SecurityNoticeBanner: React.FC = () => {
           </button>
         </div>
 
-        {/* Notice text */}
         <p className="text-xs text-slate-600 leading-relaxed">
           Hesabınıza erişim sağlanmadan önce <span className="font-semibold text-slate-900">{notice.failedCount} kez</span> hatalı parola girilmiştir:
         </p>
 
-        {/* Minimalist Log Table */}
         {notice.details && notice.details.length > 0 && (
           <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
             <div className="bg-slate-50 px-3.5 py-2 flex justify-between font-medium text-[11px] text-slate-400 uppercase tracking-wider">

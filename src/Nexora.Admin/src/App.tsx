@@ -9,7 +9,6 @@ import { AdminNotificationProvider } from './context/AdminNotificationContext';
 import { AdminToastProvider } from './context/AdminToastContext';
 import { AdminErrorBoundary } from './components/ui/AdminErrorBoundary';
 
-// Performans optimizasyonu: Admin paneli sayfalarını rota bazında dinamik yükle (Code Splitting)
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(m => ({ default: m.ProductsPage })));

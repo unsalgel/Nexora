@@ -260,7 +260,6 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 
         try
         {
-            // Kullanıcıya sipariş alındı anlık bildirimini ilet
             await _notificationService.PublishToUserAsync(
                 order.UserId,
                 "OrderCreated",

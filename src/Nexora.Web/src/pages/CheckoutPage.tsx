@@ -31,7 +31,6 @@ export const CheckoutPage: React.FC = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
   const quoteQuery = useCartQuote(appliedCoupon?.couponCode);
 
-  // Kayıtlı Adresler
   const [savedAddresses, setSavedAddresses] = useState<AddressDto[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'custom'>('custom');
   const [isNewAddressFormOpen, setIsNewAddressFormOpen] = useState(false);
@@ -44,9 +43,7 @@ export const CheckoutPage: React.FC = () => {
       if (savedCoupon) {
         setAppliedCoupon(JSON.parse(savedCoupon) as CouponValidationResultDto);
       }
-    } catch {
-      // JSON parse hatası durumunda sessiz kal
-    }
+    } catch {}
   }, []);
 
   const [address, setAddress] = useState({
@@ -200,7 +197,6 @@ export const CheckoutPage: React.FC = () => {
         setCreatedOrderNumber(response.data.data?.orderNumber || 'NXR-2026-TEMP');
         sessionStorage.removeItem('appliedCoupon');
 
-        // Yeni girilen adres ise ve kaydetme kutucuğu seçiliyse adres defterine kaydet
         if ((isNewAddressFormOpen || savedAddresses.length === 0) && shouldSaveAddress) {
           try {
             await apiClient.post('/addresses', {

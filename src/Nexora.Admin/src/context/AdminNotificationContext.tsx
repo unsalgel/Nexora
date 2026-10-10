@@ -36,9 +36,8 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       timestamp: new Date()
     };
 
-    setNotifications(prev => [newNotif, ...prev.slice(0, 4)]); // Maksimum 5 toast göster
+    setNotifications(prev => [newNotif, ...prev.slice(0, 4)]);
 
-    // 7 saniye sonra otomatik kaldır
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
     }, 7000);
@@ -65,7 +64,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       .configureLogging(LogLevel.Warning)
       .build();
 
-    // Yeni Sipariş Dinleyicisi
     connection.on('ReceiveNewOrder', (payload: {
       orderId: string;
       orderNumber: string;
@@ -85,7 +83,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
         `#${payload.orderNumber} numaralı sipariş oluşturuldu. Tutar: ${formattedTotal} TL`
       );
 
-      // Dashboard ve Siparişler listesi cache'ini anlık tazele
       queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
@@ -94,7 +91,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
     });
 
-    // Kritik Stok Dinleyicisi
     connection.on('LowStockAlert', (payload: {
       productId: string;
       productName: string;
@@ -114,7 +110,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
         `'${targetName}' ürününün stoğu ${payload.remainingStock} adede düştü.`
       );
 
-      // Ürünler tablosu cache'ini anlık tazele
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
@@ -152,7 +147,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
   return (
     <AdminNotificationContext.Provider value={{ notifications, dismissNotification, clearAll }}>
       {children}
-      {/* Toast Bildirim Listesi */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-[360px] w-full pointer-events-none">
         {notifications.map(n => (
           <div

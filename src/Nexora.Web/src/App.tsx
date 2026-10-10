@@ -14,7 +14,6 @@ import { ChatWidget } from './features/chat';
 import { SecurityNoticeBanner } from './components/common/SecurityNoticeBanner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
-// Performans optimizasyonu: Sayfaları rota bazında dinamik yükle (Code Splitting)
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })));

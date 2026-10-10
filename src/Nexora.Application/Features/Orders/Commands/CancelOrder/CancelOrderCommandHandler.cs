@@ -45,7 +45,6 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
             throw new ConflictException("Bu sipariş zaten iptal edilmiştir.");
         }
 
-        // Yalnızca henüz kargolanmamış siparişler müşteri tarafından iptal edilebilir
         if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Paid)
         {
             throw new ConflictException("Hazırlanmakta olan veya kargoya verilmiş siparişler iptal edilemez. Lütfen müşteri hizmetleri ile iletişime geçiniz.");
@@ -53,7 +52,6 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
 
         order.ChangeStatus(OrderStatus.Cancelled);
 
-        // Stokları iade et
         foreach (var item in order.Items)
         {
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
@@ -88,7 +86,6 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
 
         try
         {
-            // SignalR anlık bildirimi ilet
             await _notificationService.PublishToUserAsync(
                 order.UserId,
                 "OrderStatusChanged",
