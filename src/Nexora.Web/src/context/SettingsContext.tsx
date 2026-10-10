@@ -6,6 +6,7 @@ import { apiClient } from '../lib/apiClient';
 import { ENV } from '../lib/env';
 import type { ApiResponse } from '../lib/apiClient';
 import type { CategoryDto, CategoryStatusChangedPayload } from '../types/category';
+import type { BrandDto, BrandStatusChangedPayload } from '../types/brand';
 
 export interface SiteSettings {
   siteTitle: string;
@@ -124,7 +125,44 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       });
 
-      connection.onreconnected(() => { void queryClient.invalidateQueries({ queryKey: ['site-settings'] }); void queryClient.invalidateQueries({ queryKey: ['categories'] }); void queryClient.invalidateQueries({ queryKey: ['navbar-categories'] }); });
+      connection.on('BrandStatusChanged', (payload: BrandStatusChangedPayload) => {
+        queryClient.setQueryData<ApiResponse<BrandDto[]>>(['brands'], (old) => {
+          if (!old || !old.data) return old;
+          if (!payload.isActive) {
+            return {
+              ...old,
+              data: old.data.filter((b) => b.id !== payload.id)
+            };
+          } else {
+            const exists = old.data.some((b) => b.id === payload.id);
+            if (!exists) {
+              const newBrand: BrandDto = {
+                id: payload.id,
+                name: payload.name,
+                logoUrl: payload.logoUrl,
+                isActive: true
+              };
+              return {
+                ...old,
+                data: [...old.data, newBrand].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+              };
+            }
+            return {
+              ...old,
+              data: old.data.map((b) => b.id === payload.id ? { ...b, name: payload.name, logoUrl: payload.logoUrl, isActive: true } : b)
+            };
+          }
+        });
+        void queryClient.invalidateQueries({ queryKey: ['brands'] });
+        void queryClient.invalidateQueries({ queryKey: ['products'] });
+      });
+
+      connection.onreconnected(() => {
+        void queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+        void queryClient.invalidateQueries({ queryKey: ['categories'] });
+        void queryClient.invalidateQueries({ queryKey: ['navbar-categories'] });
+        void queryClient.invalidateQueries({ queryKey: ['brands'] });
+      });
       stop = startHubConnection(connection);
     } catch {}
 

@@ -230,4 +230,20 @@ public sealed class CategoryAndBrandCommandHandlerTests : IDisposable
         _context.ChangeTracker.Clear();
         (await _context.Categories.FindAsync(category.Id))!.Name.Should().Be("Yeni");
     }
+
+    [Fact]
+    public async Task UpdateBrand_WhenValid_PublishesRealtimeBrandStatusChanged()
+    {
+        var brand = new Brand { Id = Guid.NewGuid(), Name = "Nike", IsActive = true };
+        _context.Brands.Add(brand);
+        await _context.SaveChangesAsync();
+
+        var notification = new Moq.Mock<Nexora.Application.Abstractions.IRealTimeNotificationService>();
+        var handler = new UpdateBrandCommandHandler(_context, notification.Object);
+
+        var result = await handler.Handle(new(brand.Id, "Nike", null, false), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        notification.Verify(x => x.PublishToAllAsync("BrandStatusChanged", Moq.It.IsAny<object>(), Moq.It.IsAny<CancellationToken>()), Moq.Times.Once);
+    }
 }
