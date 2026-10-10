@@ -6,6 +6,8 @@ public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderC
 {
     public CreateOrderCommandValidator()
     {
+        RuleFor(x => x.ExpectedTotalAmount).NotNull().GreaterThanOrEqualTo(0).WithMessage("Güncel sepet toplamı zorunludur.");
+        RuleFor(x => x.CouponCode).MaximumLength(50).WithMessage("Kupon kodu 50 karakteri aşamaz.");
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı kimliği boş olamaz.");
 

@@ -1,4 +1,3 @@
-using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -31,6 +30,7 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
 
     public async Task<Result<string>> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"order:{request.OrderId}", cancellationToken);
         var query = _context.Orders.Include(o => o.User).AsQueryable();
         if (request.NewStatus == OrderStatus.Cancelled)
         {
@@ -45,33 +45,13 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new NotFoundException("Sipariş bulunamadı.");
 
-        if (order.Status == OrderStatus.Cancelled)
-        {
-            throw new ConflictException("İptal edilmiş bir siparişin durumu değiştirilemez.");
-        }
-
-        if (order.Status == OrderStatus.Delivered)
-        {
-            throw new ConflictException("Teslim edilmiş bir siparişin durumu değiştirilemez.");
-        }
-
-        if (order.Status == OrderStatus.Shipped && (request.NewStatus == OrderStatus.Pending || request.NewStatus == OrderStatus.Paid || request.NewStatus == OrderStatus.Processing))
-        {
-            throw new ConflictException("Kargoya verilmiş bir sipariş geriye dönük durumlara (Beklemede/Hazırlanıyor) alınamaz.");
-        }
-
-        if (order.Status == OrderStatus.Processing && request.NewStatus == OrderStatus.Pending)
-        {
-            throw new ConflictException("Hazırlanmakta olan bir sipariş 'Beklemede' durumuna geri alınamaz.");
-        }
-
         if (order.Status == request.NewStatus && string.IsNullOrWhiteSpace(request.TrackingNumber) && string.IsNullOrWhiteSpace(request.Carrier))
         {
             return Result<string>.Success($"Sipariş durumu zaten '{GetStatusTurkishText(request.NewStatus)}'.");
         }
 
         var oldStatus = order.Status;
-        order.Status = request.NewStatus;
+        order.ChangeStatus(request.NewStatus);
 
         if (!string.IsNullOrWhiteSpace(request.TrackingNumber))
         {
@@ -114,7 +94,15 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         };
 
         _context.Notifications.Add(notification);
+        if (order.User is not null && !string.IsNullOrWhiteSpace(order.User.Email))
+        {
+            var customerName = $"{order.User.FirstName} {order.User.LastName}".Trim();
+            await _emailService.SendOrderStatusChangedEmailAsync(order.User.Email, customerName, order.OrderNumber,
+                GetStatusTurkishText(order.Status), order.TrackingNumber, order.Carrier, cancellationToken);
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         try
         {
@@ -138,24 +126,6 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Sipariş durum güncelleme anlık bildirimi iletilemedi. OrderId: {OrderId}", order.Id);
-        }
-
-        var orderUser = order.User;
-        if (orderUser != null && !string.IsNullOrWhiteSpace(orderUser.Email))
-        {
-            var customerName = $"{orderUser.FirstName} {orderUser.LastName}".Trim();
-            _emailService.SendInBackground(
-                svc => svc.SendOrderStatusChangedEmailAsync(
-                    orderUser.Email,
-                    customerName,
-                    order.OrderNumber,
-                    GetStatusTurkishText(order.Status),
-                    order.TrackingNumber,
-                    order.Carrier,
-                    CancellationToken.None),
-                _logger,
-                "Sipariş durum güncelleme e-postası gönderilemedi. OrderId: {OrderId}",
-                order.Id);
         }
 
         return Result<string>.Success($"Sipariş durumu başarıyla '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.");

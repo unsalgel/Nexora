@@ -1,10 +1,11 @@
+import { startHubConnection } from '../lib/startHubConnection';
+import { useAccessToken, clearSession } from '../lib/session';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, AlertTriangle, X, ShoppingBag } from 'lucide-react';
 import { ENV } from '../lib/env';
-import type { ApiResponse } from '../lib/apiClient';
-import type { CategoryDto, CategoryStatusChangedPayload } from '../types/category';
+import type { CategoryStatusChangedPayload } from '../types/category';
 
 interface AdminNotification {
   id: string;
@@ -23,6 +24,7 @@ interface AdminNotificationContextType {
 const AdminNotificationContext = createContext<AdminNotificationContextType | undefined>(undefined);
 
 export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = useAccessToken();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const queryClient = useQueryClient();
 
@@ -52,7 +54,6 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminAccessToken');
     if (!token) return;
 
     let isCancelled = false;
@@ -86,9 +87,12 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       );
 
       // Dashboard ve Siparişler listesi cache'ini anlık tazele
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
     });
 
     // Kritik Stok Dinleyicisi
@@ -112,7 +116,9 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
       );
 
       // Ürünler tablosu cache'ini anlık tazele
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
     });
 
     connection.on('CategoryStatusChanged', (payload: CategoryStatusChangedPayload) => {
@@ -124,33 +130,24 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
         `"${payload.name}" kategorisi ${payload.isActive ? 'aktif' : 'pasif'} duruma getirildi.`
       );
 
-      queryClient.setQueriesData<ApiResponse<CategoryDto[]>>({ queryKey: ['admin-categories-list'] }, (old) => {
-        if (!old || !old.data) return old;
-        return {
-          ...old,
-          data: old.data.map((c) => c.id === payload.id ? { ...c, isActive: payload.isActive } : c)
-        };
-      });
-
-      queryClient.setQueryData<ApiResponse<CategoryDto[]>>(['categories'], (old) => {
-        if (!old || !old.data) return old;
-        return {
-          ...old,
-          data: old.data.map((c) => c.id === payload.id ? { ...c, isActive: payload.isActive } : c)
-        };
-      });
+      for (const key of ['admin-categories-list', 'admin-categories-dropdown', 'admin-dashboard-categories', 'admin-products', 'admin-dashboard-products']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
     });
 
-    connection.start().catch(() => {});
+    connection.on('SessionRevoked', () => { clearSession(); window.location.assign('/login'); });
+    connection.on('AccountFrozen', () => { clearSession(); window.location.assign('/login?reason=frozen'); });
+    connection.onreconnected(() => { void queryClient.invalidateQueries(); });
+    const stop = startHubConnection(connection);
 
     return () => {
       isCancelled = true;
       connection.off('ReceiveNewOrder');
       connection.off('LowStockAlert');
       connection.off('CategoryStatusChanged');
-      connection.stop().catch(() => {});
+      stop();
     };
-  }, [addNotification, queryClient]);
+  }, [addNotification, queryClient, token]);
 
   return (
     <AdminNotificationContext.Provider value={{ notifications, dismissNotification, clearAll }}>
@@ -182,7 +179,7 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
               <p className="text-[11.5px] leading-relaxed text-slate-600 font-normal">{n.message}</p>
             </div>
 
-            <button
+            <button aria-label="Kapat"
               onClick={() => dismissNotification(n.id)}
               className="text-slate-400 hover:text-slate-700 p-1 -mr-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
               title="Kapat"

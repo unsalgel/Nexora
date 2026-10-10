@@ -4,6 +4,7 @@ import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { ENV } from '../lib/env';
 import { AxiosError } from 'axios';
+import { setSessionTokens } from '../lib/session';
 import { decodeAdminJwt } from '../lib/jwt';
 import type { ApiResponse } from '../lib/apiClient';
 
@@ -43,8 +44,7 @@ export const AdminLoginPage: React.FC = () => {
         const claims = decodeAdminJwt(accessToken);
 
         if (claims?.roles.includes('Admin')) {
-          localStorage.setItem('adminAccessToken', accessToken);
-          localStorage.setItem('adminRefreshToken', refreshToken);
+          setSessionTokens(accessToken, refreshToken);
 
           if (failedLoginAttempts && failedLoginAttempts > 0) {
             sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({
@@ -104,10 +104,10 @@ export const AdminLoginPage: React.FC = () => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800">Yönetici E-Postası</label>
+              <label htmlFor="adminloginpage-field-1" className="text-xs font-black text-slate-800">Yönetici E-Postası</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input id="adminloginpage-field-1"
                   type="email"
                   required
                   value={email}
@@ -123,10 +123,10 @@ export const AdminLoginPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800">Şifre</label>
+              <label htmlFor="adminloginpage-field-2" className="text-xs font-black text-slate-800">Şifre</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input id="adminloginpage-field-2"
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
@@ -140,7 +140,7 @@ export const AdminLoginPage: React.FC = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Parolayı gizle' : 'Parolayı göster'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
                 >
                   {showPassword ? (

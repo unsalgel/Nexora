@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Orders.Dtos;
 
@@ -11,11 +13,20 @@ public sealed class SmtpEmailService : IEmailService
 {
   private readonly EmailSettings _settings;
   private readonly ILogger<SmtpEmailService> _logger;
+  private readonly IHostEnvironment? _environment;
+  private readonly string _frontendBaseUrl;
 
-  public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger)
+  public SmtpEmailService(IOptions<EmailSettings> settings, ILogger<SmtpEmailService> logger,
+      IConfiguration? configuration = null, IHostEnvironment? environment = null)
   {
     _settings = settings.Value;
     _logger = logger;
+    _environment = environment;
+    var frontendUrl = configuration?["Frontend:BaseUrl"] ?? "http://localhost:5173";
+    if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out var uri) ||
+        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+      throw new InvalidOperationException("Frontend bağlantı adresi geçerli HTTP/HTTPS URL olmalıdır.");
+    _frontendBaseUrl = WebUtility.HtmlEncode(uri.GetLeftPart(UriPartial.Path).TrimEnd('/'));
   }
 
   public async Task SendEmailAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
@@ -27,6 +38,8 @@ public sealed class SmtpEmailService : IEmailService
 
     if (string.IsNullOrWhiteSpace(_settings.Host) || string.IsNullOrWhiteSpace(_settings.UserName))
     {
+      if (_environment is not null && !_environment.IsDevelopment())
+        throw new InvalidOperationException("Üretim ortamında e-posta göndermek için SMTP sunucu ve kullanıcı ayarları gereklidir.");
       _logger.LogInformation("[E-POSTA SİMÜLASYONU] SMTP sunucu ayarları bulunmadığı için e-posta gönderimi simüle edildi.");
       return;
     }
@@ -87,7 +100,7 @@ public sealed class SmtpEmailService : IEmailService
       <p>Nexora ailesine katıldığınız için teşekkür ederiz. Hesabınız başarıyla oluşturuldu.</p>
       <p>Artık binlerce teknoloji, moda, yaşam ve ev kategorisindeki seçkin ürünleri güvenle keşfedebilir, sepete özel kupon fırsatlarından yararlanabilirsiniz.</p>
       <div style='text-align: center;'>
-        <a href='http://localhost:5173' class='button'>Alışverişe Başla</a>
+        <a href='{_frontendBaseUrl}' class='button'>Alışverişe Başla</a>
       </div>
     </div>
     <div class='footer'>
@@ -171,7 +184,7 @@ public sealed class SmtpEmailService : IEmailService
       </table>
 
       <div style='text-align: center; margin-top: 24px;'>
-        <a href='http://localhost:5173/orders' style='display:inline-block; background-color:#ea580c; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Siparişimi Takip Et</a>
+        <a href='{_frontendBaseUrl}/orders' style='display:inline-block; background-color:#ea580c; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Siparişimi Takip Et</a>
       </div>
     </div>
     <div class='footer'>
@@ -244,7 +257,7 @@ public sealed class SmtpEmailService : IEmailService
       {trackingSection}
 
       <div style='text-align: center; margin-top: 24px;'>
-        <a href='http://localhost:5173/orders' style='display:inline-block; background-color:{buttonBg}; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Sipariş Detaylarını Gör</a>
+        <a href='{_frontendBaseUrl}/orders' style='display:inline-block; background-color:{buttonBg}; color:#fff; text-decoration:none; padding:12px 26px; border-radius:12px; font-weight:bold; font-size:13px;'>Sipariş Detaylarını Gör</a>
       </div>
     </div>
     <div class='footer'>

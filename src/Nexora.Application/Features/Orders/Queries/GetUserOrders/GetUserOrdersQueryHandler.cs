@@ -28,6 +28,7 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
 
         var dtos = await query
             .OrderByDescending(o => o.CreatedAtUtc)
+            .ThenBy(o => o.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(o => new OrderDto(
@@ -49,7 +50,7 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
                     i.Quantity,
                     i.TotalPrice)).ToList(),
                 o.TrackingNumber,
-                o.Carrier
+                o.Carrier, o.Subtotal, o.DiscountAmount, o.ShippingFee, o.CouponCode
             ))
             .ToListAsync(cancellationToken);
 

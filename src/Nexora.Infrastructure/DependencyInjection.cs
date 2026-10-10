@@ -1,4 +1,5 @@
 using Hangfire;
+using Microsoft.AspNetCore.DataProtection;
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,8 @@ public static class DependencyInjection
             }
         });
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.AddDataProtection().SetApplicationName("Nexora").PersistKeysToFileSystem(new DirectoryInfo(
+            configuration["DataProtection:KeysPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "keys")));
         services.AddScoped<SmtpEmailService>();
         services.AddScoped<IEmailService, HangfireEmailService>();
 
@@ -34,28 +37,21 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IPaymentService, FakePaymentService>();
 
-        // Redis Configuration
-        var redisConnectionString = configuration.GetConnectionString("Redis") 
-            ?? configuration["REDIS_URL"] 
+        // Native config binding korunur; açık environment override bağlantıdaki varsayılandan önceliklidir.
+        var redisConnectionString = configuration["REDIS_URL"] ?? configuration.GetConnectionString("Redis")
             ?? "localhost:6379,abortConnect=false";
-
-        var redisPassword = configuration["REDIS_PASSWORD"] ?? Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-        if (!string.IsNullOrWhiteSpace(redisPassword) && !redisConnectionString.Contains("password=", StringComparison.OrdinalIgnoreCase))
-        {
-            redisConnectionString = $"{redisConnectionString},password={redisPassword}";
-        }
-
-        services.AddSingleton<IConnectionMultiplexer>(sp =>
-            ConnectionMultiplexer.Connect(redisConnectionString));
-
+        var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
+        var redisPassword = configuration["REDIS_PASSWORD"];
+        if (!string.IsNullOrWhiteSpace(redisPassword)) redisOptions.Password = redisPassword;
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
         services.AddMemoryCache();
         services.AddSingleton<ILoginAttemptService, LoginAttemptService>();
         services.AddScoped<ICacheService, RedisCacheService>();
-        services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+        services.AddScoped<IAuthTokenProtector, AuthTokenProtector>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IDbLogger, DbLogger>();
 
-        services.AddHttpClient<IAiChatService, AiChatService>();
+        services.AddHttpClient<IAiChatService, AiChatService>(client => client.Timeout = TimeSpan.FromSeconds(30));
 
         // Hangfire Arka Plan İşleri (PostgreSQL Depolama)
         var dbConnectionString = configuration.GetConnectionString("DefaultConnection") 
@@ -66,7 +62,10 @@ public static class DependencyInjection
             config.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                   .UseSimpleAssemblyNameTypeSerializer()
                   .UseRecommendedSerializerSettings()
-                  .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(dbConnectionString));
+                  .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(dbConnectionString), new PostgreSqlStorageOptions
+                  {
+                      PrepareSchemaIfNecessary = configuration.GetValue("Hangfire:PrepareSchema", true)
+                  });
         });
 
         services.AddHangfireServer(options =>
@@ -79,6 +78,9 @@ public static class DependencyInjection
         services.AddScoped<ICouponCleanupJob, CouponCleanupJob>();
         services.AddScoped<IOrderCleanupJob, OrderCleanupJob>();
         services.AddScoped<ICartCleanupJob, CartCleanupJob>();
+        services.AddScoped<EmailOutboxDispatchJob>();
+        services.AddScoped<FileCleanupJob>();
+        services.AddScoped<AuthCleanupJob>();
 
         return services;
     }

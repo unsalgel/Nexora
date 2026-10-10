@@ -21,6 +21,7 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
             .MaximumLength(2000).WithMessage("Ürün açıklaması en fazla 2000 karakter olabilir.");
 
         RuleFor(x => x.Price)
+            .PrecisionScale(18, 2, true).WithMessage("Fiyat en fazla iki ondalık basamaklı olmalıdır.")
             .GreaterThan(0).WithMessage("Ürün fiyatı 0'dan büyük olmalıdır.");
 
         RuleFor(x => x.StockQuantity)

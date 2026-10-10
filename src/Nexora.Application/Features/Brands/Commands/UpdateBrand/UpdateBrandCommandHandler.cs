@@ -17,12 +17,13 @@ public sealed class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandComma
 
     public async Task<Result<string>> Handle(UpdateBrandCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
         var brand = await _context.Brands
             .FirstOrDefaultAsync(b => b.Id == request.Id && !b.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Güncellenecek marka bulunamadı.");
 
         var nameExists = await _context.Brands
-            .AnyAsync(b => b.Name == request.Name && b.Id != request.Id && !b.IsDeleted, cancellationToken);
+            .AnyAsync(b => b.Name == request.Name && b.Id != request.Id, cancellationToken);
 
         if (nameExists)
             throw new ConflictException("Bu isimde başka bir marka zaten mevcut.");
@@ -32,6 +33,7 @@ public sealed class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandComma
         brand.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Marka başarıyla güncellendi.");
     }

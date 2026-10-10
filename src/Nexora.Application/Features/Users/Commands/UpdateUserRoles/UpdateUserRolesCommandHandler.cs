@@ -4,24 +4,29 @@ using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
 using Nexora.Domain.Exceptions;
+using Nexora.Application.Features.Auth;
 
 namespace Nexora.Application.Features.Users.Commands.UpdateUserRoles;
 
 public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRolesCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
-    private readonly ITokenBlacklistService _tokenBlacklistService;
+    private readonly IRealTimeNotificationService? _notifications;
 
     public UpdateUserRolesCommandHandler(
         IApplicationDbContext context,
-        ITokenBlacklistService tokenBlacklistService)
+        IRealTimeNotificationService? notifications = null)
     {
         _context = context;
-        _tokenBlacklistService = tokenBlacklistService;
+        _notifications = notifications;
     }
 
     public async Task<Result<bool>> Handle(UpdateUserRolesCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("auth-admin", cancellationToken);
+        await transaction.AcquireLockAsync($"auth:{request.UserId}", cancellationToken);
+        if (request.Roles is null || request.Roles.Count == 0 || request.Roles.Any(string.IsNullOrWhiteSpace) || request.Roles.Distinct(StringComparer.Ordinal).Count() != request.Roles.Count)
+            throw new BusinessValidationException("En az bir geçerli ve benzersiz rol seçilmelidir.");
         var user = await _context.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -33,6 +38,7 @@ public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRo
             .ToListAsync(cancellationToken);
 
         var isAdminCurrently = user.UserRoles.Any(ur => ur.Role != null && ur.Role.Name == "Admin");
+        if (allRoles.Count != request.Roles.Count) throw new BusinessValidationException("Bilinmeyen rol adı.");
         var willBeAdmin = allRoles.Any(r => r.Name == "Admin");
 
         if (isAdminCurrently && !willBeAdmin)
@@ -58,17 +64,12 @@ public sealed class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRo
             });
         }
 
-        var activeRefreshTokens = await _context.RefreshTokens
-            .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
-            .ToListAsync(cancellationToken);
-
-        foreach (var token in activeRefreshTokens)
-        {
-            token.IsRevoked = true;
-        }
+        await _context.InvalidateSessionsAsync(user, cancellationToken);
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _tokenBlacklistService.RevokeUserAsync(user.Id, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        if (_notifications is not null)
+            await _notifications.PublishToUserAsync(user.Id, "SessionRevoked", new { message = "Yetkileriniz değişti. Lütfen yeniden giriş yapın." }, cancellationToken);
 
         return Result<bool>.Success(true, "Kullanıcı rolleri başarıyla güncellendi.");
     }

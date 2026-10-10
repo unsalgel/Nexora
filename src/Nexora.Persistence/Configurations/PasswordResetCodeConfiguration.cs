@@ -14,7 +14,7 @@ public sealed class PasswordResetCodeConfiguration : IEntityTypeConfiguration<Pa
 
         builder.Property(prc => prc.Code)
             .IsRequired()
-            .HasMaxLength(10);
+            .HasMaxLength(64);
 
         builder.HasIndex(prc => prc.Code);
         builder.HasIndex(prc => new { prc.UserId, prc.Code, prc.IsUsed });

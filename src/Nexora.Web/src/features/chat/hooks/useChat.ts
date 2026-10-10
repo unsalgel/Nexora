@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { chatService } from '../services/chatService';
 import type { ChatMessageItem } from '../types';
+import { CHAT_STORAGE_PREFIX, useAccessToken } from '../../../lib/session';
+import { buildChatHistory } from '../history';
+import { decodeJwt } from '../../../lib/jwt';
 
-const STORAGE_KEY = 'nexora_chat_history';
 
 const INITIAL_MESSAGES: ChatMessageItem[] = [
   {
@@ -17,12 +19,16 @@ interface UseChatOptions {
 }
 
 export const useChat = (options?: UseChatOptions) => {
+  const token = useAccessToken();
+  const generation = useRef(0);
+  const storageKey = CHAT_STORAGE_PREFIX + (token ? decodeJwt(token)?.id || 'guest' : 'guest');
   const [messages, setMessages] = useState<ChatMessageItem[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item =>
+          item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string')) return parsed.slice(-50);
       }
     } catch {
     }
@@ -30,17 +36,17 @@ export const useChat = (options?: UseChatOptions) => {
   });
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      localStorage.setItem(storageKey, JSON.stringify(messages.slice(-50)));
     } catch {
     }
-  }, [messages]);
+  }, [messages, storageKey]);
 
   const mutation = useMutation({
-    mutationFn: (userMessage: string) => {
-      const history = messages.map(({ role, content }) => ({ role, content }));
-      return chatService.sendMessage({ message: userMessage, history });
+    mutationFn: (request: { message: string; generation: number }) => {
+      return chatService.sendMessage({ message: request.message, history: buildChatHistory(messages) });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, request) => {
+      if (request.generation !== generation.current) return;
       try {
         options?.onMessageReceived?.();
       } catch {}
@@ -50,7 +56,8 @@ export const useChat = (options?: UseChatOptions) => {
         { role: 'assistant', content: data.reply },
       ]);
     },
-    onError: () => {
+    onError: (_error, request) => {
+      if (request.generation !== generation.current) return;
       setMessages((prev) => [
         ...prev,
         {
@@ -66,13 +73,14 @@ export const useChat = (options?: UseChatOptions) => {
     if (!trimmed || mutation.isPending) return;
 
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
-    mutation.mutate(trimmed);
+    mutation.mutate({ message: trimmed, generation: generation.current });
   };
 
   const clearChat = () => {
+    generation.current++;
     setMessages(INITIAL_MESSAGES);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     } catch {}
   };
 

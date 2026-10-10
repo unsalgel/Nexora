@@ -10,4 +10,8 @@ public sealed record GetProductsQuery(
     Guid? CategoryId = null,
     Guid? BrandId = null,
     string? SearchTerm = null,
-    bool? IsActive = null) : IRequest<Result<PagedResult<ProductListDto>>>;
+    bool? IsActive = null,
+    decimal? MinPrice = null,
+    decimal? MaxPrice = null,
+    string SortBy = "featured",
+    string? Ids = null) : IRequest<Result<PagedResult<ProductListDto>>>;

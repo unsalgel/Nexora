@@ -28,46 +28,7 @@ public sealed class ValidateCouponQueryHandler
             .FirstOrDefaultAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Geçersiz veya bulunamayan kupon kodu.");
 
-        if (!coupon.IsActive)
-        {
-            throw new ConflictException("Bu kupon şu anda aktif değildir.");
-        }
-
-        if (coupon.ExpirationDateUtc < DateTime.UtcNow)
-        {
-            throw new ConflictException("Bu kuponun kullanım süresi dolmuştur.");
-        }
-
-        if (coupon.CurrentUsageCount >= coupon.TotalUsageLimit)
-        {
-            throw new ConflictException("Bu kupon maksimum kullanım limitine ulaşmıştır.");
-        }
-
-        if (request.CartTotalAmount < coupon.MinimumOrderAmount)
-        {
-            throw new ConflictException($"Bu kupon yalnızca {coupon.MinimumOrderAmount:N2} TL ve üzeri siparişlerde geçerlidir.");
-        }
-
-        decimal calculatedDiscount;
-
-        if (coupon.DiscountType == DiscountType.Percentage)
-        {
-            calculatedDiscount = (request.CartTotalAmount * coupon.DiscountValue) / 100m;
-
-            if (coupon.MaximumDiscountAmount.HasValue && calculatedDiscount > coupon.MaximumDiscountAmount.Value)
-            {
-                calculatedDiscount = coupon.MaximumDiscountAmount.Value;
-            }
-        }
-        else
-        {
-            calculatedDiscount = coupon.DiscountValue;
-        }
-
-        if (calculatedDiscount > request.CartTotalAmount)
-        {
-            calculatedDiscount = request.CartTotalAmount;
-        }
+        var calculatedDiscount = coupon.CalculateDiscount(request.CartTotalAmount, DateTime.UtcNow);
 
         var finalTotalAmount = request.CartTotalAmount - calculatedDiscount;
 

@@ -50,7 +50,7 @@ export const SecurityNoticeBanner: React.FC = () => {
               Önceki oturumda başarısız giriş denemeleri kaydedildi.
             </p>
           </div>
-          <button
+          <button aria-label="Kapat"
             onClick={handleDismiss}
             className="text-slate-400 hover:text-slate-600 p-1 -mr-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >

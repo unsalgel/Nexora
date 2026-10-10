@@ -21,8 +21,11 @@ public sealed class UpdateProductVariantCommandHandler : IRequestHandler<UpdateP
             .FirstOrDefaultAsync(v => v.Id == request.Id && !v.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Güncellenecek varyant bulunamadı.");
 
+        if (request.Version == 0 || request.Version != variant.Version)
+            throw new ConflictException("Varyant bilgileri değişti. Sayfayı yenileyip tekrar deneyiniz.");
+
         var skuExists = await _context.ProductVariants
-            .AnyAsync(v => v.SKU == request.SKU && v.Id != request.Id && !v.IsDeleted, cancellationToken);
+            .AnyAsync(v => v.SKU == request.SKU && v.Id != request.Id, cancellationToken);
 
         if (skuExists)
             throw new ConflictException("Bu SKU koduna sahip başka bir varyant zaten mevcut.");

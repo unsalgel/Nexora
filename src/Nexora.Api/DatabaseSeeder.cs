@@ -22,7 +22,8 @@ public static class DatabaseSeeder
         var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        if (context.Database.IsRelational())
+        if (context.Database.IsRelational() &&
+            (environment.IsDevelopment() || configuration.GetValue<bool>("Database:AutoMigrate")))
         {
             await context.Database.MigrateAsync();
         }
@@ -48,6 +49,7 @@ public static class DatabaseSeeder
 
         if (isSeedEnabled && !string.IsNullOrWhiteSpace(adminPassword))
         {
+            await using var transaction = await context.BeginTransactionAsync("auth-admin");
             var existingAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
             if (existingAdmin is null)
             {
@@ -78,17 +80,19 @@ public static class DatabaseSeeder
             {
                 if (!await context.UserRoles.AnyAsync(ur => ur.UserId == existingAdmin.Id && ur.RoleId == adminRoleId))
                 {
-                    await context.UserRoles.AddAsync(new UserRole
-                    {
-                        UserId = existingAdmin.Id,
-                        RoleId = adminRoleId
-                    });
-                    await context.SaveChangesAsync();
+                    throw new InvalidOperationException("Admin seed e-posta adresi yönetici olmayan mevcut bir hesaba aittir. Seed bayrağını kapatın veya yeni bir bootstrap adresi kullanın.");
                 }
             }
+            await transaction.CommitAsync();
         }
 
-        // 2. Eğer Kategoriler ve Ürünler varsa tekrar ekleme
+        var isDemoSeedEnabled = environment.IsDevelopment() || configuration.GetValue<bool>("DemoSeedEnabled");
+        if (!isDemoSeedEnabled)
+        {
+            return;
+        }
+
+        // Demo katalog yalnız geliştirme veya açık demo bayrağı ile eklenir.
         if (await context.Categories.AnyAsync())
         {
             return;

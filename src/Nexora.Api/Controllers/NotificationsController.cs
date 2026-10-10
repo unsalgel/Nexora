@@ -5,6 +5,7 @@ using Nexora.Application.Features.Notifications.Commands.MarkAllAsRead;
 using Nexora.Application.Features.Notifications.Commands.MarkAsRead;
 using Nexora.Application.Features.Notifications.Dtos;
 using Nexora.Application.Features.Notifications.Queries.GetUserNotifications;
+using Nexora.Application.Features.Notifications.Queries.GetUnreadNotificationCount;
 
 namespace Nexora.Api.Controllers;
 
@@ -33,6 +34,12 @@ public sealed class NotificationsController : ApiControllerBase
         var command = new MarkNotificationAsReadCommand(userId, id);
         var result = await Sender.Send(command, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpGet("unread-count")]
+    public async Task<ActionResult<Result<int>>> GetUnreadCount(CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(new GetUnreadNotificationCountQuery(GetCurrentUserId()), cancellationToken));
     }
 
     [HttpPut("read-all")]

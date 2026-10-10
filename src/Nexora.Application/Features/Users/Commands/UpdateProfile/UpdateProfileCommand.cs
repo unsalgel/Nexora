@@ -1,107 +1,54 @@
 using System.Security.Cryptography;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
-using Nexora.Application.Common.Extensions;
 using Nexora.Application.Features.Users.Dtos;
 using Nexora.Domain.Entities;
+using Nexora.Domain.Exceptions;
 
 namespace Nexora.Application.Features.Users.Commands.UpdateProfile;
 
-public sealed record UpdateProfileCommand(
-    Guid UserId,
-    string FirstName,
-    string LastName,
-    string Email) : IRequest<Result<UserProfileDto>>;
+public sealed record UpdateProfileCommand(Guid UserId, string FirstName, string LastName, string Email, string? CurrentPassword = null)
+    : IRequest<Result<UserProfileDto>>;
 
-public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, Result<UserProfileDto>>
+public sealed class UpdateProfileCommandHandler(IApplicationDbContext context, IPasswordHasher passwordHasher,
+    IAuthTokenProtector protector, IEmailService emailService)
+    : IRequestHandler<UpdateProfileCommand, Result<UserProfileDto>>
 {
-    private readonly IApplicationDbContext _context;
-    private readonly IEmailService? _emailService;
-    private readonly ILogger<UpdateProfileCommandHandler>? _logger;
-
-    public UpdateProfileCommandHandler(
-        IApplicationDbContext context,
-        IEmailService? emailService = null,
-        ILogger<UpdateProfileCommandHandler>? logger = null)
+    public async Task<Result<UserProfileDto>> Handle(UpdateProfileCommand request, CancellationToken ct)
     {
-        _context = context;
-        _emailService = emailService;
-        _logger = logger;
-    }
-
-    public async Task<Result<UserProfileDto>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
-    {
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
-
-        if (user is null)
+        await using var transaction = await context.BeginTransactionAsync("auth-email", ct);
+        await transaction.AcquireLockAsync($"auth:{request.UserId}", ct);
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, ct)
+            ?? throw new NotFoundException("Kullanıcı bulunamadı.");
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (email != user.Email)
         {
-            return Result<UserProfileDto>.Failure("Kullanıcı bulunamadı.");
-        }
-
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var emailChanged = false;
-        var verificationCode = string.Empty;
-
-        if (!string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
-        {
-            var isEmailTaken = await _context.Users
-                .AnyAsync(u => u.Email == normalizedEmail && u.Id != request.UserId, cancellationToken);
-
-            if (isEmailTaken)
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) || !passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+                throw new BusinessValidationException("E-posta değişikliği için mevcut şifrenizi doğrulayın.");
+            if (await context.Users.AnyAsync(u => u.Id != user.Id && (u.Email == email || u.PendingEmail == email), ct))
+                throw new ConflictException("Bu e-posta adresi kullanılamıyor.");
+            var latest = await context.EmailVerificationCodes.Where(c => c.UserId == user.Id && c.TargetEmail == email)
+                .OrderByDescending(c => c.CreatedAtUtc).FirstOrDefaultAsync(ct);
+            if (latest is not null && latest.CreatedAtUtc > DateTime.UtcNow.AddMinutes(-1) &&
+                (latest.IsUsed || latest.ExpiresAtUtc <= DateTime.UtcNow))
+                throw new TooManyRequestsException("Bu adrese yeni doğrulama kodu göndermek için lütfen bir dakika bekleyin.");
+            user.PendingEmail = email;
+            if (latest is null || latest.CreatedAtUtc <= DateTime.UtcNow.AddMinutes(-1))
             {
-                return Result<UserProfileDto>.Failure("Bu e-posta adresi başka bir kullanıcı tarafından kullanılmaktadır.");
-            }
-
-            user.Email = normalizedEmail;
-            user.IsEmailConfirmed = false;
-            emailChanged = true;
-
-            verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-            var emailVerification = new EmailVerificationCode
-            {
-                UserId = user.Id,
-                Code = verificationCode,
-                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15),
-                IsUsed = false
-            };
-            _context.EmailVerificationCodes.Add(emailVerification);
-
-            var activeRefreshTokens = await _context.RefreshTokens
-                .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
-                .ToListAsync(cancellationToken);
-
-            foreach (var token in activeRefreshTokens)
-            {
-                token.IsRevoked = true;
+                var codes = await context.EmailVerificationCodes.Where(c => c.UserId == user.Id && !c.IsUsed).ToListAsync(ct);
+                foreach (var old in codes) old.IsUsed = true;
+                var raw = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+                context.EmailVerificationCodes.Add(new EmailVerificationCode { UserId = user.Id, TargetEmail = email,
+                    Code = protector.HashCode(user.Id, "verify:" + email, raw), ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15) });
+                await emailService.SendEmailVerificationCodeEmailAsync(email, $"{user.FirstName} {user.LastName}", raw, ct);
             }
         }
-
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        if (emailChanged && _emailService != null && _logger != null)
-        {
-            var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
-            _emailService.SendInBackground(
-                svc => svc.SendEmailVerificationCodeEmailAsync(normalizedEmail, registeredUserName, verificationCode, CancellationToken.None),
-                _logger,
-                "E-posta doğrulama kodu gönderilemedi. UserId: {UserId}",
-                user.Id);
-        }
-
-        var dto = new UserProfileDto(
-            user.Id,
-            user.FirstName,
-            user.LastName,
-            user.Email,
-            user.IsEmailConfirmed);
-
-        return Result<UserProfileDto>.Success(dto);
+        await context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Result<UserProfileDto>.Success(new(user.Id, user.FirstName, user.LastName, user.Email, user.IsEmailConfirmed, user.PendingEmail));
     }
 }

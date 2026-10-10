@@ -23,6 +23,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     [HttpPut("me")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthPolicy")]
     public async Task<ActionResult<Result<UserProfileDto>>> UpdateProfile(
         UpdateProfileCommand command,
         CancellationToken cancellationToken = default)

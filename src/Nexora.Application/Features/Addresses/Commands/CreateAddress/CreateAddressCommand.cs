@@ -29,6 +29,7 @@ public sealed class CreateAddressCommandHandler : IRequestHandler<CreateAddressC
 
     public async Task<Result<AddressDto>> Handle(CreateAddressCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"addresses:{request.UserId}", cancellationToken);
         var hasAnyAddress = await _context.UserAddresses
             .AnyAsync(a => a.UserId == request.UserId && !a.IsDeleted, cancellationToken);
 
@@ -44,6 +45,7 @@ public sealed class CreateAddressCommandHandler : IRequestHandler<CreateAddressC
             {
                 addr.IsDefault = false;
             }
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
         var address = new UserAddress
@@ -61,6 +63,7 @@ public sealed class CreateAddressCommandHandler : IRequestHandler<CreateAddressC
 
         _context.UserAddresses.Add(address);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = new AddressDto(
             address.Id,

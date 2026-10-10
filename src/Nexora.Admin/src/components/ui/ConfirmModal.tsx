@@ -1,3 +1,4 @@
+import { Dialog } from './Dialog';
 import React from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 
@@ -27,7 +28,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <Dialog label="Onay" onClose={onClose}
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150 font-sans"
       onClick={onClose}
     >
@@ -49,7 +50,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               )}
             </p>
           </div>
-          <button
+          <button aria-label="Kapat"
             type="button"
             disabled={isLoading}
             onClick={onClose}
@@ -84,6 +85,6 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

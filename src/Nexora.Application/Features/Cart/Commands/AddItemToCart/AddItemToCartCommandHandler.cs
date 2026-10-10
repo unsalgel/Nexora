@@ -18,6 +18,7 @@ public sealed class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartC
 
     public async Task<Result<Guid>> Handle(AddItemToCartCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
         var product = await _context.Products
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && p.IsActive && !p.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Sepete eklenecek ürün bulunamadı.");
@@ -71,6 +72,7 @@ public sealed class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartC
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<Guid>.Success(cart.Id, "Ürün başarıyla sepete eklendi.");
     }

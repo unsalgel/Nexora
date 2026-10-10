@@ -22,7 +22,7 @@ public sealed class CreateCouponCommandHandler : IRequestHandler<CreateCouponCom
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
 
         var existingCoupon = await _context.Coupons
-            .AnyAsync(c => c.Code == normalizedCode && !c.IsDeleted, cancellationToken);
+            .AnyAsync(c => c.Code == normalizedCode, cancellationToken);
 
         if (existingCoupon)
         {

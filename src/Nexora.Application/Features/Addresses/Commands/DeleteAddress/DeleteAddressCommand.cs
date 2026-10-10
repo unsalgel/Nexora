@@ -19,6 +19,7 @@ public sealed class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressC
 
     public async Task<Result<string>> Handle(DeleteAddressCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"addresses:{request.UserId}", cancellationToken);
         var address = await _context.UserAddresses
             .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId && !a.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Adres bulunamadı.");
@@ -27,6 +28,8 @@ public sealed class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressC
 
         if (address.IsDefault)
         {
+            address.IsDefault = false;
+            await _context.SaveChangesAsync(cancellationToken);
             var nextAddress = await _context.UserAddresses
                 .Where(a => a.UserId == request.UserId && a.Id != address.Id && !a.IsDeleted)
                 .OrderByDescending(a => a.CreatedAtUtc)
@@ -39,6 +42,7 @@ public sealed class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressC
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Adres başarıyla silindi.");
     }

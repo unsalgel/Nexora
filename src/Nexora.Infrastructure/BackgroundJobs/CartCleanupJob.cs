@@ -16,17 +16,24 @@ public sealed class CartCleanupJob(
     {
         var cutoffTime = DateTime.UtcNow.AddDays(-30);
 
-        var staleCartItems = await dbContext.CartItems
-            .Where(ci => ci.CreatedAtUtc <= cutoffTime)
+        var users = await dbContext.CartItems.AsNoTracking()
+            .Where(ci => (ci.UpdatedAtUtc ?? ci.CreatedAtUtc) <= cutoffTime)
+            .Select(ci => ci.Cart.UserId).Distinct().OrderBy(id => id).Take(100)
             .ToListAsync(cancellationToken);
-
-        if (staleCartItems.Count == 0)
+        var affectedCount = 0;
+        foreach (var userId in users)
         {
-            return;
+            // Kullanıcı komutları aynı kilidi alır; güncel bir satır ilk taramanın eski görüntüsüne göre silinmez.
+            await using var transaction = await dbContext.BeginTransactionAsync($"usercart:{userId}", cancellationToken);
+            var staleCartItems = await dbContext.CartItems
+                .Where(ci => ci.Cart.UserId == userId && (ci.UpdatedAtUtc ?? ci.CreatedAtUtc) <= cutoffTime)
+                .OrderBy(ci => ci.Id).Take(1000).ToListAsync(cancellationToken);
+            dbContext.CartItems.RemoveRange(staleCartItems);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            affectedCount += staleCartItems.Count;
         }
-
-        dbContext.CartItems.RemoveRange(staleCartItems);
-        var affectedCount = await dbContext.SaveChangesAsync(cancellationToken);
+        if (affectedCount == 0) return;
 
         var logMessage = $"{affectedCount} adet 30 günden eski sahipsiz sepet öğesi temizlendi.";
         logger.LogInformation("{Count} adet 30 günden eski sahipsiz sepet öğesi temizlendi.", affectedCount);

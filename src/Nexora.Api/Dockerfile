@@ -16,12 +16,16 @@ RUN dotnet publish "Nexora.Api.csproj" -c Release -o /app/publish /p:UseAppHost=
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 
-RUN mkdir -p /app/logs /app/wwwroot/uploads/products && \
-    chown -R $APP_UID:$APP_UID /app/logs /app/wwwroot
+RUN apk add --no-cache tzdata icu-libs && \
+    mkdir -p /app/logs /app/wwwroot/uploads/products /app/data/keys && \
+    chown -R $APP_UID:$APP_UID /app/logs /app/wwwroot /app/data
+
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER $APP_UID
 
 COPY --from=build --chown=$APP_UID:$APP_UID /app/publish .
+COPY --chown=$APP_UID:$APP_UID ["licenses/SkiaSharp/", "/app/licenses/SkiaSharp/"]
 
 EXPOSE 8080
 

@@ -1,5 +1,7 @@
+import { useToast } from '../context/ToastContext';
+import { Pagination } from '../components/ui/Pagination';
 import { SafeImage } from '../components/common/SafeImage';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -71,8 +73,14 @@ interface ReviewDto {
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  return <ProductDetailContent key={id} />;
+};
+
+const ProductDetailContent: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { success: showSuccess, error: showError } = useToast();
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const { toggleFavorite, isFavorite: checkIsFavorite } = useFavorites();
   const { addToCart } = useCart();
@@ -82,6 +90,7 @@ export const ProductDetailPage: React.FC = () => {
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
+  const [reviewPage, setReviewPage] = useState(1);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -97,15 +106,21 @@ export const ProductDetailPage: React.FC = () => {
     enabled: !!id
   });
 
-  const { data: reviewsData, refetch: refetchReviews } = useQuery<ApiResponse<PagedResponse<ReviewDto>>>({
-    queryKey: ['product-reviews', id],
+  const { data: reviewsData, isLoading: isReviewsLoading, isError: isReviewsError, refetch: refetchReviews } = useQuery<ApiResponse<PagedResponse<ReviewDto>>>({
+    queryKey: ['product-reviews', id, reviewPage],
     queryFn: async () => {
       const response = await apiClient.get<ApiResponse<PagedResponse<ReviewDto>>>(`/reviews/product/${id}`, {
-        params: { page: 1, pageSize: 50 }
+        params: { page: reviewPage, pageSize: 10 }
       });
       return response.data;
     },
     enabled: !!id
+  });
+
+  const { data: reviewSummary, isError: isSummaryError } = useQuery({
+    queryKey: ['review-summary', id],
+    queryFn: async () => (await apiClient.get<ApiResponse<{ averageRating: number; totalCount: number }>>(`/reviews/product/${id}/summary`)).data.data,
+    enabled: !!id,
   });
 
   const addReviewMutation = useMutation({
@@ -120,7 +135,9 @@ export const ProductDetailPage: React.FC = () => {
     onSuccess: () => {
       setNewComment('');
       setNewRating(5);
-      refetchReviews();
+      queryClient.invalidateQueries({ queryKey: ['product-reviews', id] });
+      queryClient.invalidateQueries({ queryKey: ['review-summary', id] });
+      setReviewPage(1);
       queryClient.invalidateQueries({ queryKey: ['product', id] });
     },
     onError: (err: unknown) => {
@@ -161,20 +178,21 @@ export const ProductDetailPage: React.FC = () => {
   const reviews = reviewsData?.data?.items || [];
   const isFav = product ? checkIsFavorite(product.id) : false;
 
-  const variants = product?.variants || [];
+  const variants = useMemo(() => (product?.variants || []).filter(variant => variant.isActive), [product?.variants]);
   const selectedVariant = variants.find(v => v.id === selectedVariantId) || null;
 
   // Otomatik ilk aktif varyantı seçme
   useEffect(() => {
-    if (variants.length > 0 && !selectedVariantId) {
+    if (variants.length > 0 && (!selectedVariantId || !variants.some(variant => variant.id === selectedVariantId))) {
       const firstAvailable = variants.find(v => v.stockQuantity > 0) || variants[0];
       setSelectedVariantId(firstAvailable.id);
-    }
+    } else if (variants.length === 0 && selectedVariantId) { setSelectedVariantId(null); }
   }, [variants, selectedVariantId]);
 
   const currentPrice = selectedVariant ? selectedVariant.price : (product?.price || 0);
   const currentStock = selectedVariant ? selectedVariant.stockQuantity : (product?.stockQuantity || 0);
   const currentSKU = selectedVariant ? selectedVariant.sku : (product?.sku || '');
+  useEffect(() => { setQuantity(quantity => Math.max(1, Math.min(quantity, currentStock))); }, [currentStock]);
 
   const handleAddToCart = async () => {
     if (product) {
@@ -224,16 +242,14 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const discountText = "%25 İndirim";
-  const oldPrice = product.price * 1.25;
+  const oldPrice = 0;
 
   const imageUrls = product.images.length > 0 
     ? product.images.map(img => resolveImageUrl(img.imageUrl)) 
     : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80'];
 
-  const averageRating = reviews.length > 0 
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : '5.0';
+  const averageRating = isSummaryError ? '—' : (reviewSummary?.averageRating || 0).toFixed(1);
+  const reviewCount = reviewSummary?.totalCount || 0;
 
   return (
     <div className="space-y-8 pb-16">
@@ -246,6 +262,7 @@ export const ProductDetailPage: React.FC = () => {
         <span className="text-slate-800 font-semibold truncate max-w-xs">{product.name}</span>
       </div>
 
+      {isSummaryError && <p role="alert" className="text-rose-600 text-xs">Değerlendirme özeti yüklenemedi.</p>}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
         {/* SOL RESİM GALERİSİ */}
@@ -256,13 +273,9 @@ export const ProductDetailPage: React.FC = () => {
               alt={product.name}
               className="max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
             />
-            
-            <div className="absolute top-4 left-4 bg-orange-500 text-white text-[11px] font-bold tracking-wider px-3 py-1.5 rounded-lg shadow-md shadow-orange-500/25 uppercase">
-              {discountText}
-            </div>
 
             <div className="absolute top-4 right-4 flex flex-col gap-2">
-              <button 
+              <button aria-label="Favorilere Ekle"
                 onClick={() => toggleFavorite({ 
                   id: product.id, 
                   title: product.name, 
@@ -275,7 +288,7 @@ export const ProductDetailPage: React.FC = () => {
               >
                 <Heart className={`w-5 h-5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
               </button>
-              <button className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200 transition-all active:scale-95">
+              <button aria-label="Ürün bağlantısını kopyala" onClick={() => { void navigator.clipboard.writeText(window.location.href).then(() => showSuccess('Ürün bağlantısı kopyalandı.')).catch(() => showError('Bağlantı kopyalanamadı.')); }} className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200 transition-all active:scale-95">
                 <Share2 className="w-4 h-4" />
               </button>
             </div>
@@ -286,6 +299,7 @@ export const ProductDetailPage: React.FC = () => {
               {imageUrls.map((img, idx) => (
                 <button
                   key={idx}
+                  aria-label={`${idx + 1}. ürün görseli`}
                   onClick={() => setSelectedImageIdx(idx)}
                   className={`w-20 h-20 bg-white rounded-2xl border p-2 flex items-center justify-center shrink-0 transition-all ${
                     selectedImageIdx === idx ? 'border-orange-500 ring-2 ring-orange-500/10' : 'border-slate-200/80 hover:border-slate-300'
@@ -333,7 +347,7 @@ export const ProductDetailPage: React.FC = () => {
               </div>
               <span className="font-bold text-slate-800">{averageRating}</span>
               <span className="text-slate-400">•</span>
-              <span className="text-slate-500 font-medium">{reviews.length} Değerlendirme</span>
+              <span className="text-slate-500 font-medium">{reviewCount} Değerlendirme</span>
             </div>
           </div>
 
@@ -391,11 +405,8 @@ export const ProductDetailPage: React.FC = () => {
               <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                 {currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
               </span>
-              <span className="text-slate-400 line-through text-xs sm:text-sm font-medium">
-                {(currentPrice * 1.25).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-              </span>
               <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
-                Kazancınız: {(currentPrice * 0.25).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                Fiyatlara KDV dahildir
               </span>
             </div>
           </div>
@@ -403,7 +414,7 @@ export const ProductDetailPage: React.FC = () => {
           {/* Adet Seçici ve Butonlar */}
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="flex items-center border border-slate-200 rounded-2xl bg-white p-1 self-start sm:self-auto shrink-0 shadow-sm">
-              <button 
+              <button aria-label="Miktarı azalt"
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
                 className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer"
               >
@@ -412,7 +423,7 @@ export const ProductDetailPage: React.FC = () => {
               <span className="px-5 text-sm font-bold text-slate-800 min-w-[40px] text-center">
                 {quantity}
               </span>
-              <button 
+              <button aria-label="Miktarı artır"
                 onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
                 disabled={quantity >= currentStock}
                 className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer disabled:opacity-40"
@@ -455,7 +466,7 @@ export const ProductDetailPage: React.FC = () => {
               <Truck className="w-5 h-5 text-orange-500 shrink-0" />
               <div className="text-xs">
                 <span className="font-bold text-slate-800 block">Hızlı Teslimat</span>
-                <span className="text-slate-400 font-medium">Yarın kapında</span>
+                <span className="text-slate-400 font-medium">Teslimat süresi adresinize göre değişir</span>
               </div>
             </div>
             <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
@@ -499,7 +510,7 @@ export const ProductDetailPage: React.FC = () => {
                   activeTab === 'reviews' ? 'border-orange-500 text-orange-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                Değerlendirmeler ({reviews.length})
+                Değerlendirmeler ({reviewCount})
               </button>
             </div>
 
@@ -583,7 +594,8 @@ export const ProductDetailPage: React.FC = () => {
 
                   {/* Yorum Listesi */}
                   <div className="space-y-4">
-                    {reviews.length === 0 ? (
+                    {isReviewsError && <p role="alert" className="text-rose-600">Yorumlar yüklenemedi. <button type="button" onClick={() => refetchReviews()}>Tekrar dene</button></p>}
+                    {isReviewsLoading ? (<p>Yorumlar yükleniyor...</p>) : isReviewsError ? null : reviews.length === 0 ? (
                       <p className="text-slate-400 text-center font-bold py-4">Bu ürüne henüz yorum yapılmamış. İlk yorumu sen yap!</p>
                     ) : (
                       reviews.map((r) => {
@@ -612,6 +624,7 @@ export const ProductDetailPage: React.FC = () => {
                         );
                       })
                     )}
+                    <Pagination page={reviewPage} totalPages={reviewsData?.data?.totalPages || 0} onPageChange={setReviewPage} />
                   </div>
                 </div>
               )}

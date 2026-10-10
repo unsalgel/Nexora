@@ -35,6 +35,7 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
     public DbSet<Log> Logs => Set<Log>();
     public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
     public DbSet<EmailVerificationCode> EmailVerificationCodes => Set<EmailVerificationCode>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,23 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
     {
         UpdateAuditFields();
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IApplicationTransaction> BeginTransactionAsync(string lockKey, CancellationToken cancellationToken = default)
+    {
+        var transaction = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory"
+            ? null : await Database.BeginTransactionAsync(cancellationToken);
+        var scope = new ApplicationTransaction(this, transaction);
+        try
+        {
+            await scope.AcquireLockAsync(lockKey, cancellationToken);
+            return scope;
+        }
+        catch
+        {
+            await scope.DisposeAsync();
+            throw;
+        }
     }
 
     private void UpdateAuditFields()
