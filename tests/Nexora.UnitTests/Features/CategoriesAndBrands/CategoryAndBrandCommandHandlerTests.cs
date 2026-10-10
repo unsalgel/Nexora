@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using Nexora.Application.Features.Brands.Commands.CreateBrand;
 using Nexora.Application.Features.Brands.Commands.UpdateBrand;
 using Nexora.Application.Features.Categories.Commands.CreateCategory;
@@ -178,5 +179,55 @@ public sealed class CategoryAndBrandCommandHandlerTests : IDisposable
                 Moq.It.IsAny<object>(),
                 Moq.It.IsAny<CancellationToken>()),
             Moq.Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCategory_WhenParentIsDescendant_RejectsIndirectCycle()
+    {
+        var root = new Category { Id = Guid.NewGuid(), Name = "Kök" };
+        var child = new Category { Id = Guid.NewGuid(), Name = "Alt", ParentCategoryId = root.Id };
+        var grandchild = new Category { Id = Guid.NewGuid(), Name = "Torun", ParentCategoryId = child.Id };
+        _context.Categories.AddRange(root, child, grandchild);
+        await _context.SaveChangesAsync();
+        var handler = new UpdateCategoryCommandHandler(_context);
+        var act = () => handler.Handle(new(root.Id, root.Name, null, grandchild.Id, true), CancellationToken.None);
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*döngü*");
+        root.ParentCategoryId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateCategory_WhenDeletedNameReserved_RejectsConflictBeforeDatabaseIndex()
+    {
+        _context.Categories.Add(new Category { Name = "Silinmiş", IsDeleted = true });
+        await _context.SaveChangesAsync();
+        var handler = new CreateCategoryCommandHandler(_context);
+        var act = () => handler.Handle(new("Silinmiş", null, null), CancellationToken.None);
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task CreateBrand_WhenDeletedNameReserved_RejectsConflictBeforeDatabaseIndex()
+    {
+        _context.Brands.Add(new Brand { Name = "Silinmiş", IsDeleted = true });
+        await _context.SaveChangesAsync();
+        var handler = new CreateBrandCommandHandler(_context);
+        var act = () => handler.Handle(new("Silinmiş", null), CancellationToken.None);
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task UpdateCategory_WhenRealtimeTransportFails_PreservesCommittedSuccess()
+    {
+        var category = new Category { Id = Guid.NewGuid(), Name = "Eski" };
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+        var notification = new Moq.Mock<Nexora.Application.Abstractions.IRealTimeNotificationService>();
+        notification.Setup(x => x.PublishToAllAsync(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Bağlantı kapalı"));
+        var handler = new UpdateCategoryCommandHandler(_context, notification.Object);
+        var result = await handler.Handle(new(category.Id, "Yeni", null, null, true), CancellationToken.None);
+        result.IsSuccess.Should().BeTrue();
+        _context.ChangeTracker.Clear();
+        (await _context.Categories.FindAsync(category.Id))!.Name.Should().Be("Yeni");
     }
 }

@@ -4,6 +4,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Exceptions;
+using Npgsql;
 
 namespace Nexora.Api.Middlewares;
 
@@ -32,7 +33,8 @@ public sealed class GlobalExceptionHandlerMiddleware
         }
         catch (Exception ex)
         {
-            var isBusinessOrClientException = ex is ValidationException || ex is DomainException || ex is DbUpdateConcurrencyException;
+            var isBusinessOrClientException = ex is ValidationException || ex is DomainException || ex is DbUpdateConcurrencyException ||
+                ex is DbUpdateException { InnerException: PostgresException { SqlState: "23505" or "23514" } };
 
             if (isBusinessOrClientException)
             {
@@ -93,6 +95,14 @@ public sealed class GlobalExceptionHandlerMiddleware
             case DbUpdateConcurrencyException:
                 statusCode = StatusCodes.Status409Conflict;
                 message = "İşlem sırasında bir eşzamanlılık çakışması oluştu. Veriler başka bir işlem tarafından güncellenmiş olabilir. Lütfen işlemi tekrar deneyiniz.";
+                break;
+            case DbUpdateException { InnerException: PostgresException { SqlState: "23505" } }:
+                statusCode = StatusCodes.Status409Conflict;
+                message = "Aynı bilgileri taşıyan bir kayıt zaten mevcut. Güncel verileri kontrol ediniz.";
+                break;
+            case DbUpdateException { InnerException: PostgresException { SqlState: "23514" } }:
+                statusCode = StatusCodes.Status400BadRequest;
+                message = "Gönderilen bilgiler veri kurallarına uygun değildir.";
                 break;
 
             default:

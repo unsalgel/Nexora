@@ -1,8 +1,10 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, RotateCw, ShieldCheck, CheckCircle2, AlertCircle, KeyRound, X, Sparkles } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
+import { setSessionTokens } from '../lib/session';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 
@@ -103,8 +105,7 @@ export const LoginPage: React.FC = () => {
           });
           if (loginRes.data?.isSuccess && loginRes.data.data) {
             const { accessToken, refreshToken } = loginRes.data.data;
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
+            setSessionTokens(accessToken, refreshToken);
             await refreshFavorites();
             await refreshCart();
             setIsSuccess(true);
@@ -160,8 +161,7 @@ export const LoginPage: React.FC = () => {
 
         if (response.data?.isSuccess) {
           const { accessToken, refreshToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
+          setSessionTokens(accessToken, refreshToken);
 
           if (failedLoginAttempts && failedLoginAttempts > 0) {
             sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({
@@ -322,10 +322,10 @@ export const LoginPage: React.FC = () => {
             <div className="space-y-5 animate-in fade-in-50">
               <form onSubmit={handleNextStep} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">E-Posta Adresi</label>
+                  <label htmlFor="loginpage-field-1" className="text-xs font-bold text-slate-700 block">E-Posta Adresi</label>
                   <div className="relative flex items-center">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-4" />
-                    <input
+                    <input id="loginpage-field-1"
                       type="email"
                       required
                       placeholder="e.g. unsal@example.com"
@@ -351,9 +351,9 @@ export const LoginPage: React.FC = () => {
               <form onSubmit={handleFinalSubmit} className="space-y-4">
                 {activeTab === 'register' && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Ad Soyad</label>
+                    <label htmlFor="loginpage-field-2" className="text-xs font-bold text-slate-700 block">Ad Soyad</label>
                     <div className="relative flex items-center">
-                      <input
+                      <input id="loginpage-field-2"
                         type="text"
                         required
                         placeholder="Ünsal Gel"
@@ -367,7 +367,7 @@ export const LoginPage: React.FC = () => {
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 block">Şifre</label>
+                    <label htmlFor="loginpage-field-3" className="text-xs font-bold text-slate-700 block">Şifre</label>
                     {activeTab === 'login' && (
                       <button
                         type="button"
@@ -386,7 +386,7 @@ export const LoginPage: React.FC = () => {
                   </div>
                   <div className="relative flex items-center">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-4" />
-                    <input
+                    <input id="loginpage-field-3"
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="••••••••"
@@ -400,7 +400,7 @@ export const LoginPage: React.FC = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Parolayı gizle' : 'Parolayı göster'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -468,7 +468,7 @@ export const LoginPage: React.FC = () => {
                 {/* 6 Haneli Segmentli OTP Girişi */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">
+                    <label htmlFor="loginpage-field-4" className="text-xs font-bold text-slate-700">
                       6 Haneli Güvenlik Kodu
                     </label>
                     {verificationCode.length > 0 && (
@@ -488,7 +488,7 @@ export const LoginPage: React.FC = () => {
 
                   <div className="relative">
                     {/* Arka planda klavye ve yapıştırma olaylarını yöneten gizli input */}
-                    <input
+                    <input id="loginpage-field-4"
                       ref={otpInputRef}
                       type="text"
                       inputMode="numeric"
@@ -603,10 +603,10 @@ export const LoginPage: React.FC = () => {
       </div>
 
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+        <Dialog label="Parola yenile" onClose={() => setShowForgotModal(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95">
             <div className="relative bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-6 text-white text-center">
-              <button
+              <button aria-label="Kapat"
                 type="button"
                 onClick={() => setShowForgotModal(false)}
                 className="absolute right-4 top-4 p-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
@@ -642,10 +642,10 @@ export const LoginPage: React.FC = () => {
               {forgotStep === 1 ? (
                 <form onSubmit={handleSendResetCode} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Kayıtlı E-Posta Adresi</label>
+                    <label htmlFor="loginpage-field-5" className="text-xs font-bold text-slate-700 block">Kayıtlı E-Posta Adresi</label>
                     <div className="relative flex items-center">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-4" />
-                      <input
+                      <input id="loginpage-field-5"
                         type="email"
                         required
                         placeholder="ornek@domain.com"
@@ -668,9 +668,9 @@ export const LoginPage: React.FC = () => {
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">6 Haneli Doğrulama Kodu</label>
+                    <label htmlFor="loginpage-field-6" className="text-xs font-bold text-slate-700 block">6 Haneli Doğrulama Kodu</label>
                     <div className="relative flex items-center">
-                      <input
+                      <input id="loginpage-field-6"
                         type="text"
                         required
                         maxLength={6}
@@ -683,10 +683,10 @@ export const LoginPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Yeni Şifre</label>
+                    <label htmlFor="loginpage-field-7" className="text-xs font-bold text-slate-700 block">Yeni Şifre</label>
                     <div className="relative flex items-center">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-4" />
-                      <input
+                      <input id="loginpage-field-7"
                         type={showNewPassword ? 'text' : 'password'}
                         required
                         placeholder="En az 6 karakter"
@@ -724,7 +724,7 @@ export const LoginPage: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

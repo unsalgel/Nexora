@@ -6,7 +6,7 @@ export const resolveImageUrl = (url?: string | null, fallback = FALLBACK_PRODUCT
   if (!url || url.trim() === '' || url.trim() === 'none') return fallback;
   const cleanUrl = url.trim();
 
-  if (/[\u0000-\u001F\u007F]/.test(cleanUrl)) return fallback;
+  if (Array.from(cleanUrl).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return fallback;
 
   try {
     const absolute = new URL(cleanUrl);

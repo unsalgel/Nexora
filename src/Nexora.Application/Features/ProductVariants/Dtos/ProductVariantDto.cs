@@ -7,4 +7,5 @@ public sealed record ProductVariantDto(
     decimal Price,
     int StockQuantity,
     bool IsActive,
-    List<string> AttributeValues);
+    List<string> AttributeValues,
+    uint Version = 0);

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { startHubConnection } from '../lib/startHubConnection';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
@@ -22,8 +23,8 @@ const defaultSettings: SiteSettings = {
   contactPhone: '0850 123 45 67',
   freeShippingThreshold: 500,
   shippingCost: 29.90,
-  announcementText: '500 TL ve Üzeri Alışverişlerde Kargo Ücretsiz!',
-  isAnnouncementActive: true
+  announcementText: '',
+  isAnnouncementActive: false
 };
 
 interface SettingsContextType {
@@ -40,7 +41,6 @@ const SettingsContext = createContext<SettingsContextType>({
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
-  const [liveSettings, setLiveSettings] = useState<SiteSettings | null>(null);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<SiteSettings>>({
     queryKey: ['site-settings'],
@@ -52,10 +52,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refetchOnWindowFocus: true
   });
 
-  const settings = liveSettings || data?.data || defaultSettings;
+  const settings = data?.data || defaultSettings;
 
   useEffect(() => {
     let connection: HubConnection | null = null;
+    let stop: (() => void) | undefined;
 
     try {
       connection = new HubConnectionBuilder()
@@ -65,7 +66,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .build();
 
       connection.on('SiteSettingsUpdated', (updatedSettings: SiteSettings) => {
-        setLiveSettings(updatedSettings);
         queryClient.setQueryData(['site-settings'], { isSuccess: true, data: updatedSettings });
       });
 
@@ -124,20 +124,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       });
 
-      connection.start().catch((err) => {
-        console.warn('SignalR connection failed:', err);
-      });
+      connection.onreconnected(() => { void queryClient.invalidateQueries({ queryKey: ['site-settings'] }); void queryClient.invalidateQueries({ queryKey: ['categories'] }); void queryClient.invalidateQueries({ queryKey: ['navbar-categories'] }); });
+      stop = startHubConnection(connection);
     } catch {}
 
     return () => {
-      if (connection) {
-        connection.stop().catch(() => {});
-      }
+      stop?.();
     };
   }, [queryClient]);
 
   useEffect(() => {
     const rawTitle = (settings.siteTitle || 'Nexora - Alışverişin Yeni Adresi').trim() + '   ';
+    document.title = rawTitle.trim();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let currentTitle = rawTitle;
 
     const interval = setInterval(() => {

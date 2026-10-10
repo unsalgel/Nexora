@@ -13,4 +13,5 @@ public sealed record UpdateProductCommand(
     Guid CategoryId,
     Guid BrandId,
     bool IsActive,
-    string? MainImageUrl = null) : IRequest<Result<string>>;
+    string? MainImageUrl = null,
+    uint Version = 0) : IRequest<Result<string>>;

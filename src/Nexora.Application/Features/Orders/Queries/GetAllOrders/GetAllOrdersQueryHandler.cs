@@ -45,6 +45,7 @@ public sealed class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery
 
         var dtos = await query
             .OrderByDescending(o => o.CreatedAtUtc)
+            .ThenBy(o => o.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(o => new AdminOrderDto(

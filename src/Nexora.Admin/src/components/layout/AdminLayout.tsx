@@ -1,3 +1,4 @@
+import { Dialog } from '../ui/Dialog';
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
@@ -170,7 +171,7 @@ export const AdminLayout: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <button aria-label="Çıkış Yap"
               onClick={handleLogout}
               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
               title="Çıkış Yap"
@@ -184,7 +185,7 @@ export const AdminLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {securityNotice && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+            <Dialog label="Güvenlik uyarısı" onClose={dismissSecurityNotice} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
               <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200/80 p-6 space-y-5 animate-in zoom-in-95 duration-200">
                 {/* Başlık ve Kapatma */}
                 <div className="flex items-start justify-between">
@@ -196,7 +197,7 @@ export const AdminLayout: React.FC = () => {
                       Önceki oturumda başarısız giriş denemeleri kaydedildi.
                     </p>
                   </div>
-                  <button
+                  <button aria-label="Kapat"
                     onClick={dismissSecurityNotice}
                     className="text-slate-400 hover:text-slate-600 p-1 -mr-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                   >
@@ -250,7 +251,7 @@ export const AdminLayout: React.FC = () => {
                   </button>
                 </div>
               </div>
-            </div>
+            </Dialog>
           )}
           <Outlet />
         </main>

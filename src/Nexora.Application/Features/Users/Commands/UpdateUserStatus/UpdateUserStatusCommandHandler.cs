@@ -3,27 +3,27 @@ using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Exceptions;
+using Nexora.Application.Features.Auth;
 
 namespace Nexora.Application.Features.Users.Commands.UpdateUserStatus;
 
 public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserStatusCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
-    private readonly ITokenBlacklistService _tokenBlacklistService;
     private readonly IRealTimeNotificationService? _notificationService;
 
     public UpdateUserStatusCommandHandler(
         IApplicationDbContext context,
-        ITokenBlacklistService tokenBlacklistService,
         IRealTimeNotificationService? notificationService = null)
     {
         _context = context;
-        _tokenBlacklistService = tokenBlacklistService;
         _notificationService = notificationService;
     }
 
     public async Task<Result<bool>> Handle(UpdateUserStatusCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("auth-admin", cancellationToken);
+        await transaction.AcquireLockAsync($"auth:{request.Id}", cancellationToken);
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Kullanıcı bulunamadı.");
@@ -45,34 +45,18 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
             }
 
             user.IsActive = false;
-
-            var userTokens = await _context.RefreshTokens
-                .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
-                .ToListAsync(cancellationToken);
-
-            foreach (var token in userTokens)
-            {
-                token.IsRevoked = true;
-            }
-
-            await _tokenBlacklistService.RevokeUserAsync(user.Id, cancellationToken);
-
-            if (_notificationService != null)
-            {
-                await _notificationService.PublishToUserAsync(
-                    user.Id,
-                    "AccountFrozen",
-                    new { message = "Hesabınız yönetici tarafından dondurulmuştur. Oturumunuz sonlandırılıyor." },
-                    cancellationToken);
-            }
         }
         else
         {
             user.IsActive = true;
-            await _tokenBlacklistService.UnrevokeUserAsync(user.Id, cancellationToken);
         }
 
+        await _context.InvalidateSessionsAsync(user, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        if (_notificationService is not null)
+            await _notificationService.PublishToUserAsync(user.Id, request.IsActive ? "SessionRevoked" : "AccountFrozen",
+                new { message = "Hesap durumunuz değişti. Lütfen yeniden giriş yapın." }, cancellationToken);
 
         return Result<bool>.Success(true, request.IsActive ? "Kullanıcı hesabı aktif duruma getirildi." : "Kullanıcı hesabı donduruldu/pasife alındı.");
     }

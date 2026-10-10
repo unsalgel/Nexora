@@ -1,6 +1,10 @@
+import { Dialog } from '../components/ui/Dialog';
 import { SafeImage } from '../components/common/SafeImage';
 
 import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pagination } from '../components/ui/Pagination';
+import { clearSession } from '../lib/session';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -83,24 +87,38 @@ export const ProfilePage: React.FC = () => {
       setActiveTab('favorites');
     }
   }, [location.pathname]);
-  const { favorites, toggleFavorite, refreshFavorites } = useFavorites();
+  const { favorites, toggleFavorite, refreshFavorites, page: favoritesPage, setPage: setFavoritesPage, totalPages: favoritesPages, totalCount: favoritesCount, isLoading: isFavoritesLoading, isError: isFavoritesError } = useFavorites();
   const { addToCart } = useCart();
   const { success: showSuccess, error: showError } = useToast();
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string; pendingEmail?: string | null } | null>(null);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
-  const [orders, setOrders] = useState<OrderDto[]>([]);
-  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const [ordersPage, setOrdersPage] = useState(1);
+  const { data: ordersData, isLoading: isOrdersLoading, isError: isOrdersError, refetch: refetchOrders } = useQuery({
+    queryKey: ['my-orders', ordersPage], enabled: activeTab === 'orders',
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<PagedResponse<OrderDto>>>('/orders', { params: { page: ordersPage, pageSize: 10 } });
+      if (!res.data.isSuccess) throw new Error(res.data.message);
+      return res.data.data;
+    }
+  });
+  const orders = ordersData?.items || [];
+  const fetchOrders = async () => { await queryClient.invalidateQueries({ queryKey: ['my-orders'] }); };
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
+  const [addressesLoadError, setAddressesLoadError] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [newAddress, setNewAddress] = useState({
     title: '',
@@ -149,18 +167,17 @@ export const ProfilePage: React.FC = () => {
     } else {
       navigate('/login');
     }
-    refreshFavorites();
   }, [navigate]);
 
   const fetchProfile = async () => {
     try {
-      const response = await apiClient.get<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; isEmailConfirmed: boolean }>>('/users/me');
+      const response = await apiClient.get<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; pendingEmail: string | null; isEmailConfirmed: boolean }>>('/users/me');
       if (response.data?.isSuccess && response.data.data) {
         const data = response.data.data;
         setUserProfile({
           firstName: data.firstName,
           lastName: data.lastName,
-          email: data.email
+          email: data.email, pendingEmail: data.pendingEmail
         });
         setEditFirstName(data.firstName);
         setEditLastName(data.lastName);
@@ -168,6 +185,7 @@ export const ProfilePage: React.FC = () => {
       }
     } catch (error) {
       console.error('Profil bilgileri alınamadı:', error);
+      setProfileError('Profil bilgileri yüklenemedi. Lütfen hesabım sekmesini yeniden açın.');
     }
   };
 
@@ -192,10 +210,10 @@ export const ProfilePage: React.FC = () => {
 
     setIsSavingProfile(true);
     try {
-      const response = await apiClient.put<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; isEmailConfirmed: boolean }>>('/users/me', {
+      const response = await apiClient.put<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; pendingEmail: string | null; isEmailConfirmed: boolean }>>('/users/me', {
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        email: trimmedEmail
+        email: trimmedEmail, currentPassword: currentPassword || undefined
       });
 
       if (response.data?.isSuccess && response.data.data) {
@@ -203,12 +221,13 @@ export const ProfilePage: React.FC = () => {
         setUserProfile({
           firstName: updated.firstName,
           lastName: updated.lastName,
-          email: updated.email
+          email: updated.email, pendingEmail: updated.pendingEmail
         });
         setEditFirstName(updated.firstName);
         setEditLastName(updated.lastName);
         setEditEmail(updated.email);
-        setProfileSuccess('Kişisel bilgileriniz başarıyla güncellendi.');
+        setCurrentPassword('');
+        setProfileSuccess(updated.pendingEmail ? 'Yeni e-posta adresinize doğrulama kodu gönderildi. Doğrulama tamamlanana kadar mevcut adresiniz kullanılır.' : 'Kişisel bilgileriniz başarıyla güncellendi.');
         showSuccess('Profil bilgileriniz başarıyla kaydedildi.');
       } else {
         const errorMsg = response.data?.message || 'Profil güncellenirken bir hata oluştu.';
@@ -227,40 +246,24 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const fetchOrders = async () => {
-    setIsOrdersLoading(true);
-    try {
-      const response = await apiClient.get<ApiResponse<PagedResponse<OrderDto>>>('/orders', {
-        params: { page: 1, pageSize: 20 }
-      });
-      if (response.data?.isSuccess && response.data.data?.items) {
-        setOrders(response.data.data.items);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsOrdersLoading(false);
-    }
-  };
-
   const fetchAddresses = async () => {
     setIsAddressesLoading(true);
+    setAddressesLoadError(false);
     try {
       const response = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');
       if (response.data?.isSuccess && response.data.data) {
         setAddresses(response.data.data);
-      }
+      } else { throw new Error(response.data.message); }
     } catch (error) {
       console.error(error);
+      setAddressesLoadError(true);
     } finally {
       setIsAddressesLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'orders' && localStorage.getItem('accessToken')) {
-      fetchOrders();
-    } else if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
+    if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
       fetchAddresses();
     } else if (activeTab === 'account' && localStorage.getItem('accessToken')) {
       fetchProfile();
@@ -270,12 +273,13 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     const handleOrderChange = () => {
       if (localStorage.getItem('accessToken')) {
-        fetchOrders();
+        void queryClient.invalidateQueries({ queryKey: ['my-orders'] });
       }
     };
     window.addEventListener('nexora:order-status-changed', handleOrderChange);
-    return () => window.removeEventListener('nexora:order-status-changed', handleOrderChange);
-  }, []);
+    window.addEventListener('nexora:order-created', handleOrderChange);
+    return () => { window.removeEventListener('nexora:order-status-changed', handleOrderChange); window.removeEventListener('nexora:order-created', handleOrderChange); };
+  }, [queryClient]);
 
   const handleCreateAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -515,11 +519,11 @@ export const ProfilePage: React.FC = () => {
                   </p>
                 </div>
                 <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                  {orders.length} Sipariş
+                  {ordersData?.totalCount || 0} Sipariş
                 </span>
               </div>
               
-              {isOrdersLoading ? (
+              {isOrdersError ? (<p role="alert" className="p-5 text-rose-600">Siparişler yüklenemedi. <button onClick={() => void refetchOrders()}>Tekrar dene</button></p>) : isOrdersLoading ? (
                 <div className="flex justify-center items-center py-16">
                   <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -624,7 +628,7 @@ export const ProfilePage: React.FC = () => {
                                     <strong className="font-mono text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-blue-200/80">
                                       {order.trackingNumber}
                                     </strong>
-                                    <button
+                                    <button aria-label="Takip Kodu Kopyala"
                                       onClick={() => handleCopy(order.trackingNumber!)}
                                       className="p-1 hover:bg-blue-100/60 rounded-md text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
                                       title="Takip Kodu Kopyala"
@@ -654,7 +658,7 @@ export const ProfilePage: React.FC = () => {
                       ) : (
                         <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2">
                           <XCircle className="w-4 h-4 shrink-0" />
-                          <span>Bu sipariş iptal edilmiştir. Ücret iadeniz bankanıza aktarılmıştır.</span>
+                          <span>Bu sipariş iptal edilmiştir. Ödeme ve iade akışı bu projede simülasyondur.</span>
                         </div>
                       )}
 
@@ -692,7 +696,7 @@ export const ProfilePage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold shrink-0">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Tahmini Teslimat: 2-3 İş Günü</span>
+                          <span>Teslimat bilgisi kargo takibinden izlenebilir</span>
                         </div>
                         {(order.status.toLowerCase() === 'pending' || order.status.toLowerCase() === 'paid') && (
                           <button
@@ -711,11 +715,12 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'orders' && <Pagination page={ordersPage} totalPages={ordersData?.totalPages || 0} onPageChange={setOrdersPage} isLoading={isOrdersLoading} />}
           {activeTab === 'favorites' && (
             <div className="space-y-4 animate-in fade-in-50">
-              <h2 className="text-base font-bold text-slate-900">Favori Ürünlerim ({favorites.length})</h2>
+              <h2 className="text-base font-bold text-slate-900">Favori Ürünlerim ({favoritesCount})</h2>
 
-              {favorites.length === 0 ? (
+              {isFavoritesError ? (<p role="alert" className="text-rose-600">Favoriler yüklenemedi. <button onClick={() => void refreshFavorites()}>Tekrar dene</button></p>) : isFavoritesLoading ? (<p>Favoriler yükleniyor...</p>) : favorites.length === 0 ? (
                 <div className="bg-white rounded-3xl p-8 border border-slate-200/80 text-center space-y-3">
                   <Heart className="w-10 h-10 text-slate-300 mx-auto" />
                   <p className="text-xs text-slate-500 font-medium">Henüz favorilere ürün eklemediniz.</p>
@@ -724,7 +729,7 @@ export const ProfilePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {favorites.map((item) => (
                     <div key={item.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3 flex flex-col justify-between relative">
-                      <button
+                      <button aria-label="Favorilerden Çıkar"
                         onClick={() => toggleFavorite(item)}
                         className="absolute top-3 right-3 text-rose-500 hover:text-rose-700 transition-colors p-1 cursor-pointer"
                         title="Favorilerden Çıkar"
@@ -760,6 +765,7 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'favorites' && <Pagination page={favoritesPage} totalPages={favoritesPages} onPageChange={setFavoritesPage} isLoading={isFavoritesLoading} />}
           {activeTab === 'addresses' && (
             <div className="space-y-5 animate-in fade-in-50">
               <div className="flex justify-between items-center border-b border-slate-100 pb-4">
@@ -778,7 +784,7 @@ export const ProfilePage: React.FC = () => {
                 </button>
               </div>
 
-              {isAddressesLoading ? (
+              {addressesLoadError ? (<p role="alert" className="text-rose-600">Adresler yüklenemedi. <button onClick={() => void fetchAddresses()}>Tekrar dene</button></p>) : isAddressesLoading ? (
                 <div className="flex justify-center items-center py-16">
                   <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -882,13 +888,35 @@ export const ProfilePage: React.FC = () => {
                 </div>
               )}
 
+              {userProfile?.pendingEmail && (
+                <form className="p-4 border rounded-xl space-y-3" onSubmit={async event => {
+                  event.preventDefault(); setIsVerifyingEmail(true); setProfileError(null);
+                  try {
+                    const res = await apiClient.post<ApiResponse<string>>('/auth/verify-email', { email: userProfile.pendingEmail, code: verificationCode });
+                    if (!res.data.isSuccess) throw new Error(res.data.message);
+                    clearSession(); navigate('/login?reason=email-changed');
+                  } catch { setProfileError('E-posta doğrulanamadı. Kodu kontrol ederek tekrar deneyin.'); }
+                  finally { setIsVerifyingEmail(false); }
+                }}>
+                  <p className="text-xs">{userProfile.pendingEmail} adresine gelen kodu girin. Onay sonrası tekrar giriş yapmanız gerekir.</p>
+                  <label htmlFor="pending-email-code" className="text-xs">Doğrulama kodu</label>
+                  <input id="pending-email-code" autoComplete="one-time-code" inputMode="numeric" required value={verificationCode} onChange={e => setVerificationCode(e.target.value)} className="border rounded-lg p-2" />
+                  <button type="button" disabled={isVerifyingEmail} onClick={async () => {
+                    setIsVerifyingEmail(true);
+                    try { await apiClient.post('/auth/resend-verification-code', { email: userProfile.pendingEmail }); setProfileSuccess('Kod isteği alındı. Yeni kod istemeden önce 1 dakika bekleyin.'); }
+                    catch { setProfileError('Kod yeniden gönderilemedi. Lütfen tekrar deneyin.'); }
+                    finally { setIsVerifyingEmail(false); }
+                  }} className="p-2 rounded-lg border">Kodu yeniden gönder</button>
+                  <button type="submit" disabled={isVerifyingEmail} className="p-2 rounded-lg bg-orange-500 text-white">E-postayı doğrula</button>
+                </form>
+              )}
               <form onSubmit={handleSaveProfile} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Ad *</label>
+                    <label htmlFor="profilepage-field-1" className="text-xs font-bold text-slate-700 block">Ad *</label>
                     <div className="relative flex items-center">
                       <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input
+                      <input id="profilepage-field-1"
                         type="text"
                         required
                         value={editFirstName}
@@ -904,10 +932,10 @@ export const ProfilePage: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Soyad *</label>
+                    <label htmlFor="profilepage-field-2" className="text-xs font-bold text-slate-700 block">Soyad *</label>
                     <div className="relative flex items-center">
                       <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input
+                      <input id="profilepage-field-2"
                         type="text"
                         required
                         value={editLastName}
@@ -924,12 +952,12 @@ export const ProfilePage: React.FC = () => {
 
                   <div className="space-y-1.5 sm:col-span-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-700 block">E-Posta Adresi *</label>
+                      <label htmlFor="profilepage-field-3" className="text-xs font-bold text-slate-700 block">E-Posta Adresi *</label>
                       <span className="text-[11px] text-slate-400 font-medium">Giriş ve sipariş bildirimleri için kullanılır</span>
                     </div>
                     <div className="relative flex items-center">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input
+                      <input id="profilepage-field-3"
                         type="email"
                         required
                         value={editEmail}
@@ -945,6 +973,12 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 </div>
 
+                {editEmail.trim().toLowerCase() !== userProfile?.email.toLowerCase() && (
+                  <div className="space-y-2">
+                    <label htmlFor="profile-current-password" className="text-xs font-bold">E-posta değişikliği için mevcut parolanız</label>
+                    <input id="profile-current-password" type="password" autoComplete="current-password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full border rounded-xl p-3" />
+                  </div>
+                )}
                 <div className="flex items-center justify-end pt-2">
                   <button
                     type="submit"
@@ -972,7 +1006,7 @@ export const ProfilePage: React.FC = () => {
 
       {/* Yeni Adres Ekleme Modalı */}
       {isAddressModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <Dialog label="Adres ekle" onClose={() => setIsAddressModalOpen(false)} className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div
             className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in-50"
             onClick={(e) => e.stopPropagation()}
@@ -984,7 +1018,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <h2 className="text-base font-bold text-slate-900">Yeni Teslimat Adresi</h2>
               </div>
-              <button
+              <button aria-label="Kapat"
                 onClick={() => setIsAddressModalOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -1001,8 +1035,8 @@ export const ProfilePage: React.FC = () => {
             <form onSubmit={handleCreateAddress} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Adres Başlığı *</label>
-                  <input
+                  <label htmlFor="profilepage-field-4" className="text-[11px] font-bold text-slate-700 block mb-1">Adres Başlığı *</label>
+                  <input id="profilepage-field-4"
                     type="text"
                     required
                     placeholder="Örn: Evim, İş Yeri, Yazlık"
@@ -1013,8 +1047,8 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Teslim Alacak Kişi (Ad Soyad) *</label>
-                  <input
+                  <label htmlFor="profilepage-field-5" className="text-[11px] font-bold text-slate-700 block mb-1">Teslim Alacak Kişi (Ad Soyad) *</label>
+                  <input id="profilepage-field-5"
                     type="text"
                     required
                     placeholder="Örn: Ahmet Yılmaz"
@@ -1025,8 +1059,8 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Telefon Numarası *</label>
-                  <input
+                  <label htmlFor="profilepage-field-6" className="text-[11px] font-bold text-slate-700 block mb-1">Telefon Numarası *</label>
+                  <input id="profilepage-field-6"
                     type="tel"
                     required
                     maxLength={11}
@@ -1038,8 +1072,8 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Posta Kodu</label>
-                  <input
+                  <label htmlFor="profilepage-field-7" className="text-[11px] font-bold text-slate-700 block mb-1">Posta Kodu</label>
+                  <input id="profilepage-field-7"
                     type="text"
                     maxLength={5}
                     placeholder="Örn: 34710"
@@ -1073,8 +1107,8 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Açık Adres (Cadde, Mahalle, Kapı No, Daire) *</label>
-                  <textarea
+                  <label htmlFor="profilepage-field-8" className="text-[11px] font-bold text-slate-700 block mb-1">Açık Adres (Cadde, Mahalle, Kapı No, Daire) *</label>
+                  <textarea id="profilepage-field-8"
                     rows={3}
                     required
                     placeholder="Paketin sorunsuz teslim edilmesi için detaylı açık adresinizi giriniz..."
@@ -1116,7 +1150,7 @@ export const ProfilePage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

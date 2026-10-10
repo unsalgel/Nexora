@@ -20,7 +20,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
     {
         _context = TestDbContextFactory.Create();
         _jwtProviderMock = new Mock<IJwtProvider>();
-        _handler = new RefreshTokenCommandHandler(_context, _jwtProviderMock.Object);
+        _handler = new RefreshTokenCommandHandler(_context, _jwtProviderMock.Object, TestSecurity.Protector);
     }
 
     public void Dispose()
@@ -49,6 +49,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "test@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
 
@@ -57,7 +58,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             Id = Guid.NewGuid(),
             UserId = user.Id,
             User = user,
-            Token = "expired-token",
+            Token = TestSecurity.Protector.HashRefreshToken("expired-token"),
             ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
             IsRevoked = false
         };
@@ -84,6 +85,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "test@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
 
@@ -92,7 +94,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             Id = Guid.NewGuid(),
             UserId = user.Id,
             User = user,
-            Token = "stolen-token",
+            Token = TestSecurity.Protector.HashRefreshToken("stolen-token"),
             ExpiresAtUtc = DateTime.UtcNow.AddDays(1),
             IsRevoked = true
         };
@@ -102,7 +104,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             Id = Guid.NewGuid(),
             UserId = user.Id,
             User = user,
-            Token = "active-token-1",
+            Token = TestSecurity.Protector.HashRefreshToken("active-token-1"),
             ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
         };
@@ -112,7 +114,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             Id = Guid.NewGuid(),
             UserId = user.Id,
             User = user,
-            Token = "active-token-2",
+            Token = TestSecurity.Protector.HashRefreshToken("active-token-2"),
             ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
         };
@@ -142,6 +144,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "test@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
 
@@ -150,7 +153,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
             Id = Guid.NewGuid(),
             UserId = user.Id,
             User = user,
-            Token = "valid-token",
+            Token = TestSecurity.Protector.HashRefreshToken("valid-token"),
             ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
         };
@@ -160,7 +163,7 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
         await _context.SaveChangesAsync();
 
         _jwtProviderMock
-            .Setup(j => j.GenerateAccessToken(It.IsAny<User>(), It.IsAny<List<string>>()))
+            .Setup(j => j.GenerateAccessToken(It.IsAny<User>(), It.IsAny<List<string>>(), It.IsAny<Guid>()))
             .Returns("new-access-token");
 
         _jwtProviderMock
@@ -176,10 +179,10 @@ public sealed class RefreshTokenCommandHandlerTests : IDisposable
         result.Data!.AccessToken.Should().Be("new-access-token");
         result.Data.RefreshToken.Should().Be("new-refresh-token");
 
-        var oldTokenInDb = await _context.RefreshTokens.FirstAsync(rt => rt.Token == "valid-token");
+        var oldTokenInDb = await _context.RefreshTokens.FirstAsync(rt => rt.Token == TestSecurity.Protector.HashRefreshToken("valid-token"));
         oldTokenInDb.IsRevoked.Should().BeTrue();
 
-        var newTokenInDb = await _context.RefreshTokens.FirstAsync(rt => rt.Token == "new-refresh-token");
+        var newTokenInDb = await _context.RefreshTokens.FirstAsync(rt => rt.Token == TestSecurity.Protector.HashRefreshToken("new-refresh-token"));
         newTokenInDb.IsRevoked.Should().BeFalse();
         newTokenInDb.UserId.Should().Be(user.Id);
     }

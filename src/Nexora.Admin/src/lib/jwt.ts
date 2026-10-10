@@ -1,4 +1,4 @@
-﻿export interface AdminUserClaims {
+export interface AdminUserClaims {
   id: string;
   email: string;
   firstName: string;
@@ -52,7 +52,7 @@ export function decodeAdminJwt(token: string): AdminUserClaims | null {
     const roles = Array.isArray(rolesClaim) ? rolesClaim : [rolesClaim];
 
     return { id, email, firstName, lastName, roles };
-  } catch (e) {
+  } catch {
     return null;
   }
 }

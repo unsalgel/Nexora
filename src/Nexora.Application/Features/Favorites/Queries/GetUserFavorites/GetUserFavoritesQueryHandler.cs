@@ -30,6 +30,7 @@ public sealed class GetUserFavoritesQueryHandler : IRequestHandler<GetUserFavori
 
         var items = await query
             .OrderByDescending(f => f.CreatedAtUtc)
+            .ThenBy(f => f.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(f => new FavoriteProductDto(

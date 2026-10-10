@@ -45,6 +45,7 @@ public sealed class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQue
 
         var items = await query
             .OrderByDescending(r => r.CreatedAtUtc)
+            .ThenBy(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(r => new AdminReviewDto(

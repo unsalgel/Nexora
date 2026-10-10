@@ -1,8 +1,6 @@
 using System.Security.Cryptography;
-using Nexora.Application.Common.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
 using Nexora.Domain.Entities;
@@ -15,26 +13,27 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
-    private readonly ILogger<RegisterCommandHandler> _logger;
+    private readonly IAuthTokenProtector _protector;
 
     public RegisterCommandHandler(
         IApplicationDbContext context,
         IPasswordHasher passwordHasher,
         IEmailService emailService,
-        ILogger<RegisterCommandHandler> logger)
+        IAuthTokenProtector protector)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _emailService = emailService;
-        _logger = logger;
+        _protector = protector;
     }
 
     public async Task<Result<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        await using var transaction = await _context.BeginTransactionAsync("auth-email", cancellationToken);
 
         var existingUser = await _context.Users
-            .AnyAsync(u => u.Email == normalizedEmail, cancellationToken);
+            .AnyAsync(u => u.Email == normalizedEmail || u.PendingEmail == normalizedEmail, cancellationToken);
 
         if (existingUser)
             throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
@@ -59,33 +58,21 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         });
 
         _context.Users.Add(user);
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
-        }
-
         var verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var emailVerification = new EmailVerificationCode
         {
             UserId = user.Id,
-            Code = verificationCode,
+            Code = _protector.HashCode(user.Id, "verify:" + normalizedEmail, verificationCode),
+            TargetEmail = normalizedEmail,
             ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15),
             IsUsed = false
         };
 
         _context.EmailVerificationCodes.Add(emailVerification);
-        await _context.SaveChangesAsync(cancellationToken);
-
         var registeredUserName = $"{user.FirstName} {user.LastName}".Trim();
-        _emailService.SendInBackground(
-            svc => svc.SendEmailVerificationCodeEmailAsync(user.Email, registeredUserName, verificationCode, CancellationToken.None),
-            _logger,
-            "E-posta doğrulama kodu gönderilemedi. UserId: {UserId}",
-            user.Id);
+        await _emailService.SendEmailVerificationCodeEmailAsync(user.Email, registeredUserName, verificationCode, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<string>.Success("Kayıt başarıyla tamamlandı. Lütfen e-posta adresinize gönderilen 6 haneli doğrulama kodunu onaylayınız.");
     }

@@ -1,120 +1,138 @@
 using Microsoft.AspNetCore.Hosting;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Exceptions;
+using SkiaSharp;
 
 namespace Nexora.Infrastructure.Services;
 
-public sealed class LocalFileStorageService : IFileStorageService
+public sealed class LocalFileStorageService(IWebHostEnvironment environment) : IFileStorageService
 {
-    private readonly IWebHostEnvironment _environment;
     private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-    private static readonly string[] AllowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
-    private const long MaxFileSizeInBytes = 5 * 1024 * 1024;
-
-    public LocalFileStorageService(IWebHostEnvironment environment)
-    {
-        _environment = environment;
-    }
+    private const int MaxFileSizeInBytes = 5 * 1024 * 1024;
+    private const int MaxDimension = 4096;
+    private const long MaxPixels = 16_000_000;
 
     public async Task<string> SaveFileAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
-        if (fileStream == null || fileStream.Length == 0)
+        if (fileStream is null || !fileStream.CanRead)
             throw new BusinessValidationException("Yüklenecek dosya boş olamaz.");
 
-        if (fileStream.Length > MaxFileSizeInBytes)
-            throw new BusinessValidationException("Dosya boyutu en fazla 5MB olabilir.");
-
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        if (!AllowedExtensions.Contains(extension) || !AllowedMimeTypes.Contains(contentType.ToLowerInvariant()))
+        var expectedMime = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => string.Empty
+        };
+        if (expectedMime.Length == 0 || !string.Equals(expectedMime, contentType, StringComparison.OrdinalIgnoreCase))
             throw new BusinessValidationException("Yalnızca JPG, PNG ve WEBP formatında görseller yüklenebilir.");
 
-        if (!fileStream.CanSeek)
+        using var input = new MemoryStream();
+        var buffer = new byte[81920];
+        int read;
+        while ((read = await fileStream.ReadAsync(buffer, cancellationToken)) > 0)
         {
-            var ms = new MemoryStream();
-            await fileStream.CopyToAsync(ms, cancellationToken);
-            ms.Position = 0;
-            fileStream = ms;
+            if (input.Length + read > MaxFileSizeInBytes)
+                throw new BusinessValidationException("Dosya boyutu en fazla 5MB olabilir.");
+            await input.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }
+        if (input.Length == 0)
+            throw new BusinessValidationException("Yüklenecek dosya boş olamaz.");
+        input.Position = 0;
 
-        var header = new byte[12];
-        var bytesRead = await fileStream.ReadAsync(header.AsMemory(0, 12), cancellationToken);
-        fileStream.Position = 0;
-
-        if (bytesRead < 12 || !IsValidImageSignature(header, extension))
-        {
+        using var output = new MemoryStream();
+        using var encodedInput = SKData.CreateCopy(input.ToArray());
+        using var codec = SKCodec.Create(encodedInput);
+        if (codec is null)
             throw new BusinessValidationException("Dosya içeriği geçerli bir görsel formatı (JPG, PNG, WEBP) ile eşleşmiyor.");
-        }
-
-        var webRoot = _environment.WebRootPath;
-        if (string.IsNullOrEmpty(webRoot))
+        var format = extension switch
         {
-            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
-        }
+            ".jpg" or ".jpeg" => SKEncodedImageFormat.Jpeg,
+            ".webp" => SKEncodedImageFormat.Webp,
+            _ => SKEncodedImageFormat.Png
+        };
+        if (codec.EncodedFormat != format)
+            throw new BusinessValidationException("Dosya içeriği geçerli bir görsel formatı (JPG, PNG, WEBP) ile eşleşmiyor.");
+        var info = codec.Info;
+        if (info.Width <= 0 || info.Height <= 0 || info.Width > MaxDimension || info.Height > MaxDimension || (long)info.Width * info.Height > MaxPixels)
+            throw new BusinessValidationException("Görsel boyutları en fazla 4096x4096 ve 16 milyon piksel olabilir.");
+        if (codec.FrameCount > 1)
+            throw new BusinessValidationException("Animasyonlu görseller yüklenemez.");
+        cancellationToken.ThrowIfCancellationRequested();
+        using var bitmap = new SKBitmap(new SKImageInfo(info.Width, info.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        if (bitmap.GetPixels() == IntPtr.Zero || codec.GetPixels(bitmap.Info, bitmap.GetPixels()) != SKCodecResult.Success)
+            throw new BusinessValidationException("Görsel içeriğinin tamamı okunamadı.");
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encodedOutput = image.Encode(format, 90);
+        if (encodedOutput is null)
+            throw new BusinessValidationException("Görsel işlenemedi.");
+        // Tam decode ve yeniden encode, eklenmiş çalıştırılabilir içeriği ve gereksiz metadata'yı taşımayı önler.
+        encodedOutput.SaveTo(output);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (output.Length > MaxFileSizeInBytes)
+            throw new BusinessValidationException("İşlenmiş görsel boyutu en fazla 5MB olabilir.");
 
-        var uploadsFolder = Path.Combine(webRoot, "uploads", "products");
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
-        }
-
+        var uploadsFolder = GetUploadsFolder();
+        Directory.CreateDirectory(uploadsFolder);
+        EnsureNoLinks(uploadsFolder);
         var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
         var physicalPath = Path.Combine(uploadsFolder, uniqueFileName);
-
-        using (var destinationStream = new FileStream(physicalPath, FileMode.Create, FileAccess.Write, FileShare.None))
+        try
         {
-            await fileStream.CopyToAsync(destinationStream, cancellationToken);
+            output.Position = 0;
+            await using var destination = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
+            await output.CopyToAsync(destination, cancellationToken);
         }
-
+        catch
+        {
+            File.Delete(physicalPath);
+            throw;
+        }
         return $"/uploads/products/{uniqueFileName}";
     }
 
     public Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(fileUrl))
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!TryGetManagedFileName(fileUrl, out var fileName))
             return Task.FromResult(false);
-
-        try
-        {
-            var webRoot = _environment.WebRootPath;
-            if (string.IsNullOrEmpty(webRoot))
-            {
-                webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
-            }
-
-            var uploadsRoot = Path.GetFullPath(Path.Combine(webRoot, "uploads"));
-            var relativePath = fileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            var physicalPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
-
-            if (!physicalPath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                return Task.FromResult(false);
-            }
-
-            if (File.Exists(physicalPath))
-            {
-                File.Delete(physicalPath);
-                return Task.FromResult(true);
-            }
-        }
-        catch
-        {
-        }
-
-        return Task.FromResult(false);
+        var folder = GetUploadsFolder();
+        if (!Directory.Exists(folder))
+            return Task.FromResult(false);
+        EnsureNoLinks(folder);
+        var path = Path.Combine(folder, fileName);
+        if (!File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            return Task.FromResult(false);
+        File.Delete(path);
+        return Task.FromResult(true);
     }
 
-    private static bool IsValidImageSignature(byte[] header, string extension)
+    internal static bool TryGetManagedFileName(string? fileUrl, out string fileName)
     {
-        if (header.Length < 12)
+        fileName = string.Empty;
+        const string prefix = "/uploads/products/";
+        if (fileUrl is null || !fileUrl.StartsWith(prefix, StringComparison.Ordinal))
             return false;
-
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            ".png" => header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47,
-            ".webp" => header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
-                       && header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50,
-            _ => false
-        };
+        var candidate = fileUrl[prefix.Length..];
+        if (candidate.IndexOfAny(['/', '\\', '?', '#', '%', ':']) >= 0)
+            return false;
+        var extension = Path.GetExtension(candidate).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(extension) || !Guid.TryParseExact(Path.GetFileNameWithoutExtension(candidate), "N", out _))
+            return false;
+        fileName = candidate;
+        return true;
     }
+
+    private string GetUploadsFolder() => Path.GetFullPath(Path.Combine(
+        string.IsNullOrEmpty(environment.WebRootPath) ? Path.Combine(environment.ContentRootPath, "wwwroot") : environment.WebRootPath,
+        "uploads", "products"));
+
+    private static void EnsureNoLinks(string folder)
+    {
+        for (var directory = new DirectoryInfo(folder); directory is not null; directory = directory.Parent)
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Görsel depolama yolunda sembolik bağlantı kullanılamaz.");
+    }
+
 }

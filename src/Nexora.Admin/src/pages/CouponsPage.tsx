@@ -1,3 +1,4 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState, useEffect } from 'react';
 import { 
   Ticket, 
@@ -226,7 +227,7 @@ export const CouponsPage: React.FC = () => {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <span>{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700">
+          <button aria-label="Kapat" onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -238,7 +239,7 @@ export const CouponsPage: React.FC = () => {
             <AlertCircle className="w-4 h-4 text-rose-600" />
             <span>{errorMessage}</span>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-rose-500 hover:text-rose-700">
+          <button aria-label="Kapat" onClick={() => setErrorMessage(null)} className="text-rose-500 hover:text-rose-700">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -424,7 +425,7 @@ export const CouponsPage: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button
+                          <button aria-label="Kuponu Düzenle"
                             onClick={() => {
                               setEditingCoupon(coupon);
                               setFormData({
@@ -444,7 +445,7 @@ export const CouponsPage: React.FC = () => {
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button
+                          <button aria-label="Kuponu Sil"
                             onClick={() => setCouponToDelete({ id: coupon.id, code: coupon.code })}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Kuponu Sil"
@@ -465,7 +466,7 @@ export const CouponsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <Dialog label="Kupon düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -473,7 +474,7 @@ export const CouponsPage: React.FC = () => {
                 <Ticket className="w-5 h-5 text-orange-500" />
                 <span>Yeni Kupon Oluştur</span>
               </h3>
-              <button 
+              <button aria-label="Kapat"
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
@@ -484,8 +485,8 @@ export const CouponsPage: React.FC = () => {
             <form onSubmit={handleCreateCoupon} className="space-y-4">
               
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Kupon Kodu *</label>
-                <input
+                <label htmlFor="couponspage-field-1" className="text-xs font-bold text-slate-700 block mb-1">Kupon Kodu *</label>
+                <input id="couponspage-field-1"
                   type="text"
                   required
                   placeholder="Örn: YAZ2026, SUPER50"
@@ -497,8 +498,8 @@ export const CouponsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">İndirim Türü *</label>
-                  <select
+                  <label htmlFor="couponspage-field-2" className="text-xs font-bold text-slate-700 block mb-1">İndirim Türü *</label>
+                  <select id="couponspage-field-2"
                     value={formData.discountType}
                     onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'Percentage' | 'FixedAmount' })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white"
@@ -509,10 +510,10 @@ export const CouponsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label htmlFor="couponspage-field-3" className="text-xs font-bold text-slate-700 block mb-1">
                     {formData.discountType === 'Percentage' ? 'İndirim Oranı (%) *' : 'İndirim Tutarı (TL) *'}
                   </label>
-                  <input
+                  <input id="couponspage-field-3"
                     type="number"
                     min="1"
                     step="any"
@@ -526,8 +527,8 @@ export const CouponsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Min. Sepet Tutarı (TL) *</label>
-                  <input
+                  <label htmlFor="couponspage-field-4" className="text-xs font-bold text-slate-700 block mb-1">Min. Sepet Tutarı (TL) *</label>
+                  <input id="couponspage-field-4"
                     type="number"
                     min="0"
                     step="any"
@@ -539,8 +540,8 @@ export const CouponsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Maks. İndirim (TL) (Opsiyonel)</label>
-                  <input
+                  <label htmlFor="couponspage-field-5" className="text-xs font-bold text-slate-700 block mb-1">Maks. İndirim (TL) (Opsiyonel)</label>
+                  <input id="couponspage-field-5"
                     type="number"
                     min="1"
                     step="any"
@@ -555,8 +556,8 @@ export const CouponsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Kullanım Limiti (Adet) *</label>
-                  <input
+                  <label htmlFor="couponspage-field-6" className="text-xs font-bold text-slate-700 block mb-1">Kullanım Limiti (Adet) *</label>
+                  <input id="couponspage-field-6"
                     type="number"
                     min="1"
                     required
@@ -567,8 +568,8 @@ export const CouponsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Son Kullanma Tarihi *</label>
-                  <input
+                  <label htmlFor="couponspage-field-7" className="text-xs font-bold text-slate-700 block mb-1">Son Kullanma Tarihi *</label>
+                  <input id="couponspage-field-7"
                     type="date"
                     required
                     value={formData.expirationDate}
@@ -599,7 +600,7 @@ export const CouponsPage: React.FC = () => {
             </form>
 
           </div>
-        </div>
+        </Dialog>
       )}
 
       <ConfirmModal

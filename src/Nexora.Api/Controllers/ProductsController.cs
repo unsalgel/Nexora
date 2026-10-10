@@ -6,6 +6,7 @@ using Nexora.Application.Features.Products.Commands.CreateProduct;
 using Nexora.Application.Features.Products.Commands.DeleteProduct;
 using Nexora.Application.Features.Products.Commands.DeleteProductImage;
 using Nexora.Application.Features.Products.Commands.UpdateProduct;
+using Nexora.Application.Features.Products.Commands.UpdateProductStatus;
 using Nexora.Application.Features.Products.Dtos;
 using Nexora.Application.Features.Products.Queries.GetProductById;
 using Nexora.Application.Features.Products.Queries.GetProducts;
@@ -23,10 +24,14 @@ public sealed class ProductsController : ApiControllerBase
         Guid? brandId = null,
         string? searchTerm = null,
         bool? isActive = null,
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        string sortBy = "featured",
+        string? ids = null,
         CancellationToken cancellationToken = default)
     {
         var filterIsActive = IsAdmin ? isActive : true;
-        var query = new GetProductsQuery(page, pageSize, categoryId, brandId, searchTerm, filterIsActive);
+        var query = new GetProductsQuery(page, pageSize, categoryId, brandId, searchTerm, filterIsActive, minPrice, maxPrice, sortBy, ids);
         var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
     }
@@ -71,6 +76,13 @@ public sealed class ProductsController : ApiControllerBase
     {
         var result = await Sender.Send(new DeleteProductCommand(id), cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<string>>> UpdateProductStatus(Guid id, UpdateProductStatusCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(command with { Id = id }, cancellationToken));
     }
 
     [HttpPost("{id:guid}/images")]

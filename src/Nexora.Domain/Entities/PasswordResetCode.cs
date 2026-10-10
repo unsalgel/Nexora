@@ -8,4 +8,5 @@ public sealed class PasswordResetCode : BaseEntity
     public string Code { get; set; } = default!;
     public DateTime ExpiresAtUtc { get; set; }
     public bool IsUsed { get; set; }
+    public int FailedAttempts { get; set; }
 }

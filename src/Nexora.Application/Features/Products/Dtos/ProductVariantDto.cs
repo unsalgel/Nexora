@@ -10,4 +10,5 @@ public sealed record ProductVariantDto(
     decimal Price,
     int StockQuantity,
     bool IsActive,
-    List<ProductVariantAttributeValueDto> Attributes);
+    List<ProductVariantAttributeValueDto> Attributes,
+    uint Version = 0);

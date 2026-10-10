@@ -1,127 +1,82 @@
-import axios from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { ENV } from './env';
-
+import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from './session';
+import { createRefreshCoordinator } from './refreshCoordinator';
+import { isSameTokenSession } from './tokenSession';
 
 export const apiClient = axios.create({
   baseURL: ENV.API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
 });
-
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('adminAccessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: unknown) => void;
-}> = [];
-
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else if (token) {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  const originalToken = (config as RetriedRequest)._originalToken;
+  if (originalToken && !isSameTokenSession(originalToken, token)) throw new Error('Oturum değişti. Lütfen işlemi yeniden deneyin.');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+interface SessionTokens { accessToken: string; refreshToken: string }
+type RetriedRequest = InternalAxiosRequestConfig & { _retry?: boolean; _originalToken?: string };
+let coordinateRefresh = createRefreshCoordinator<string>();
+let coordinatedToken: string | null = null;
+const refreshAccessToken = async (expiredToken: string): Promise<string> => {
+  const performRefresh = async () => {
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken();
+    if (!accessToken || !refreshToken) throw new Error('Oturumunuz sona erdi.');
+    if (!isSameTokenSession(expiredToken, accessToken)) throw new Error('Oturum değişti. Lütfen işlemi yeniden deneyin.');
+    if (accessToken !== expiredToken) return accessToken;
+    const res = await axios.post<ApiResponse<SessionTokens>>(`${ENV.API_URL}/auth/refresh-token`,
+      { accessToken, refreshToken }, { timeout: 15000 });
+    if (!res.data.isSuccess || !res.data.data?.accessToken || !res.data.data.refreshToken) throw new Error('Oturum yenilenemedi.');
+    if (getRefreshToken() !== refreshToken) throw new Error('Oturum değişti.');
+    if (!isSameTokenSession(expiredToken, getAccessToken()) || !isSameTokenSession(expiredToken, res.data.data.accessToken)) throw new Error('Oturum değişti.');
+    setSessionTokens(res.data.data.accessToken, res.data.data.refreshToken);
+    return res.data.data.accessToken;
+  };
+  return navigator.locks ? navigator.locks.request('nexora-admin-refresh', performRefresh) : performRefresh();
 };
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh-token');
-
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
-      originalRequest._retry = true;
-
-      // Eğer halihazırda bir yenileme işlemi devam ediyorsa, paralel istekleri kuyrukta beklet
-      if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return apiClient(originalRequest);
-          })
-          .catch((err: unknown) => Promise.reject(err));
-      }
-
-      isRefreshing = true;
-      const refreshToken = localStorage.getItem('adminRefreshToken');
-      const accessToken = localStorage.getItem('adminAccessToken');
-
-      if (refreshToken && accessToken) {
-        try {
-          const res = await axios.post(`${ENV.API_URL}/auth/refresh-token`, {
-            accessToken,
-            refreshToken
-          });
-
-          if (res.data?.isSuccess && res.data?.data) {
-            const newAccessToken = res.data.data.accessToken;
-            const newRefreshToken = res.data.data.refreshToken;
-            
-            localStorage.setItem('adminAccessToken', newAccessToken);
-            localStorage.setItem('adminRefreshToken', newRefreshToken);
-
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-            processQueue(null, newAccessToken);
-            return apiClient(originalRequest);
-          } else {
-            processQueue(new Error('Token yenilenemedi.'));
-            localStorage.removeItem('adminAccessToken');
-            localStorage.removeItem('adminRefreshToken');
-            window.location.href = '/login';
-          }
-        } catch (refreshError: unknown) {
-          processQueue(refreshError);
-          localStorage.removeItem('adminAccessToken');
-          localStorage.removeItem('adminRefreshToken');
-          window.location.href = '/login';
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
-        localStorage.removeItem('adminAccessToken');
-        localStorage.removeItem('adminRefreshToken');
-        window.location.href = '/login';
-      }
-    }
+apiClient.interceptors.response.use((response) => response, async (error: AxiosError) => {
+  const request = error.config as RetriedRequest | undefined;
+  if (error.response?.status !== 401 || !request || request._retry || request.url?.includes('/auth/')) return Promise.reject(error);
+  request._retry = true;
+  if (!getAccessToken() || !getRefreshToken()) {
+    clearSession();
     return Promise.reject(error);
   }
-);
-
-export const logout = async (): Promise<void> => {
-  const refreshToken = localStorage.getItem('adminRefreshToken');
-  const accessToken = localStorage.getItem('adminAccessToken');
-  if (refreshToken) {
-    try {
-      await axios.post(
-        `${ENV.API_URL}/auth/revoke-token`,
-        { refreshToken },
-        {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        }
-      );
-    } catch {
-      // Ağ veya sunucu hatası durumunda dahi yerel oturum temizliğini engelleme
+  const failedToken = String(request.headers.Authorization || '').replace(/^Bearer /, '');
+  request._originalToken = failedToken;
+  try {
+    if (!isSameTokenSession(failedToken, getAccessToken())) throw new Error('Oturum değişti. Lütfen işlemi yeniden deneyin.');
+    if (!isSameTokenSession(failedToken, coordinatedToken)) {
+      coordinatedToken = failedToken;
+      coordinateRefresh = createRefreshCoordinator<string>();
     }
+    const token = await coordinateRefresh(() => refreshAccessToken(failedToken));
+    if (!isSameTokenSession(failedToken, getAccessToken()) || !isSameTokenSession(failedToken, token)) throw new Error('Oturum değişti. Lütfen işlemi yeniden deneyin.');
+    request.headers.Authorization = `Bearer ${token}`;
+    return apiClient(request);
+  } catch (refreshError) {
+    if (!getAccessToken() || getAccessToken() === failedToken) {
+      clearSession();
+      window.location.assign('/login');
+    }
+    return Promise.reject(refreshError);
   }
-  localStorage.removeItem('adminAccessToken');
-  localStorage.removeItem('adminRefreshToken');
-  window.location.href = '/login';
+});
+export const logout = async (): Promise<void> => {
+  const refreshToken = getRefreshToken();
+  const accessToken = getAccessToken();
+  clearSession();
+  try {
+    if (refreshToken) await axios.post(`${ENV.API_URL}/auth/revoke-token`, { refreshToken }, {
+      timeout: 15000,
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    });
+  } catch {
+    // Yerel oturum temizliği ağ sonucundan bağımsızdır.
+  } finally { if (!getAccessToken()) window.location.assign('/login'); }
 };
 
 export interface ApiResponse<T> {

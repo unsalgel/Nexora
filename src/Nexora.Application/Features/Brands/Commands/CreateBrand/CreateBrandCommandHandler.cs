@@ -18,8 +18,9 @@ public sealed class CreateBrandCommandHandler : IRequestHandler<CreateBrandComma
 
     public async Task<Result<Guid>> Handle(CreateBrandCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
         var nameExists = await _context.Brands
-            .AnyAsync(b => b.Name == request.Name && !b.IsDeleted, cancellationToken);
+            .AnyAsync(b => b.Name == request.Name, cancellationToken);
 
         if (nameExists)
             throw new ConflictException("Bu isimde bir marka zaten mevcut.");
@@ -34,6 +35,7 @@ public sealed class CreateBrandCommandHandler : IRequestHandler<CreateBrandComma
 
         _context.Brands.Add(brand);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result<Guid>.Success(brand.Id, "Marka başarıyla oluşturuldu.");
     }

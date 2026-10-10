@@ -33,6 +33,7 @@ public sealed class GetUserNotificationsQueryHandler : IRequestHandler<GetUserNo
 
         var notifications = await query
             .OrderByDescending(n => n.CreatedAtUtc)
+            .ThenBy(n => n.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(n => new NotificationDto(

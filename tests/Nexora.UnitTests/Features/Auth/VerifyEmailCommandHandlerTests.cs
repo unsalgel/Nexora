@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Auth.Commands.VerifyEmail;
@@ -12,172 +11,43 @@ namespace Nexora.UnitTests.Features.Auth;
 
 public sealed class VerifyEmailCommandHandlerTests : IDisposable
 {
-    private readonly NexoraDbContext _context;
-    private readonly Mock<IEmailService> _emailServiceMock;
-    private readonly Mock<ILogger<VerifyEmailCommandHandler>> _loggerMock;
-    private readonly VerifyEmailCommandHandler _handler;
-
-    public VerifyEmailCommandHandlerTests()
+    private readonly NexoraDbContext _context = TestDbContextFactory.Create();
+    private readonly Mock<IEmailService> _email = new();
+    private VerifyEmailCommandHandler Handler => new(_context, _email.Object, TestSecurity.Protector);
+    public void Dispose() => TestDbContextFactory.Destroy(_context);
+    private async Task<(User User, EmailVerificationCode Code)> Seed(int attempts = 0, bool expired = false)
     {
-        _context = TestDbContextFactory.Create();
-        _emailServiceMock = new Mock<IEmailService>();
-        _loggerMock = new Mock<ILogger<VerifyEmailCommandHandler>>();
-
-        _handler = new VerifyEmailCommandHandler(_context, _emailServiceMock.Object, _loggerMock.Object);
+        var user = new User { Id = Guid.NewGuid(), Email = "user@example.test", FirstName = "Ali", LastName = "Veli", PasswordHash = "old" };
+        var code = new EmailVerificationCode { UserId = user.Id, TargetEmail = user.Email, Code = TestSecurity.Protector.HashCode(user.Id, "verify:" + user.Email, "123456"), FailedAttempts = attempts, ExpiresAtUtc = DateTime.UtcNow.AddMinutes(expired ? -1 : 15) };
+        _context.Users.Add(user); _context.EmailVerificationCodes.Add(code); await _context.SaveChangesAsync();
+        return (user, code);
     }
-
-    public void Dispose()
+    [Fact] public async Task UnknownAccount_IsRejected()
     {
-        TestDbContextFactory.Destroy(_context);
+        await FluentActions.Awaiting(() => Handler.Handle(new("unknown@example.test", "123456"), default)).Should().ThrowAsync<BusinessValidationException>();
     }
-
-    [Fact]
-    public async Task Handle_WhenUserNotFound_ThrowsBusinessValidationException()
+    [Fact] public async Task WrongCode_DurablyCountsAttempt()
     {
-        var command = new VerifyEmailCommand("olmayan@nexora.com", "123456");
-
-        var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<BusinessValidationException>()
-            .WithMessage("Geçersiz e-posta adresi veya doğrulama kodu.");
+        var (user, code) = await Seed();
+        await FluentActions.Awaiting(() => Handler.Handle(new(user.Email, "999999"), default)).Should().ThrowAsync<BusinessValidationException>();
+        code.FailedAttempts.Should().Be(1); user.IsEmailConfirmed.Should().BeFalse();
     }
-
-    [Fact]
-    public async Task Handle_WhenCodeIsInvalid_ThrowsBadRequestException()
+    [Fact] public async Task ExpiredCode_IsRejected()
     {
-        var user = new User
-        {
-            FirstName = "Deniz",
-            LastName = "Yıldız",
-            Email = "deniz@nexora.com",
-            PasswordHash = "hash",
-            IsEmailConfirmed = false
-        };
-        _context.Users.Add(user);
-
-        var code = new EmailVerificationCode
-        {
-            UserId = user.Id,
-            Code = "654321",
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
-            IsUsed = false
-        };
-        _context.EmailVerificationCodes.Add(code);
-        await _context.SaveChangesAsync();
-
-        var command = new VerifyEmailCommand(user.Email, "999999"); // Hatalı kod
-
-        var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<BusinessValidationException>()
-            .WithMessage("Girdiğiniz doğrulama kodu hatalı.");
+        var (user, _) = await Seed(expired: true);
+        await FluentActions.Awaiting(() => Handler.Handle(new(user.Email, "123456"), default)).Should().ThrowAsync<BusinessValidationException>();
     }
-
-    [Fact]
-    public async Task Handle_WhenCodeExpired_ThrowsBadRequestException()
+    [Fact] public async Task FifthWrongAttempt_ConsumesCode()
     {
-        var user = new User
-        {
-            FirstName = "Kaan",
-            LastName = "Demir",
-            Email = "kaan@nexora.com",
-            PasswordHash = "hash",
-            IsEmailConfirmed = false
-        };
-        _context.Users.Add(user);
-
-        var code = new EmailVerificationCode
-        {
-            UserId = user.Id,
-            Code = "112233",
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), // Süresi geçmiş
-            IsUsed = false
-        };
-        _context.EmailVerificationCodes.Add(code);
-        await _context.SaveChangesAsync();
-
-        var command = new VerifyEmailCommand(user.Email, "112233");
-
-        var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<BusinessValidationException>()
-            .WithMessage("Doğrulama kodunun süresi dolmuş. Lütfen yeni bir kod talep ediniz.");
+        var (user, code) = await Seed(attempts: 4);
+        await FluentActions.Awaiting(() => Handler.Handle(new(user.Email, "999999"), default)).Should().ThrowAsync<BusinessValidationException>();
+        code.IsUsed.Should().BeTrue(); code.FailedAttempts.Should().Be(5);
     }
-
-    [Fact]
-    public async Task Handle_WhenCodeIsValid_ConfirmsEmailSuccessfully()
+    [Fact] public async Task ValidCode_ConfirmsEmailAndCannotBeReused()
     {
-        var user = new User
-        {
-            FirstName = "Zeynep",
-            LastName = "Çelik",
-            Email = "zeynep@nexora.com",
-            PasswordHash = "hash",
-            IsEmailConfirmed = false
-        };
-        _context.Users.Add(user);
-
-        var code = new EmailVerificationCode
-        {
-            UserId = user.Id,
-            Code = "123456",
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
-            IsUsed = false
-        };
-        _context.EmailVerificationCodes.Add(code);
-        await _context.SaveChangesAsync();
-
-        var command = new VerifyEmailCommand(user.Email, "123456");
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().Contain("E-posta adresiniz başarıyla doğrulandı");
-        user.IsEmailConfirmed.Should().BeTrue();
-        code.IsUsed.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Handle_WhenAttemptsReachLimit_InvalidatesCodeAndThrowsException()
-    {
-        var cacheMock = new Mock<ICacheService>();
-        cacheMock
-            .Setup(c => c.GetAsync<int>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(4);
-
-        var handlerWithCache = new VerifyEmailCommandHandler(
-            _context,
-            _emailServiceMock.Object,
-            _loggerMock.Object,
-            cacheMock.Object);
-
-        var user = new User
-        {
-            FirstName = "Murat",
-            LastName = "Aydın",
-            Email = "murat@nexora.com",
-            PasswordHash = "hash",
-            IsEmailConfirmed = false
-        };
-        _context.Users.Add(user);
-
-        var code = new EmailVerificationCode
-        {
-            UserId = user.Id,
-            Code = "123456",
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
-            IsUsed = false
-        };
-        _context.EmailVerificationCodes.Add(code);
-        await _context.SaveChangesAsync();
-
-        var command = new VerifyEmailCommand(user.Email, "000000");
-
-        var act = async () => await handlerWithCache.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<BusinessValidationException>()
-            .WithMessage("Çok fazla hatalı deneme yapıldığı için doğrulama kodunuz iptal edildi. Lütfen yeni bir kod talep ediniz.");
-
-        code.IsUsed.Should().BeTrue();
+        var (user, code) = await Seed();
+        (await Handler.Handle(new(user.Email, "123456"), default)).IsSuccess.Should().BeTrue();
+        code.IsUsed.Should().BeTrue(); user.IsEmailConfirmed.Should().BeTrue();
+        await FluentActions.Awaiting(() => Handler.Handle(new(user.Email, "123456"), default)).Should().ThrowAsync<BusinessValidationException>();
     }
 }

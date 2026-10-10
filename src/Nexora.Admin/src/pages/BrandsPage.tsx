@@ -1,3 +1,4 @@
+import { Dialog } from '../components/ui/Dialog';
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tag, Plus, Search, Edit2, Trash2, X, AlertCircle, RefreshCw, Upload, Loader2 } from 'lucide-react';
@@ -56,7 +57,7 @@ export const BrandsPage: React.FC = () => {
   const [brandToDelete, setBrandToDelete] = useState<{ id: string; name: string } | null>(null);
   const [togglingBrandId, setTogglingBrandId] = useState<string | null>(null);
 
-  const { data: brandsData, isLoading, refetch } = useQuery<ApiResponse<BrandDto[]>>({
+  const { data: brandsData, isLoading, isError, refetch } = useQuery<ApiResponse<BrandDto[]>>({
     queryKey: ['admin-brands-list', statusFilter],
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<BrandDto[]>>('/brands', {
@@ -190,6 +191,7 @@ export const BrandsPage: React.FC = () => {
     setFormError(null);
   };
 
+  if (isError) return <div role="alert" className="p-6 text-rose-600">Veriler yüklenemedi. <button onClick={() => void refetch()}>Tekrar dene</button></div>;
   return (
     <div className="space-y-6 pb-12 font-sans">
       
@@ -204,7 +206,7 @@ export const BrandsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <button aria-label="Markaları Yenile"
             onClick={() => refetch()}
             className="p-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Markaları Yenile"
@@ -303,14 +305,14 @@ export const BrandsPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <button aria-label="Düzenle"
                           onClick={() => openEditModal(brand)}
                           className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                           title="Düzenle"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
+                        <button aria-label="Sil"
                           onClick={() => setBrandToDelete({ id: brand.id, name: brand.name })}
                           className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Sil"
@@ -328,7 +330,7 @@ export const BrandsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <Dialog label="Marka düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -337,7 +339,7 @@ export const BrandsPage: React.FC = () => {
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">Marka detaylarını girin</p>
               </div>
-              <button
+              <button aria-label="Kapat"
                 onClick={closeModal}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -360,10 +362,10 @@ export const BrandsPage: React.FC = () => {
               className="space-y-4"
             >
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="brandspage-field-1" className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Marka Adı <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <input id="brandspage-field-1"
                   type="text"
                   required
                   value={name}
@@ -374,10 +376,10 @@ export const BrandsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="brandspage-field-2" className="block text-xs font-semibold text-slate-700">
                   Marka Logosu
                 </label>
-                <input
+                <input id="brandspage-field-2"
                   ref={fileInputRef}
                   type="file"
                   accept="image/png, image/jpeg, image/webp"
@@ -398,7 +400,7 @@ export const BrandsPage: React.FC = () => {
                       <p className="text-xs font-medium text-slate-900 truncate">{logoUrl}</p>
                       <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Logo seçildi</p>
                     </div>
-                    <button
+                    <button aria-label="Kapat"
                       type="button"
                       onClick={() => setLogoUrl('')}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white transition-all"
@@ -478,7 +480,7 @@ export const BrandsPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Dialog>
       )}
 
       <ConfirmModal

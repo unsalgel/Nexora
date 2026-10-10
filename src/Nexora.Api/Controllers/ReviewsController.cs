@@ -6,6 +6,7 @@ using Nexora.Application.Features.Reviews.Commands.DeleteReview;
 using Nexora.Application.Features.Reviews.Dtos;
 using Nexora.Application.Features.Reviews.Queries.GetAllReviews;
 using Nexora.Application.Features.Reviews.Queries.GetProductReviews;
+using Nexora.Application.Features.Reviews.Queries.GetProductReviewSummary;
 
 namespace Nexora.Api.Controllers;
 
@@ -46,6 +47,13 @@ public sealed class ReviewsController : ApiControllerBase
         var safeCommand = command with { UserId = GetCurrentUserId() };
         var result = await Sender.Send(safeCommand, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    [HttpGet("product/{productId:guid}/summary")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Result<ProductReviewSummaryDto>>> GetProductReviewSummary(Guid productId, CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(new GetProductReviewSummaryQuery(productId), cancellationToken));
     }
 
     [HttpDelete("{id:guid}")]

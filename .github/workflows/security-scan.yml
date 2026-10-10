@@ -24,6 +24,23 @@ jobs:
     name: backend
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexora_test
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: nexora_tests
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U nexora_test -d nexora_tests"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
     - uses: actions/checkout@v4
 
@@ -31,28 +48,45 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+
     - name: Paketleri geri yukle
       run: dotnet restore Nexora.sln
 
     - name: NuGet zafiyet taramasi (zafiyet varsa build kirilir)
       env:
         DOTNET_CLI_UI_LANGUAGE: en
+      shell: bash
       run: |
-        dotnet list Nexora.sln package --vulnerable --include-transitive 2>&1 | tee vuln.txt
-        if grep -q "has the following vulnerable packages" vuln.txt; then
-          echo "::error::Zafiyetli NuGet paketi bulundu"
+        set -euo pipefail
+        dotnet list Nexora.sln package --vulnerable --include-transitive --format json > nuget-audit.json 2> nuget-audit.stderr.txt
+        if [ -s nuget-audit.stderr.txt ]; then
+          cat nuget-audit.stderr.txt
           exit 1
         fi
+        node scripts/check-nuget-audit.mjs nuget-audit.json
 
     - name: Birim ve mimari testleri (NetArchTest dahil)
-      run: dotnet test Nexora.sln --no-restore --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      run: dotnet test Nexora.sln -c Release --no-restore --filter "Category!=Integration" --collect:"XPlat Code Coverage" --logger "trx;LogFileName=unit-results.trx"
+
+    - name: Gercek PostgreSQL ve Redis entegrasyon testleri
+      env:
+        NEXORA_TEST_POSTGRES: 'Host=localhost;Port=5432;Database=nexora_tests;Username=nexora_test;Password=ci-test-only'
+        NEXORA_TEST_REDIS: 'localhost:6379'
+      run: dotnet test Nexora.sln -c Release --no-build --filter "Category=Integration" --logger "trx;LogFileName=integration-results.trx"
 
     - name: Test sonuclarini yukle
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: '**/test-results.trx'
+        path: |
+          **/TestResults/**/*.trx
+          **/TestResults/**/coverage.cobertura.xml
+          nuget-audit.json
+          nuget-audit.stderr.txt
 
   frontend:
     name: frontend (${{ matrix.app }})
@@ -70,18 +104,46 @@ jobs:
 
     - uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 24
         cache: 'npm'
         cache-dependency-path: src/${{ matrix.app }}/package-lock.json
 
     - run: npm ci
 
-    - name: Bagimlilik denetimi (yalnizca production bagimliliklari)
-      run: npm audit --omit=dev --audit-level=high
+    - name: Lint
+      run: npm run lint
+
+    - name: Node regression testleri
+      run: npm run test
+
+    - name: Bagimlilik denetimi
+      run: npm audit --audit-level=high
 
     # package.json'da "build" betigi "tsc -b && vite build" gibi tip kontrolunu icermeli
     - name: Tip kontrolu ve build
       run: npm run build
+
+  container-smoke:
+    name: container-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Production Alpine API ve izole altyapi
+      run: docker compose -p nexora-review-tests -f docker-compose.test.yml --profile smoke up -d --build --wait --wait-timeout 120
+    - name: Gercek HTTP ve native codec smoke
+      run: node scripts/smoke-api.mjs
+    - name: Gercek HTTP checkout, snapshot ve durum gecisleri
+      run: node scripts/smoke-commerce.mjs
+    - name: Basarisizlikta container loglari
+      if: failure()
+      run: docker compose -p nexora-review-tests -f docker-compose.test.yml logs --no-color
+    - name: Izole test konteynerlerini temizle
+      if: always()
+      run: docker compose -p nexora-review-tests -f docker-compose.test.yml --profile smoke down --remove-orphans
 
   # Yalnizca PR'larda: PR'in YENI getirdigi zafiyetli bagimliliklari engeller
   dependency-review:

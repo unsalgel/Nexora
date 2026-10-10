@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Dashboard.Dtos;
 using Nexora.Application.Features.Dashboard.Queries.GetSalesAnalytics;
+using Nexora.Application.Features.Dashboard.Queries.GetInventorySummary;
 
 namespace Nexora.Api.Controllers;
 
@@ -17,5 +18,11 @@ public sealed class DashboardController : ApiControllerBase
         var query = new GetSalesAnalyticsQuery(days);
         var result = await Sender.Send(query, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpGet("inventory")]
+    public async Task<ActionResult<Result<InventorySummaryDto>>> GetInventory(CancellationToken cancellationToken)
+    {
+        return Ok(await Sender.Send(new GetInventorySummaryQuery(), cancellationToken));
     }
 }

@@ -1,4 +1,6 @@
-import React, { Suspense, lazy } from 'react';
+import { useAccessToken } from './lib/session';
+import { decodeAdminJwt } from './lib/jwt';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminRoute } from './components/auth/AdminRoute';
@@ -26,19 +28,23 @@ const AdminLoadingFallback: React.FC = () => (
   </div>
 );
 
-const queryClient = new QueryClient({
+
+
+export const App: React.FC = () => {
+  const token = useAccessToken();
+  const sessionId = token ? decodeAdminJwt(token)?.id || 'guest' : 'guest';
+  const queryClient = useMemo(() => new QueryClient({
   defaultOptions: {
     queries: {
+      meta: { sessionId },
       refetchOnWindowFocus: false,
       staleTime: 1000 * 60 * 5,
     },
   },
-});
-
-export const App: React.FC = () => {
+}), [sessionId]);
   return (
     <AdminErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider key={sessionId} client={queryClient}>
         <AdminNotificationProvider>
           <AdminToastProvider>
             <Router>

@@ -46,7 +46,7 @@ const QUICK_SUGGESTIONS = [
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {options.onAddToCart && (
-              <button
+              <button aria-label="Sepete Ekle"
                 type="button"
                 title="Sepete Ekle"
                 disabled={isAdding}
@@ -398,13 +398,13 @@ export const ChatWidget: React.FC = () => {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Mesajınızı yazın..."
+              aria-label="Asistana mesajınız" maxLength={1000} placeholder="Mesajınızı yazın..."
               disabled={isLoading}
               className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:opacity-50 transition-all"
             />
             <button
               type="submit"
-              disabled={!inputMessage.trim() || isLoading}
+              aria-label="Mesajı gönder" disabled={!inputMessage.trim() || isLoading}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:hover:bg-orange-500 text-white p-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center"
             >
               <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">

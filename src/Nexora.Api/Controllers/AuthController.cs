@@ -13,6 +13,7 @@ using Nexora.Application.Features.Auth.Commands.ResendVerificationCode;
 
 namespace Nexora.Api.Controllers;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthPolicy")]
 public sealed class AuthController : ApiControllerBase
 {
     [HttpPost("register")]
@@ -73,13 +74,13 @@ public sealed class AuthController : ApiControllerBase
         RevokeTokenCommand command,
         CancellationToken cancellationToken = default)
     {
-        var jti = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+        Guid.TryParse(User.FindFirst("sid")?.Value, out var sessionId);
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         Guid.TryParse(userIdClaim, out var userId);
 
         var commandWithValidatedData = command with
         {
-            Jti = jti,
+            SessionId = sessionId != Guid.Empty ? sessionId : null,
             UserId = userId != Guid.Empty ? userId : null
         };
         var result = await Sender.Send(commandWithValidatedData, cancellationToken);
