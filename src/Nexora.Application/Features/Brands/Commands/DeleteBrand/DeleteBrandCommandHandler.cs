@@ -29,6 +29,12 @@ public sealed class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandComma
             .FirstOrDefaultAsync(b => b.Id == request.Id && !b.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Silinecek marka bulunamadı.");
 
+        var hasActiveProducts = await _context.Products
+            .AnyAsync(p => p.BrandId == request.Id && !p.IsDeleted && p.IsActive, cancellationToken);
+
+        if (hasActiveProducts)
+            throw new ConflictException("Bu markaya bağlı aktif ürünler bulunmaktadır. Markayı silmeden önce ürünleri başka bir markaya taşımalı veya pasife almalısınız.");
+
         brand.IsDeleted = true;
         await _context.SaveChangesAsync(cancellationToken);
 

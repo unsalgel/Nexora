@@ -22,6 +22,11 @@ using Nexora.Infrastructure.Authentication;
 using Nexora.Infrastructure.BackgroundJobs;
 using Nexora.Persistence.Context;
 using Nexora.UnitTests.Common;
+using Nexora.Application.Features.Orders.Commands.CreateOrder;
+using Nexora.Application.Features.Orders.Dtos;
+using Nexora.Application.Features.Categories.Commands.DeleteCategory;
+using Nexora.Application.Features.Brands.Commands.DeleteBrand;
+using Nexora.Domain.Enums;
 
 namespace Nexora.UnitTests.Features;
 
@@ -207,6 +212,117 @@ public sealed class ReviewRegressionTests
         var context = new DefaultHttpContext(); context.Request.Scheme = "https";
         context.Request.Headers["X-Nexora-Client"] = "web"; context.Request.Headers.Origin = origin;
         Assert.Throws<UnauthorizedException>(() => BrowserSession().Client(context.Request));
+    }
+
+    [Fact]
+    public void Order_CancelAndRestock_AtomicallyCancelsAndRestocksItems()
+    {
+        var product = new Product { Id = Guid.NewGuid(), Name = "P", Price = 100, StockQuantity = 5, IsActive = true };
+        var variant = new ProductVariant { Id = Guid.NewGuid(), ProductId = product.Id, SKU = "V", Price = 100, StockQuantity = 2, IsActive = true };
+        var order = new Order
+        {
+            Id = Guid.NewGuid(),
+            OrderNumber = "NX-TEST-001",
+            UserId = Guid.NewGuid(),
+            ShippingAddress = "Test Address",
+            TotalAmount = 300,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.Pending,
+            Items = new List<OrderItem>
+            {
+                new() { Id = Guid.NewGuid(), Product = product, ProductId = product.Id, ProductName = "P", Quantity = 2, UnitPrice = 100, TotalPrice = 200 },
+                new() { Id = Guid.NewGuid(), Product = product, ProductId = product.Id, ProductVariant = variant, ProductVariantId = variant.Id, ProductName = "P", Quantity = 1, UnitPrice = 100, TotalPrice = 100 }
+            }
+        };
+
+        order.CancelAndRestock(PaymentStatus.Failed);
+
+        order.Status.Should().Be(OrderStatus.Cancelled);
+        order.PaymentStatus.Should().Be(PaymentStatus.Failed);
+        product.StockQuantity.Should().Be(7);
+        variant.StockQuantity.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task DeleteCategory_WithActiveProducts_ThrowsConflictException()
+    {
+        using var db = TestDbContextFactory.Create();
+        var catId = Guid.NewGuid();
+        db.Categories.Add(new Category { Id = catId, Name = "Cat" });
+        db.Products.Add(new Product { Id = Guid.NewGuid(), CategoryId = catId, Name = "Prod", SKU = "P-CAT", Price = 10, StockQuantity = 5, IsActive = true, IsDeleted = false });
+        await db.SaveChangesAsync();
+
+        var handler = new DeleteCategoryCommandHandler(db);
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(new DeleteCategoryCommand(catId), default));
+    }
+
+    [Fact]
+    public async Task DeleteBrand_WithActiveProducts_ThrowsConflictException()
+    {
+        using var db = TestDbContextFactory.Create();
+        var brandId = Guid.NewGuid();
+        db.Brands.Add(new Brand { Id = brandId, Name = "Brand" });
+        db.Products.Add(new Product { Id = Guid.NewGuid(), BrandId = brandId, Name = "Prod", SKU = "P-BRAND", Price = 10, StockQuantity = 5, IsActive = true, IsDeleted = false });
+        await db.SaveChangesAsync();
+
+        var handler = new DeleteBrandCommandHandler(db);
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(new DeleteBrandCommand(brandId), default));
+    }
+
+    [Fact]
+    public async Task CreateOrder_IdempotencyKey_ReturnsCachedResultForSameKey()
+    {
+        using var db = TestDbContextFactory.Create();
+        var cacheMock = new Mock<ICacheService>();
+        var userId = Guid.NewGuid();
+        var existingDto = new OrderDto(Guid.NewGuid(), "NX-EXISTING-001", userId, "Address", 100, OrderStatus.Pending.ToString(), PaymentStatus.Success.ToString(), DateTime.UtcNow, new List<OrderItemDto>());
+        var record = new OrderIdempotencyRecord(existingDto, "DUMMYHASH", DateTime.UtcNow);
+
+        cacheMock.Setup(c => c.GetAsync<OrderIdempotencyRecord>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(record);
+
+        var handler = new CreateOrderCommandHandler(
+            db,
+            Mock.Of<IPaymentService>(),
+            Mock.Of<IEmailService>(),
+            Mock.Of<IRealTimeNotificationService>(),
+            NullLogger<CreateOrderCommandHandler>.Instance,
+            cacheMock.Object);
+
+        var command = new CreateOrderCommand(userId, "Address", new PaymentRequestDto("1234567890123456", "Holder", "12", "2028", "123"), null, 100, "idem-123");
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(command, default));
+    }
+
+    [Fact]
+    public async Task OrderCleanupJob_CancelsStaleOrdersInBoundedBatches()
+    {
+        using var db = TestDbContextFactory.Create();
+        var p = new Product { Id = Guid.NewGuid(), Name = "P", SKU = "P-STALE", Price = 10, StockQuantity = 10, IsActive = true };
+        db.Products.Add(p);
+        for (int i = 0; i < 5; i++)
+        {
+            var o = new Order
+            {
+                Id = Guid.NewGuid(),
+                OrderNumber = $"NX-STALE-{i}",
+                UserId = Guid.NewGuid(),
+                ShippingAddress = "Addr",
+                TotalAmount = 20,
+                Status = OrderStatus.Pending,
+                PaymentStatus = PaymentStatus.Pending,
+                CreatedAtUtc = DateTime.UtcNow.AddHours(-25),
+                Items = new List<OrderItem> { new() { Id = Guid.NewGuid(), ProductId = p.Id, Product = p, ProductName = "P", Quantity = 1, UnitPrice = 10, TotalPrice = 10 } }
+            };
+            db.Orders.Add(o);
+        }
+        await db.SaveChangesAsync();
+
+        var job = new OrderCleanupJob(db, NullLogger<OrderCleanupJob>.Instance, Mock.Of<IDbLogger>());
+        await job.CancelStalePendingOrdersAsync();
+
+        var remainingPending = await db.Orders.CountAsync(o => o.Status == OrderStatus.Pending);
+        remainingPending.Should().Be(0);
+        p.StockQuantity.Should().Be(15);
     }
 }
 
