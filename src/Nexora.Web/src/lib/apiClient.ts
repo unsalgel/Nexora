@@ -1,13 +1,14 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { ENV } from './env';
-import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from './session';
+import { clearSession, getAccessToken, getSessionRevision, canRestoreSession, setSessionTokens } from './session';
 import { createRefreshCoordinator } from './refreshCoordinator';
 import { isSameTokenSession } from './tokenSession';
 
 export const apiClient = axios.create({
   baseURL: ENV.API_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json', 'X-Nexora-Client': 'web' },
 });
 apiClient.interceptors.request.use((config) => {
   const token = getAccessToken();
@@ -23,16 +24,16 @@ let coordinatedToken: string | null = null;
 const refreshAccessToken = async (expiredToken: string): Promise<string> => {
   const performRefresh = async () => {
     const accessToken = getAccessToken();
-    const refreshToken = getRefreshToken();
-    if (!accessToken || !refreshToken) throw new Error('Oturumunuz sona erdi.');
+    const revision = getSessionRevision();
+    if (!accessToken) throw new Error('Oturumunuz sona erdi.');
     if (!isSameTokenSession(expiredToken, accessToken)) throw new Error('Oturum değişti. Lütfen işlemi yeniden deneyin.');
     if (accessToken !== expiredToken) return accessToken;
     const res = await axios.post<ApiResponse<SessionTokens>>(`${ENV.API_URL}/auth/refresh-token`,
-      { accessToken, refreshToken }, { timeout: 15000 });
-    if (!res.data.isSuccess || !res.data.data?.accessToken || !res.data.data.refreshToken) throw new Error('Oturum yenilenemedi.');
-    if (getRefreshToken() !== refreshToken) throw new Error('Oturum değişti.');
+      { refreshToken: '' }, { timeout: 15000, withCredentials: true, headers: { 'X-Nexora-Client': 'web' } });
+    if (!res.data.isSuccess || !res.data.data?.accessToken) throw new Error('Oturum yenilenemedi.');
+    if (getSessionRevision() !== revision) throw new Error('Oturum değişti.');
     if (!isSameTokenSession(expiredToken, getAccessToken()) || !isSameTokenSession(expiredToken, res.data.data.accessToken)) throw new Error('Oturum değişti.');
-    setSessionTokens(res.data.data.accessToken, res.data.data.refreshToken);
+    setSessionTokens(res.data.data.accessToken);
     return res.data.data.accessToken;
   };
   return navigator.locks ? navigator.locks.request('nexora-refresh', performRefresh) : performRefresh();
@@ -41,7 +42,7 @@ apiClient.interceptors.response.use((response) => response, async (error: AxiosE
   const request = error.config as RetriedRequest | undefined;
   if (error.response?.status !== 401 || !request || request._retry || request.url?.includes('/auth/')) return Promise.reject(error);
   request._retry = true;
-  if (!getAccessToken() || !getRefreshToken()) {
+  if (!getAccessToken()) {
     clearSession();
     return Promise.reject(error);
   }
@@ -65,15 +66,43 @@ apiClient.interceptors.response.use((response) => response, async (error: AxiosE
     return Promise.reject(refreshError);
   }
 });
+export const restoreSession = async (): Promise<void> => {
+  if (!canRestoreSession()) return;
+  const revision = getSessionRevision();
+  const restore = async () => {
+    try {
+      const res = await axios.post<ApiResponse<SessionTokens>>(ENV.API_URL + '/auth/refresh-token', { refreshToken: '' },
+        { timeout: 10000, withCredentials: true, headers: { 'X-Nexora-Client': 'web' } });
+      if (revision === getSessionRevision() && res.data.isSuccess && res.data.data?.accessToken)
+        setSessionTokens(res.data.data.accessToken);
+    } catch { /* Geçerli cookie yoksa anonim oturumla açılır. */ }
+  };
+  if (navigator.locks) await navigator.locks.request('nexora-refresh', restore);
+  else await restore();
+};
+interface LoginData { accessToken: string; failedLoginAttempts?: number; failedAttemptDetails?: { attemptedAtUtc: string; ipAddress?: string }[] }
+export const login = async <T extends LoginData = LoginData>(credentials: { email: string; password: string }) => {
+  const revision = getSessionRevision();
+  const authenticate = async () => {
+    const response = await axios.post<ApiResponse<T>>(ENV.API_URL + '/auth/login', credentials,
+      { timeout: 15000, withCredentials: true, headers: { 'X-Nexora-Client': 'web' } });
+    if (revision !== getSessionRevision()) throw new Error('Oturum değişti. Lütfen tekrar giriş yapın.');
+    if (response.data.isSuccess && response.data.data?.accessToken) setSessionTokens(response.data.data.accessToken);
+    return response;
+  };
+  return navigator.locks ? navigator.locks.request('nexora-refresh', authenticate) : authenticate();
+};
 export const logout = async (): Promise<void> => {
-  const refreshToken = getRefreshToken();
   const accessToken = getAccessToken();
   clearSession();
   try {
-    if (refreshToken) await axios.post(`${ENV.API_URL}/auth/revoke-token`, { refreshToken }, {
+    const revoke = () => axios.post(`${ENV.API_URL}/auth/revoke-token`, { refreshToken: '' }, {
       timeout: 15000,
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      withCredentials: true,
+      headers: { 'X-Nexora-Client': 'web', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
     });
+    if (navigator.locks) await navigator.locks.request('nexora-refresh', revoke);
+    else await revoke();
   } catch {
     // Yerel oturum temizliği ağ sonucundan bağımsızdır.
   } finally { if (!getAccessToken()) window.location.assign('/login'); }

@@ -6,10 +6,14 @@ namespace Nexora.Persistence.Context;
 
 public sealed class NexoraDbContext : DbContext, IApplicationDbContext
 {
-    public NexoraDbContext(DbContextOptions<NexoraDbContext> options) : base(options)
+    private readonly IAuditContext? _auditContext;
+
+    public NexoraDbContext(DbContextOptions<NexoraDbContext> options, IAuditContext? auditContext = null) : base(options)
     {
+        _auditContext = auditContext;
     }
 
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -63,6 +67,7 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        AuditRecorder.Record(this, _auditContext);
         UpdateAuditFields();
         return base.SaveChangesAsync(cancellationToken);
     }
@@ -92,7 +97,10 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAtUtc = DateTime.UtcNow;
+                if (entry.Entity.CreatedAtUtc == default)
+                {
+                    entry.Entity.CreatedAtUtc = DateTime.UtcNow;
+                }
             }
             else if (entry.State == EntityState.Modified)
             {

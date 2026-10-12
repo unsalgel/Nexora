@@ -35,14 +35,15 @@ public sealed class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, Result
             query = query.Where(u => u.IsActive == request.IsActive.Value);
         }
 
-        var page = Math.Max(request.Page, 1);
-        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
             .OrderByDescending(u => u.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(u => new UserDto(
                 u.Id,

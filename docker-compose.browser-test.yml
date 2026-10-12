@@ -1,0 +1,9 @@
+# docker-compose.test.yml ile birleştirilir; yalnız izole tarayıcı regresyonları içindir.
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Cors__AllowedOrigins__0: http://127.0.0.1:17773
+      Cors__AllowedOrigins__1: http://127.0.0.1:17774
+      BrowserSessions__web__AllowedOrigins__0: http://127.0.0.1:17773
+      BrowserSessions__admin__AllowedOrigins__0: http://127.0.0.1:17774

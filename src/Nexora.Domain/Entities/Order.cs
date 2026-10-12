@@ -48,4 +48,25 @@ public sealed class Order : BaseEntity
             throw new ConflictException("Siparişin mevcut durumundan istenen duruma geçiş yapılamaz.");
         Status = nextStatus;
     }
+
+    public void CancelAndRestock(PaymentStatus failureStatus = PaymentStatus.Failed)
+    {
+        ChangeStatus(OrderStatus.Cancelled);
+        PaymentStatus = failureStatus;
+        UpdatedAtUtc = DateTime.UtcNow;
+
+        foreach (var item in Items)
+        {
+            if (item.ProductVariant is not null)
+            {
+                item.ProductVariant.StockQuantity += item.Quantity;
+                item.ProductVariant.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            else if (item.Product is not null)
+            {
+                item.Product.StockQuantity += item.Quantity;
+                item.Product.UpdatedAtUtc = DateTime.UtcNow;
+            }
+        }
+    }
 }

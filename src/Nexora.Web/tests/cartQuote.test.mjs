@@ -24,10 +24,16 @@ const quote = {
   ]
 };
 
+const orderSummarySection = load('../src/components/checkout/OrderSummarySection.tsx', {
+  'lucide-react': {},
+  '../common/SafeImage': { SafeImage: 'img' }
+});
+
 const textContent = node => {
   if (node == null || typeof node === 'boolean') return '';
   if (typeof node !== 'object') return String(node);
   if (Array.isArray(node)) return node.map(textContent).join('');
+  if (typeof node.type === 'function') return textContent(node.type(node.props));
   return textContent(node.props?.children);
 };
 
@@ -42,11 +48,16 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../context/SettingsContext': { useSettings: () => ({ settings: { freeShippingThreshold: 500, shippingCost: 29.9 } }) },
       '../context/ToastContext': { useToast: () => ({ showToast: () => {} }) },
       '../lib/apiClient': {},
+      '../lib/session': { getAccessToken: () => null },
       '../components/common/SafeImage': { SafeImage: 'img' },
       '../components/common/EmptyState': { EmptyState: 'div' },
       '../data/turkeyLocations': { TURKEY_CITIES: [] },
       '../components/ui/SearchableSelect': { SearchableSelect: 'select' },
-      '../lib/cardValidation': { getCardBrand: () => 'unknown' }
+      '../lib/cardValidation': { getCardBrand: () => 'unknown' },
+      '../components/checkout/ShippingAddressSection': { ShippingAddressSection: () => null },
+      '../components/checkout/PaymentMethodSection': { PaymentMethodSection: () => null },
+      '../components/checkout/OrderSummarySection': orderSummarySection,
+      '../components/checkout/OrderSuccessView': { OrderSuccessView: () => null }
     });
     const displayed = textContent(component[page]());
     assert.ok(displayed.includes('200,00 TL'));

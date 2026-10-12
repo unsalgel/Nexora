@@ -81,6 +81,7 @@ public static class DependencyInjection
         services.AddScoped<EmailOutboxDispatchJob>();
         services.AddScoped<FileCleanupJob>();
         services.AddScoped<AuthCleanupJob>();
+        services.AddScoped<LogRetentionJob>();
 
         return services;
     }

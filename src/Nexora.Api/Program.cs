@@ -34,7 +34,7 @@ builder.Services.AddCors(options =>
     {
         if (builder.Environment.IsDevelopment())
         {
-            policy.SetIsOriginAllowed(_ => true)
+            policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:5173", "http://localhost:5174"])
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
@@ -138,6 +138,9 @@ builder.Services.AddSingleton<HubConnectionRegistry>();
 builder.Services.AddHostedService<HubSessionMonitor>();
 builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
+builder.Services.AddScoped<BrowserSession>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -325,6 +328,7 @@ try
 
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.EmailOutboxDispatchJob>("email-outbox-dispatch", job => job.DispatchAsync(CancellationToken.None), Cron.Minutely, jobOptions);
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.FileCleanupJob>("file-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);
+        recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.LogRetentionJob>("log-retention", job => job.RunAsync(CancellationToken.None), Cron.Minutely, jobOptions);
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.AuthCleanupJob>("auth-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);
 
         recurringJobManager.AddOrUpdate<ICouponCleanupJob>(

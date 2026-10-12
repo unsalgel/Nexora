@@ -56,8 +56,9 @@ public sealed class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, 
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize < 1 ? 20 : (request.PageSize > 100 ? 100 : request.PageSize);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var sorted = request.SortBy switch
         {
@@ -67,7 +68,7 @@ public sealed class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, 
             _ => throw new BusinessValidationException("Geçersiz sıralama seçimi.")
         };
         var items = await sorted
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(p => new ProductListDto(
                 p.Id,

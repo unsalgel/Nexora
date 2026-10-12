@@ -20,7 +20,7 @@ public sealed class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQ
     {
         var productDto = await _context.Products
             .AsNoTracking()
-            .Where(p => p.Id == request.Id && !p.IsDeleted)
+            .Where(p => p.Id == request.Id && !p.IsDeleted && (request.IncludeInactive || p.IsActive))
             .Select(p => new ProductDto(
                 p.Id,
                 p.Name,
@@ -38,7 +38,7 @@ public sealed class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQ
                     .Select(i => new ProductImageDto(i.Id, i.ImageUrl, i.IsMain, i.DisplayOrder))
                     .ToList(),
                 p.Variants
-                    .Where(v => !v.IsDeleted && v.IsActive)
+                    .Where(v => !v.IsDeleted && (request.IncludeInactive || v.IsActive))
                     .Select(v => new ProductVariantDto(
                         v.Id,
                         v.SKU,

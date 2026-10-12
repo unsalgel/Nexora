@@ -1,3 +1,4 @@
+import { getAccessToken } from '../lib/session';
 import { useToast } from '../context/ToastContext';
 import { Pagination } from '../components/ui/Pagination';
 import { SafeImage } from '../components/common/SafeImage';
@@ -95,7 +96,7 @@ const ProductDetailContent: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [reviewError, setReviewError] = useState<string | null>(null);
 
-  const isLoggedIn = !!localStorage.getItem('accessToken');
+  const isLoggedIn = !!getAccessToken();
 
   const { data: productData, isLoading, error } = useQuery<ApiResponse<ProductDto>>({
     queryKey: ['product', id],

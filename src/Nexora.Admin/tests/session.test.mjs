@@ -28,11 +28,11 @@ test('Concurrent refresh callers share one request and recover after rejection',
 });
 
 const clientFixture = (options = {}) => {
-  let handler; let posts = 0; let access = null; let refresh = null; let clearCalls = 0; let redirects = 0;
+  let revision = 0; let handler; let posts = 0; let access = null; let refresh = null; let clearCalls = 0; let redirects = 0;
   let rejectDelayed, signalStarted;
   const started = new Promise(resolve => { signalStarted = resolve; });
   const mutations = [];
-  const session = { getAccessToken: () => access, getRefreshToken: () => refresh, setSessionTokens: (a, r) => { access = a; refresh = r; }, clearSession: () => { access = null; refresh = null; clearCalls++; } };
+  const session = { canRestoreSession: () => true, getSessionRevision: () => revision, getAccessToken: () => access, getRefreshToken: () => refresh, setSessionTokens: (a, r) => { revision++; access = a; refresh = r; }, clearSession: () => { revision++; access = null; refresh = null; clearCalls++; } };
   const axios = {
     create: config => {
       const client = axiosTransport.create({ ...config, adapter: async request => {
@@ -47,9 +47,11 @@ const clientFixture = (options = {}) => {
       client.interceptors.response.use = (success, failure) => { handler = failure; return use(success, failure); };
       return client;
     },
-    post: async (_url, payload) => {
+    post: async (_url, _payload, config) => {
+      assert.equal(config.withCredentials, true);
+      const requestAccess = access;
       posts++; await new Promise(resolve => setTimeout(resolve, 2));
-      const claims = payload.accessToken ? JSON.parse(Buffer.from(payload.accessToken.split('.')[1], 'base64url')) : {};
+      const claims = requestAccess ? JSON.parse(Buffer.from(requestAccess.split('.')[1], 'base64url')) : {};
       return { data: { isSuccess: true, data: { accessToken: jwt(claims.nameid, claims.sid, 'fresh'), refreshToken: 'rotated' } } };
     }
   };
@@ -90,16 +92,18 @@ test('Hub retries an initial connection failure and cancels retries after dispos
   stop(); onClose(); await new Promise(resolve => setTimeout(resolve, 5)); assert.equal(attempts, 2); assert.equal(stopped, 1);
 });
 
-test('Session mutations publish updates after both tokens are stored and clear them together', () => {
+test('Tokens stay in memory and old browser storage is removed', () => {
   const stored = {};
   const storage = { getItem: key => stored[key] ?? null, setItem: (key, value) => { stored[key] = value; Object.defineProperty(storage, key, { configurable: true, enumerable: true, value }); }, removeItem: key => { delete stored[key]; delete storage[key]; } };
   globalThis.localStorage = storage; globalThis.sessionStorage = { removeItem: () => {} };
   globalThis.window = new EventTarget();
-  const session = load('../src/lib/session.ts'); let observed = [];
-  window.addEventListener('nexora:session-changed', () => observed.push([session.getAccessToken(), session.getRefreshToken()]));
-  window.addEventListener('nexora:admin-session-changed', () => observed.push([session.getAccessToken(), session.getRefreshToken()]));
+  const session = load('../src/lib/session.ts', { './tokenSession': tokenSession }); let observed = [];
+  window.addEventListener('nexora:session-changed', () => observed.push(session.getAccessToken()));
+  window.addEventListener('nexora:admin-session-changed', () => observed.push(session.getAccessToken()));
   session.setSessionTokens('access', 'refresh'); session.clearSession();
-  assert.deepEqual(observed, [['access', 'refresh'], [null, null]]);
+  assert.deepEqual(observed, ['access', null]);
+  assert.equal(Object.values(stored).includes('access'), false);
+  assert.equal(Object.values(stored).includes('refresh'), false);
   if (session.CHAT_STORAGE_PREFIX) {
     storage.setItem(session.CHAT_STORAGE_PREFIX + 'user-a', 'secret'); storage.setItem('nexora_ai_chat_history', 'legacy'); session.clearSession();
     assert.equal(storage.getItem(session.CHAT_STORAGE_PREFIX + 'user-a'), null); assert.equal(storage.getItem('nexora_ai_chat_history'), null);
@@ -179,7 +183,7 @@ test('A new user refresh cannot join a pending refresh from the old session', as
   const result = await f.reject401(otherToken); await oldFailure;
   const rotatedOther = jwt('user-b', 'session-b', 'fresh');
   assert.equal(result.authorization, `Bearer ${rotatedOther}`);
-  assert.equal(f.session.getAccessToken(), rotatedOther); assert.equal(f.session.getRefreshToken(), 'rotated');
+  assert.equal(f.session.getAccessToken(), rotatedOther); assert.equal(f.session.getRefreshToken(), undefined);
   assert.equal(f.posts(), 2); assert.equal(f.clearCalls(), 1); assert.equal(f.redirects(), 0);
 });
 

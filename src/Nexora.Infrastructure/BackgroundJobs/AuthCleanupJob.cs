@@ -11,6 +11,22 @@ public sealed class AuthCleanupJob(IApplicationDbContext context)
     [DisableConcurrentExecution(120)]
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        var now = DateTime.UtcNow;
+        var expiredUsers = await context.Users.AsNoTracking()
+            .Where(u => u.PendingEmail != null && (u.PendingEmailExpiresAtUtc == null || u.PendingEmailExpiresAtUtc <= now))
+            .OrderBy(u => u.Id).Select(u => u.Id).Take(1000).ToListAsync(cancellationToken);
+        foreach (var userId in expiredUsers)
+        {
+            await using var userTransaction = await context.BeginTransactionAsync($"auth:{userId}", cancellationToken);
+            var user = await context.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken);
+            if (user is not null && (user.PendingEmailExpiresAtUtc == null || user.PendingEmailExpiresAtUtc <= DateTime.UtcNow))
+            {
+                user.PendingEmail = null;
+                user.PendingEmailExpiresAtUtc = null;
+                await context.SaveChangesAsync(cancellationToken);
+            }
+            await userTransaction.CommitAsync(cancellationToken);
+        }
         await using var transaction = await context.BeginTransactionAsync("auth-cleanup", cancellationToken);
         var otpCutoff = DateTime.UtcNow.AddDays(-1);
         var sessionCutoff = DateTime.UtcNow.AddDays(-30);

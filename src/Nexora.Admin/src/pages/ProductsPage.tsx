@@ -1,5 +1,6 @@
+import { VariantManager } from '../components/products/VariantManager';
 import { Dialog } from '../components/ui/Dialog';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
@@ -55,6 +56,9 @@ interface BrandDto {
 
 export const ProductsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const formGeneration = useRef(0);
+  useEffect(() => () => { formGeneration.current++; }, []);
+  const [variantProduct, setVariantProduct] = useState<ProductListItemDto | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -94,9 +98,11 @@ export const ProductsPage: React.FC = () => {
       return;
     }
 
+    const generation = formGeneration.current;
     setIsUploadingImage(true);
     try {
       const result = await uploadImage(file);
+      if (generation !== formGeneration.current) return;
       if (result.isSuccess && result.url) {
         setImageUrl(result.url);
         showToast('success', 'Görsel başarıyla yüklendi.');
@@ -104,10 +110,11 @@ export const ProductsPage: React.FC = () => {
         showToast('error', result.errorMessage || 'Görsel yüklenemedi.');
       }
     } catch {
+      if (generation !== formGeneration.current) return;
       showToast('error', 'Görsel yüklenirken beklenmeyen bir hata oluştu.');
     } finally {
-      setIsUploadingImage(false);
-      if (fileInputRef.current) {
+      if (generation === formGeneration.current) setIsUploadingImage(false);
+      if (generation === formGeneration.current && fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
@@ -189,7 +196,7 @@ export const ProductsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-inventory'] });
       showToast('success', editingProductId ? 'Ürün başarıyla güncellendi.' : 'Yeni ürün başarıyla oluşturuldu.');
-      closeModal();
+      closeModal(true);
     },
     onError: (err: unknown) => {
       const error = err as AxiosError<{ message?: string }>;
@@ -236,6 +243,9 @@ export const ProductsPage: React.FC = () => {
   });
 
   const openCreateModal = () => {
+    formGeneration.current++;
+    setIsUploadingImage(false);
+    setIsDetailLoading(false);
     setEditingProductId(null);
     setName('');
     setSku(`NX-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -251,6 +261,8 @@ export const ProductsPage: React.FC = () => {
   };
 
   const openEditModal = async (item: ProductListItemDto) => {
+    const generation = ++formGeneration.current;
+    setIsUploadingImage(false);
     setVersion(0);
     setEditingProductId(item.id);
     setIsDetailLoading(true);
@@ -259,7 +271,8 @@ export const ProductsPage: React.FC = () => {
 
     try {
       const res = await apiClient.get<ApiResponse<ProductDetailDto>>(`/products/${item.id}`);
-      if (res.data?.isSuccess && res.data.data) {
+      if (generation !== formGeneration.current) return;
+      if (res.data?.isSuccess && res.data.data && res.data.data.id === item.id) {
         const p = res.data.data;
         setVersion(p.version);
         setName(p.name);
@@ -273,13 +286,16 @@ export const ProductsPage: React.FC = () => {
         setImageUrl(p.images?.find(i => i.isMain)?.imageUrl || p.images?.[0]?.imageUrl || '');
       }
     } catch {
+      if (generation !== formGeneration.current) return;
       setFormError('Ürün detayları yüklenirken bir sorun oluştu.');
     } finally {
-      setIsDetailLoading(false);
+      if (generation === formGeneration.current) setIsDetailLoading(false);
     }
   };
 
-  const closeModal = () => {
+  const closeModal = (force = false) => {
+    if (saveMutation.isPending && !force) return;
+    formGeneration.current++;
     setIsModalOpen(false);
     setEditingProductId(null);
     setFormError(null);
@@ -436,6 +452,7 @@ export const ProductsPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button type="button" className="text-orange-700 text-xs" onClick={() => setVariantProduct(product)}>Varyantlar</button>
                         <button aria-label="Düzenle"
                           onClick={() => openEditModal(product)}
                           className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
@@ -484,7 +501,7 @@ export const ProductsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <Dialog label="Ürün düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <Dialog label="Ürün düzenle" onClose={() => closeModal()} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -495,7 +512,7 @@ export const ProductsPage: React.FC = () => {
                 <p className="text-xs text-slate-500 font-medium">Katalog ve stok detaylarını doldurun</p>
               </div>
               <button aria-label="Kapat"
-                onClick={closeModal}
+                onClick={() => closeModal()}
                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -696,14 +713,14 @@ export const ProductsPage: React.FC = () => {
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={closeModal}
+                    onClick={() => closeModal()}
                     className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
                   >
                     İptal
                   </button>
                   <button
                     type="submit"
-                    disabled={saveMutation.isPending || (!!editingProductId && !version)}
+                    disabled={isUploadingImage || saveMutation.isPending || (!!editingProductId && !version)}
                     className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {saveMutation.isPending ? 'Kaydediliyor...' : editingProductId ? 'Güncelle' : 'Ürünü Oluştur'}
@@ -715,6 +732,8 @@ export const ProductsPage: React.FC = () => {
           </div>
         </Dialog>
       )}
+
+      {variantProduct && <VariantManager key={variantProduct.id} productId={variantProduct.id} productName={variantProduct.name} onClose={() => setVariantProduct(null)} />}
 
       <ConfirmModal
         isOpen={productToDelete !== null}

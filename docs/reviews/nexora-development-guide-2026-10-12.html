@@ -1,0 +1,1166 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexora · Mimari Devir, Kod İnceleme ve Geliştirme Rehberi</title>
+  <style>
+    :root {
+      --ink: #102a2d;
+      --muted: #4e6765;
+      --line: #d1ded8;
+      --bg: #f3f6f3;
+      --card-bg: #ffffff;
+      --green: #046c57;
+      --green-light: #e4f2ec;
+      --amber: #945305;
+      --amber-light: #fff3dc;
+      --blue: #1d528d;
+      --blue-light: #e6f0fa;
+      --red: #a72323;
+      --red-light: #fbeeed;
+      --header-bg: #0b2528;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.65 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      background: var(--header-bg);
+      color: #fff;
+      padding: 48px 0;
+      border-bottom: 3px solid var(--green);
+    }
+    .wrap {
+      max-width: 1180px;
+      margin: auto;
+      padding: 0 28px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #8be0cf;
+    }
+    h1 {
+      font-size: clamp(32px, 4.5vw, 52px);
+      line-height: 1.15;
+      letter-spacing: -1.2px;
+      margin: 14px 0 16px;
+      font-weight: 800;
+    }
+    header p {
+      color: #d2e7e1;
+      max-width: 860px;
+      font-size: 17px;
+      margin: 0;
+    }
+    .expert-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+    .expert-badge {
+      background: #173f43;
+      color: #dcf5ee;
+      border: 1px solid #366d67;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 32px;
+    }
+    .metric {
+      background: #15393d;
+      padding: 18px;
+      border: 1px solid #3d6f69;
+      border-radius: 12px;
+    }
+    .metric b {
+      display: block;
+      font-size: 32px;
+      color: #fff;
+    }
+    .metric span {
+      font-size: 13px;
+      color: #cde4de;
+    }
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    nav .wrap {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+    nav a {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+      transition: color .2s;
+    }
+    nav a:hover {
+      color: var(--green);
+    }
+    section {
+      margin: 44px 0;
+    }
+    h2 {
+      font-size: 28px;
+      line-height: 1.3;
+      margin: 0 0 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    h3 {
+      font-size: 21px;
+      line-height: 1.35;
+      margin: 12px 0 8px;
+      font-weight: 700;
+    }
+    h4 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin: 16px 0 8px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    p { margin: 10px 0 15px; }
+    a {
+      color: var(--green);
+      text-underline-offset: 3px;
+    }
+    .notice {
+      padding: 20px 24px;
+      background: var(--green-light);
+      border-left: 5px solid var(--green);
+      border-radius: 0 12px 12px 0;
+      margin: 20px 0;
+    }
+    .warning {
+      background: var(--amber-light);
+      border-color: var(--amber);
+    }
+    .danger {
+      background: var(--red-light);
+      border-color: var(--red);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 18px;
+      break-inside: avoid;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    .grid .card { margin: 0; }
+    .tags {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .status {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 800;
+      letter-spacing: .3px;
+    }
+    .done { background: var(--green-light); color: var(--green); }
+    .todo { background: var(--amber-light); color: var(--amber); }
+    .partial { background: var(--blue-light); color: var(--blue); }
+    .danger-tag { background: var(--red-light); color: var(--red); }
+    .tag-scope {
+      background: #e9eeeb;
+      color: var(--muted);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .proof, .current { color: var(--muted); font-size: 14px; }
+    .source {
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #edf2ef;
+    }
+    .accept {
+      background: #f1f6f3;
+      padding: 14px 18px;
+      border-radius: 9px;
+      font-size: 14px;
+      margin: 14px 0;
+      border-left: 3px solid var(--green);
+    }
+    .accept p { margin: 6px 0 0; }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    input[type=checkbox] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
+    li { margin: 7px 0; }
+    ol, ul { padding-left: 24px; }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    button, select, input[type=search] {
+      font: inherit;
+      padding: 10px 14px;
+      border: 1px solid #b8ccc1;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+    }
+    input[type=search] { flex: 1; min-width: 220px; }
+    button { cursor: pointer; font-weight: 600; background: #eaf1ec; border-color: #b5c7bd; }
+    button:hover { background: #dce7e0; }
+    .small { font-size: 13px; color: var(--muted); }
+    code {
+      font: 13px Consolas, Monaco, monospace;
+      background: #e8eee9;
+      padding: 3px 6px;
+      border-radius: 4px;
+      overflow-wrap: anywhere;
+      color: #123e35;
+    }
+    .table-wrap {
+      overflow: auto;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin: 18px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #e6eee8;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    tr:last-child td { border: 0; }
+    footer {
+      background: #e4ebe6;
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .task.checked {
+      border-color: #5aa187;
+      background: #fbfdfc;
+    }
+    .task.checked .check { color: var(--green); }
+    .rule-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 14px 0;
+    }
+    .rule-box h3 { margin-top: 0; color: var(--ink); }
+    [hidden] { display: none !important; }
+    @media(max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .wrap { padding: 0 18px; }
+      .card { padding: 18px; }
+    }
+    @media print {
+      body { background: #fff; font-size: 11pt; }
+      .wrap { max-width: none; padding: 0; }
+      header { background: #fff; color: #18302f; padding: 10px 0; border: none; }
+      header p, .metric span { color: #18302f; }
+      .metric { background: white; border: 1px solid #aaa; }
+      .metrics { gap: 10px; }
+      .metric b { font-size: 24px; }
+      nav, .controls, .no-print { display: none; }
+      .grid { display: block; }
+      .card, .grid .card { margin: 14px 0; break-inside: avoid; }
+      .card[hidden] { display: block !important; }
+      a { color: inherit; }
+      footer { background: white; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Nexora · Mimari Devir ve Kalite Güvence Rehberi · 12 Ekim 2026</div>
+    <h1>Kurumsal Kod İnceleme, Yapılanlar<br>ve Geliştirme Devir Belgesi</h1>
+    <p>Bu belge; Nexora platformunun mimari standartlarını, tamamlanan güvenlik sertleştirmelerini, aşılmaz kırmızı çizgilerini ve V2 aşamasına geçiş öncesi kalan ortam/kodlama kontrol adımlarını eksiksiz tanımlar.</p>
+    
+    <div class="expert-badges">
+      <span class="expert-badge">🛡️ +30Y Senior Security Engineer</span>
+      <span class="expert-badge">🏛️ +30Y Senior Software Architect</span>
+      <span class="expert-badge">⚙️ +30Y Senior DevOps Engineer</span>
+      <span class="expert-badge">💻 +30Y Senior Software Engineer</span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><b>12</b><span>Kodda Ele Alınan Bulgular (F01–F12)</span></div>
+      <div class="metric"><b>5</b><span>Ortam ve Geçiş Kontrolü (G01–G05)</span></div>
+      <div class="metric"><b>14</b><span>Takip Edilecek Gelişim Alanı (R01–R14)</span></div>
+      <div class="metric"><b>255</b><span>Doğrulanan Test (100% Geçti)</span></div>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <a href="#anayasa">Kırmızı Çizgiler & Anayasa</a>
+    <a href="#v1-durum">V1 Modülleri Durumu</a>
+    <a href="#yapilan">Tamamlanan 12 Düzeltme</a>
+    <a href="#kalan">Çalışma ve Kontrol Listesi</a>
+    <a href="#v2-yol-haritasi">V2 Yol Haritası</a>
+    <a href="#dogrulama">Doğrulama Kayıtları</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- BÖLÜM 1: ANAYASA VE KIRMIZI ÇİZGİLER -->
+<section id="anayasa">
+  <div class="eyebrow">Aşılmaz Temel İlkeler</div>
+  <h2>Nexora Geliştirme Anayasası & Kırmızı Çizgiler</h2>
+  
+  <div class="notice danger">
+    <strong>🚨 DÖRETLİ UZMANLIK VE KULLANICI ONAYI ZORUNLULUĞU (TARTIŞMAYA KAPALIDIR):</strong><br>
+    Bu projede geliştirme, analiz veya kod incelemesi yapan her mühendis/asistan; her bir satırı, mimari tasarımı, veritabanı sorgusunu, güvenlik açığını ve altyapı konfigürasyonunu istisnasız <strong>+30 yıllık Senior Software Engineer, Senior Software Architect, Senior Security Engineer ve Senior DevOps Engineer</strong> şapkası ve vizyonuyla denetlemek zorundadır. Yüzeysel, geçici (hacky), over-engineered veya güvenlik açığı barındıran hiçbir yaklaşım kabul edilemez.
+  </div>
+
+  <div class="grid">
+    <div class="rule-box">
+      <h3>1. İstisnasız Kullanıcı Onayı Şartı</h3>
+      <p>Kullanıcıdan açık onay alınmadan <strong>KESİNLİKLE KOD YAZILAMAZ, KOMUT KOŞULAMAZ VE SONRAKİ AŞAMAYA GEÇİLEMEZ.</strong></p>
+      <ul>
+        <li><strong>Zorunlu Akış:</strong> Analiz Yap $\rightarrow$ Yapılacak İşlemi Detaylıca Açıkla $\rightarrow$ <strong>KULLANICI ONAYI BEKLE</strong> $\rightarrow$ Onay Gelince Kodla $\rightarrow$ Yapılanı Özetle $\rightarrow$ <strong>Yeniden Onay Bekle</strong>.</li>
+        <li>Kullanıcı onayı olmadan yeni NuGet veya npm paketi eklenemez.</li>
+        <li>Kullanıcı onayı olmadan mimari desen veya harici teknoloji projeye dahil edilemez.</li>
+      </ul>
+    </div>
+
+    <div class="rule-box">
+      <h3>2. Modül Bazlı Dal (Branch) & Türkçe PR Kuralı</h3>
+      <p>Ana dalda (master/main) doğrudan geliştirme yapılamaz. Her özellik ve düzeltme ayrı bir dalda geliştirilir.</p>
+      <ul>
+        <li><strong>Dal (Branch) Formatı:</strong> Kesinlikle Türkçe: <code>&lt;tip&gt;/&lt;turkce-modul-adi&gt;</code> (Örn: <code>feat/api-surumleme</code>, <code>fix/stok-yarisi-korumasi</code>, <code>fix/inceleme-bulgulari-ve-sertlestirme</code>).</li>
+        <li><strong>PR Başlık Formatı:</strong> Kesinlikle Türkçe: <code>&lt;tip&gt;(&lt;kapsam&gt;): &lt;Türkçe açıklama&gt;</code>.</li>
+        <li>Conventional Commits Türkçe açıklamalarla kullanılır (<code>feat</code>, <code>fix</code>, <code>refactor</code>, <code>docs</code>, <code>perf</code>).</li>
+      </ul>
+    </div>
+
+    <div class="rule-box">
+      <h3>3. Sıfır Boilerplate & Sıfır Ölü Import Yasağı</h3>
+      <p>Gereksiz kod kalabalığı ve temiz kod prensiplerine katı uyum:</p>
+      <ul>
+        <li><strong>Controller Boilerplate Yasağı:</strong> <code>[ApiController]</code> altındaki Controller metotlarında model binding'in otomatik çözdüğü <code>[FromBody]</code>, <code>[FromQuery]</code> gibi gereksiz attribute'lar <strong>kesinlikle yazılmaz</strong>.</li>
+        <li><strong>Kullanılmayan Using & Import Yasağı (Kesin Kural):</strong> C# sınıflarında, arayüzlerinde, testlerinde ve TSX/TS bileşenlerinde kullanılmayan hiçbir <code>using</code> veya <code>import</code> satırı barındırılamaz. Atıl direktifler derhal temizlenir.</li>
+        <li>Controller'larda sıfır iş mantığı; doğrudan MediatR (<code>Sender.Send</code>) kullanılır.</li>
+      </ul>
+    </div>
+
+    <div class="rule-box">
+      <h3>4. Dil, İsimlendirme ve Yorum Standartları</h3>
+      <p>Kod tabanında katı dil ayrımı prensibi uygulanır:</p>
+      <ul>
+        <li><strong>İngilizce:</strong> Sınıf, metot, değişken, dosya, interface, enum isimleri.</li>
+        <li><strong>İstisnasız Türkçe:</strong> Kod içi tüm yorum satırları, kullanıcıya dönen hata mesajları, API yanıtları, FluentValidation mesajları ve toast bildirimleri.</li>
+        <li>Kod içinde <code>TODO</code>, <code>HACK</code>, <code>FIXME</code> gibi geçici veya baştan savma notlar bırakılamaz.</li>
+        <li>Serilog çağrılarında <code>$""</code> (string interpolation) <strong>kesinlikle yasaktır</strong>; yapısal şablonlar (<code>{OrderId}</code>) kullanılır.</li>
+      </ul>
+    </div>
+
+    <div class="rule-box">
+      <h3>5. Veritabanı ve Performans Kırmızı Çizgileri</h3>
+      <p>Performanssız kod kabul edilemez; bu kural atlanamaz:</p>
+      <ul>
+        <li><strong>Framework Standardı:</strong> Onaylı temel LTS sürümü <strong>.NET 8</strong>'dir. Kullanıcı onayı olmadan deneysel sürümlere (.NET 10 vb.) geçilemez.</li>
+        <li>Tüm okuma sorgularında <code>AsNoTracking()</code> zorunludur.</li>
+        <li><strong>Client-Side Filtering Yasağı:</strong> <code>ToList()</code> sonrası C#'ta <code>Where</code>, <code>Skip</code>, <code>Take</code> yapılamaz; filtreleme veritabanında <code>IQueryable</code> ile bitirilir.</li>
+        <li>N+1 sorguları ve döngü içinde <code>SaveChangesAsync</code> kesinlikle yasaktır. Projeksiyon için <code>Select</code> kullanılır.</li>
+        <li>Eşzamanlılık ve stok yarışlarına karşı <code>xmin</code> concurrency token uygulanır.</li>
+      </ul>
+    </div>
+
+    <div class="rule-box">
+      <h3>6. Güvenlik, Frontend ve İzolasyon Standartları</h3>
+      <p>Sıfır toleranslı güvenlik ve katı tip denetimi:</p>
+      <ul>
+        <li><strong>Sıfır <code>any</code> Kuralı:</strong> TypeScript kodlarında <code>any</code> veya <code>as any</code> kesinlikle kullanılamaz; tüm tipler eksiksiz modellenir.</li>
+        <li><strong>IDOR Koruması:</strong> Kullanıcı verisine erişilen komutlarda JWT Claim ile nesne sahibinin (<code>order.UserId == request.UserId</code>) eşleştiği doğrulanır.</li>
+        <li><strong>Token Mimarisi:</strong> Access token bellekte, refresh token <code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Secure</code> cookie'de tutulur. <code>ClockSkew = TimeSpan.Zero</code> ile anlık JTI kara liste denetimi aktiftir.</li>
+        <li>Kırık resimler için <code>SafeImage</code> çift kademeli fallback bileşeni zorunludur.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- BÖLÜM 2: V1 MODÜLLERİ DURUMU -->
+<section id="v1-durum">
+  <div class="eyebrow">Mevcut Durum Matrisi</div>
+  <h2>İlk Sürüm (V1) Modülleri Durumu (%100 Tamamlandı)</h2>
+  <p>Nexora platformunun ilk sürüm kapsamındaki tüm çekirdek modülleri başarıyla geliştirilmiş ve testlerle doğrulanmıştır:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Modül No</th>
+          <th>Modül Adı</th>
+          <th>Kapsam ve Fonksiyonlar</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><b>Authentication & Identity</b></td><td>Kayıt, Giriş, JWT Access/Refresh rotasyonu, OTP E-posta doğrulama, Parola sıfırlama, Hesap dondurma, JTI Kara Liste.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>2</td><td><b>Authorization & Roller</b></td><td>Rol bazlı yetkilendirme (Admin / Customer), Son yönetici koruması, Dinamik rol atama.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>3</td><td><b>Category Modülü</b></td><td>Hiyerarşik kategori ağacı, CRUD işlemleri, Slug yönetimi, Gerçek zamanlı senkronizasyon.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>4</td><td><b>Brand Modülü</b></td><td>Marka CRUD, Logo yönetimi, Gerçek zamanlı SignalR marka durum güncellemesi.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>5</td><td><b>Product Modülü</b></td><td>Ürün CRUD, Çoklu resim yönetimi, Aktif/Pasif durum kontrolü, Güvenli detay görünümü.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>6</td><td><b>Product Variants & Inventory</b></td><td>SKU, Beden/Renk varyantları, Dinamik ürün özellikleri (Attributes), <code>xmin</code> stok yarışı koruması.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>7</td><td><b>Favorites (Wishlist)</b></td><td>Kullanıcı bazlı favori ekleme/çıkarma, Ürün listelerinde favori durumu önbellekleme.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>8</td><td><b>Cart (Sepet) Modülü</b></td><td>Kullanıcı sepeti, Varyant bazlı sepet satırları, Anlık teklif/fiyat hesaplama motoru.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>9</td><td><b>Order & Fake Payment</b></td><td>Sepetten sipariş oluşturma, Kargo firması ve takip numarası, Luhn korumalı simüle ödeme geçidi.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>10</td><td><b>Address (Adresler)</b></td><td>Teslimat ve fatura adresleri yönetimi, Varsayılan adres kilitleme koruması.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>11</td><td><b>Reviews (Değerlendirme)</b></td><td>Ürün puanlama (1-5 yıldız), Yorum yazma, Admin onay/silme mekanizması.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>12</td><td><b>Notifications (Bildirimler)</b></td><td>SignalR gerçek zamanlı sipariş ve stok bildirimleri, Kullanıcı bildirim geçmişi.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>13</td><td><b>Coupons (Promosyonlar)</b></td><td>Yüzde ve tutar bazlı kupon motoru, Minimum sepet şartı, Kullanım limiti denetimi.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>14</td><td><b>Dashboard & Analitik</b></td><td>Satış hacmi, gelir grafikleri, sipariş durum dağılımları ve performans metrikleri.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>15</td><td><b>AI Assistant (RAG Chat)</b></td><td>Google Gemini API destekli alışveriş asistanı, RAG ürün kartı önerileri, Web Audio bildirim sesi.</td><td><span class="status done">Tamamlandı</span></td></tr>
+        <tr><td>16</td><td><b>Web & Admin Portalları</b></td><td>Müşteri Vitrini (Nexora.Web :5173) ve Yönetim Paneli (Nexora.Admin :5174).</td><td><span class="status done">Tamamlandı</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BÖLÜM 3: TAMAMLANAN 12 DÜZELTME (F01-F12) -->
+<section id="yapilan">
+  <div class="eyebrow">Kod İnceleme Bulguları & Doğrulama</div>
+  <h2>Tamamlanan 12 Ana Düzeltme (F01–F12)</h2>
+  <div class="notice">
+    <strong>Durum Özeti:</strong> 11 Ekim inceleme raporundaki F01–F12 bulgularının tamamı kod tabanında çözülmüş, 255 adet otomatik test ve 3 adet HTTP smoke betiğiyle doğrulanarak <code>fix/inceleme-bulgulari-ve-sertlestirme</code> dalında commit ve push edilmiştir.
+  </div>
+
+  <div class="grid">
+    <article class="card completed" data-search="F01 BCrypt Unicode parola sınırı UTF-8 byte">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F01</b><span class="tag-scope">Güvenlik / Auth</span></div>
+      <h3>BCrypt / Unicode Parola Sınırı</h3>
+      <p>Karakter sayısı yerine 72 UTF-8 byte sınırı kayıt, giriş, şifre sıfırlama ve hash katmanına uygulandı. Sessiz kırpma zaafiyeti engellendi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> ASCII/Unicode sınır testleri, uzun parola hash/doğrulama regresyonu ve HTTP 400 kontrolleri.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Common/PasswordPolicy.cs">src/Nexora.Application/Common/PasswordPolicy.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F02 Bekleyen e-posta rezervasyonu süresi cleanup">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F02</b><span class="tag-scope">Veri Bütünlüğü</span></div>
+      <h3>Bekleyen E-posta Rezervasyonu Yaşam Döngüsü</h3>
+      <p>15 dakikalık rezervasyon süresi, açık iptal endpoint'i/profil butonu ve güvenli Hangfire cleanup eklendi. Süresi dolan adres yeni kaydı engellemiyor.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Süresi dolan ve iptal edilen adresle kayıt testleri; temizliğin yeni isteği koruma doğrulaması.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Infrastructure/BackgroundJobs/AuthCleanupJob.cs">src/Nexora.Infrastructure/BackgroundJobs/AuthCleanupJob.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F03 Son kullanılabilir yönetici koruması">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F03</b><span class="tag-scope">Güvenlik / Admin</span></div>
+      <h3>Son Kullanılabilir Yönetici Koruması</h3>
+      <p>Rol alma ve pasifleştirmede yalnızca aktif ve e-postası doğrulanmış diğer yöneticiler sayılıyor. Global admin kilitleme koruması sağlandı.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Doğrulanmamış ikinci yöneticinin korumayı aşamadığı iki işlem için ayrı birim testleri.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Features/Users/Commands/UpdateUserRoles/UpdateUserRolesCommandHandler.cs">src/Nexora.Application/Features/Users/Commands/UpdateUserRoles/UpdateUserRolesCommandHandler.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F04 Pasif ürünün public erişimi kısıtlaması">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F04</b><span class="tag-scope">Katalog / Erişim</span></div>
+      <h3>Pasif Ürünlerin Public Erişimi</h3>
+      <p>Pasif ürün ve varyant detayları public akıştan gizlendi. Admin rolüne sahip kullanıcılar için katalog düzenleme erişimi ayrıldı.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Public/Admin birim testi ve gerçek HTTP'de anonim kullanıcıya 404, admin'e erişim doğrulaması.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Api/Controllers/ProductsController.cs">src/Nexora.Api/Controllers/ProductsController.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F05 Pagination taşması ve aşırı offset">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F05</b><span class="tag-scope">Performans / API</span></div>
+      <h3>Pagination Taşması ve Aşırı Offset Koruması</h3>
+      <p>Sekiz sorguda güvenli offset hesabı; <code>page &ge; 1</code>, <code>pageSize 1–100</code>, <code>offset &le; 100.000</code> sınırları getirildi. Geçersiz istekler kontrollü 400 döner.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Negatif, sıfır, aşırı boyut ve taşma sınır testleri; HTTP 400 regresyon testleri.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Common/Pagination.cs">src/Nexora.Application/Common/Pagination.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F06 İptal ve timeout yanıtları 499 503">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F06</b><span class="tag-scope">Dayanıklılık / API</span></div>
+      <h3>İptal ve Zaman Aşımı Yanıt Ayrımı</h3>
+      <p>İstemci iptali 499, sunucu iptali/zaman aşımı 503 olarak ayrıldı. Başlamış yanıta ikinci bir JSON hata gövdesi yazılması engellendi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> İki iptal türü ve response-started anında soketin kontrollü kapatılması test edildi.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Api/Middlewares/GlobalExceptionHandlerMiddleware.cs">src/Nexora.Api/Middlewares/GlobalExceptionHandlerMiddleware.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F07 Kategori marka cache yarışı doğrudan DB">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F07</b><span class="tag-scope">Mimari / Caching</span></div>
+      <h3>Kategori/Marka Önbellek Yarışı Giderilmesi</h3>
+      <p>Stale veri üreten pipeline önbellek katmanı kaldırıldı; doğrudan veritabanından okumaya geçildi. Atıl önbellek sözleşmeleri ve behavior temizlendi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Veri tutarlılığı garanti altına alındı; backend ve commerce regresyon testleri geçti.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/DependencyInjection.cs">src/Nexora.Application/DependencyInjection.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F08 Global e-posta kilidi daraltma">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F08</b><span class="tag-scope">Eşzamanlılık</span></div>
+      <h3>E-posta Bazlı Kilitleme & Hash Optimizasyonu</h3>
+      <p>Global auth-email kilidi normalize e-posta başına daraltıldı. Maliyetli parola hash işlemi kilit dışına çıkarılarak kilit tutma süresi minimize edildi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Gerçek PostgreSQL'de aynı adreste tek başarı, farklı adreslerin paralel kayıtta birbirini engellememesi.</p>
+      <div class="source">Kaynak: <a href="../../tests/Nexora.UnitTests/Integration/ReviewConcurrencyTests.cs">tests/Nexora.UnitTests/Integration/ReviewConcurrencyTests.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F09 Token saklama ve CSP HttpOnly cookie">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F09</b><span class="tag-scope">Güvenlik / Oturum</span></div>
+      <h3>Tarayıcı Token Saklama ve Frontend CSP</h3>
+      <p>Access token belleğe, refresh token ayrı Web/Admin HttpOnly cookie'lerine taşındı. Origin ve HTTPS kontrolleri, oturum bootstrap ve CSP meta başlığı eklendi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Cookie bayrakları ve origin birim testleri; cross-client reddi ve HTTP oturum yenileme smoke testleri.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Api/Services/BrowserSession.cs">src/Nexora.Api/Services/BrowserSession.cs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F10 Ürün formunda geç cevap yarışı race">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F10</b><span class="tag-scope">Frontend Yarışları</span></div>
+      <h3>Ürün Formunda Geç Cevap Yarışı Koruması</h3>
+      <p>Form nesil ve ürün kimliği kontrolü eklendi. Gecikmeli ürün detay veya upload yanıtlarının başka veya kapanmış forma yazması engellendi.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Ters sırada gelen A/B detay yanıtları ve kapanan formun geç upload cevabı için iki frontend testi.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Admin/tests/product-races.test.mjs">src/Nexora.Admin/tests/product-races.test.mjs</a></div>
+    </article>
+
+    <article class="card completed" data-search="F11 Varyant ve özellik yönetimi attributes xmin">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F11</b><span class="tag-scope">Admin & Varyant</span></div>
+      <h3>Varyant ve Dinamik Özellik (Attribute) Yönetimi</h3>
+      <p>Admin varyant oluşturma/düzenleme/silme, SKU/fiyat/stok ve dinamik özellik CRUD API'si ve arayüzü tamamlandı. xmin conflict geri bildirimi bağlandı.</p>
+      <p class="proof"><strong>Doğrulama:</strong> HTTP CRUD/409 testleri, kullanılan değerlerin silinme koruması, tarayıcıda stok güncelleme ve varyant oluşturma.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Admin/src/components/products/VariantManager.tsx">src/Nexora.Admin/src/components/products/VariantManager.tsx</a></div>
+    </article>
+
+    <article class="card completed" data-search="F12 Audit izi ve log retention temizlik">
+      <div class="tags"><span class="status done">Kodda Tamamlandı</span><b>F12</b><span class="tag-scope">Güvenlik / İzlenebilirlik</span></div>
+      <h3>Audit İzi ve Veritabanı Log Retention</h3>
+      <p>Rol, stok, fiyat ve aktiflik değişikliklerine actor/target/trace ve önceki/yeni değer audit'i bağlandı. Logs 30 gün, Audit 365 gün retention sağlandı.</p>
+      <p class="proof"><strong>Doğrulama:</strong> Hassas alan dışlama, retention batch testleri ve gerçek PostgreSQL rollback'inin audit kaydı bırakmaması.</p>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Persistence/Context/AuditRecorder.cs">src/Nexora.Persistence/Context/AuditRecorder.cs</a></div>
+    </article>
+  </div>
+</section>
+
+<!-- BÖLÜM 4: KALAN İŞLER VE BİTİRME ÖLÇÜTLERİ (G & R MADDELERİ) -->
+<section id="kalan">
+  <div class="eyebrow">Mühendislik Kontrol Listesi</div>
+  <h2>Senin Çalışma ve Kontrol Listen (G01–G05 & R01–R14)</h2>
+
+  <div class="notice warning">
+    <strong>İŞARETLEME VE İLERLEME YÖNERGESİ:</strong><br>
+    Aşağıdaki maddeler iki gruptan oluşur: <strong>G Maddeleri</strong> (Canlıya/yerel ortama geçiş için yapılması gereken ortam adımları) ve <strong>R Maddeleri</strong> (Üretim hazırlığı, mimari sertleştirme ve refactoring alanları). Her maddede belirtilen kurallara ve kullanıcı onay akışına harfiyen uyulmalıdır.
+  </div>
+
+  <div class="controls">
+    <input id="search" type="search" aria-label="İşlerde ara" placeholder="İşlerde ara: migration, test, stok, audit, docker...">
+    <select id="filter" aria-label="İşleri filtrele">
+      <option value="all">Bütün Kalan İşler (G + R)</option>
+      <option value="env">G Maddeleri (Ortam / Geçiş)</option>
+      <option value="arch">R Maddeleri (Mimari / Kalite)</option>
+      <option value="todo">Bekleyen İşler</option>
+      <option value="partial">Kısmen Tamamlananlar</option>
+      <option value="unchecked">İşaretlenmemiş Olanlar</option>
+    </select>
+    <button id="print" type="button">Yazdır / PDF Olarak Kaydet</button>
+  </div>
+
+  <p id="progress" class="small" aria-live="polite">Yükleniyor...</p>
+
+  <div id="tasks">
+
+    <!-- G01 -->
+    <article class="card task" id="G01" data-kind="env" data-search="G01 Migration mevcut ortama uygula 20261012074535_ReviewHardening">
+      <div class="tags"><span class="status todo">Bekliyor</span><b>G01</b><span class="tag-scope">Ortam / Veritabanı</span></div>
+      <h3>Migration'ı Mevcut Ortama Uygula</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Migration dosyası ve snapshot hazır; yalnızca izole test veritabanlarında çalıştırıldı. Canlı/geliştirme veritabanına henüz uygulanmadı.</p>
+      <h4>+30Y Kıdemli Mimari Yapılacaklar</h4>
+      <ol>
+        <li>Hedef bağlantı dizesini (connection string) doğrula; mevcut PostgreSQL veritabanının geri yüklenebilir tam yedeğini al (<code>pg_dump</code>).</li>
+        <li><code>dotnet ef database update --project src/Nexora.Persistence --startup-project src/Nexora.Api</code> komutunu çalıştır.</li>
+        <li><code>Users.PendingEmailExpiresAtUtc</code>, <code>AuditEntries</code> tablosu ve retention zaman indekslerinin oluştuğunu doğrula.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>EF Migration geçmişinde kayıt yer alır; API temiz başlar; profil güncelleme, kullanıcı dondurma ve stok güncelleme işlemleri başarıyla çalışır ve <code>AuditEntries</code> tablosuna kayıt üretir.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Persistence/Migrations/20261012074535_ReviewHardening.cs">src/Nexora.Persistence/Migrations/20261012074535_ReviewHardening.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="G01"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- G02 -->
+    <article class="card task" id="G02" data-kind="env" data-search="G02 Mevcut hesapları yeni oturum parola davranışına geçir HttpOnly cookie">
+      <div class="tags"><span class="status todo">Bekliyor</span><b>G02</b><span class="tag-scope">Ortam / Güvenlik</span></div>
+      <h3>Mevcut Hesapları Yeni Oturum ve Parola Davranışına Geçir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Kodda bellek içi token ve HttpOnly cookie mekanizması kuruldu; mevcut tarayıcı ve kullanıcı hesaplarının geçiş kontrolü gerekiyor.</p>
+      <h4>+30Y Kıdemli Güvenlik Yapılacaklar</h4>
+      <ol>
+        <li>Web ve Admin arayüzlerinde giriş yap; eski <code>localStorage</code> token'larının tamamen temizlendiğini doğrula.</li>
+        <li>Çıkış (logout) işlemi yap ve sayfa yenilemede oturumun geri gelmediğini teyit et (JTI karaliste kontrolü).</li>
+        <li>72 UTF-8 byte'ı aşan eski parola kullanan hesaplarda şifre sıfırlama akışını işlet.</li>
+        <li>Süresi dolmuş eski askıda kalan e-posta taleplerini profilden iptal et veya yeniden başlat.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Geçerli hesaplar sorunsuz giriş yapar; sessiz kırpma olmaksızın parola sınırı uygulanır; tarayıcı yenilemelerinde oturum bellek ve HttpOnly cookie ile güvenle yenilenir.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../review-hardening.md">docs/review-hardening.md</a></div>
+      <label class="check"><input type="checkbox" data-task="G02"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- G03 -->
+    <article class="card task" id="G03" data-kind="env" data-search="G03 Origin ve cookie ayarlarını kendi adreslerinle eşleştir CORS">
+      <div class="tags"><span class="status todo">Bekliyor</span><b>G03</b><span class="tag-scope">DevOps / Hosting</span></div>
+      <h3>Origin ve Cookie Ayarlarını Dağıtım Adresleriyle Eşleştir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Geliştirme ortamı için <code>localhost:5173</code> ve <code>5174</code> tanımlı. Özel portlar ve üretim alan adları için yapılandırma gerekir.</p>
+      <h4>+30Y Kıdemli DevOps Yapılacaklar</h4>
+      <ol>
+        <li><code>appsettings.json</code> içinde <code>Cors:AllowedOrigins</code> ve <code>BrowserSessions:web/admin:AllowedOrigins</code> listelerini tam URL olarak yapılandır (sonunda slash olmadan).</li>
+        <li>Web origin'ini kesinlikle Admin izin listesine ekleme (Cross-client izolasyonu).</li>
+        <li>Üretim ortamında HTTPS ve <code>ReverseProxy:KnownProxies</code> IP ayarlarını tamamla. <code>SameSite=Strict</code> topolojisini sağla.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>İzinli Web/Admin portlarından giriş, token yenileme ve çıkış kusursuz çalışır; yabancı origin'den gelen istekler reddedilir; tarayıcı konsolunda CORS hatası görülmez.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Api/Services/BrowserSession.cs">src/Nexora.Api/Services/BrowserSession.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="G03"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- G04 -->
+    <article class="card task" id="G04" data-kind="env" data-search="G04 Audit ve cleanup Hangfire işletim kontrolü">
+      <div class="tags"><span class="status todo">Bekliyor</span><b>G04</b><span class="tag-scope">Operasyon / İzlenebilirlik</span></div>
+      <h3>Audit ve Arka Plan Temizlik İşlerini Doğrula</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Kod ve testler hazır; canlı Hangfire sunucusunda periyodik çalışma doğrulaması yapılmalıdır.</p>
+      <h4>+30Y Kıdemli Operasyonel Yapılacaklar</h4>
+      <ol>
+        <li>Hangfire Dashboard üzerinden <code>LogRetentionJob</code> ve <code>AuthCleanupJob</code> recurring job kayıtlarını doğrula.</li>
+        <li>Admin panelinden ürün stoğu, rol veya durum değişikliği yap; <code>AuditEntries</code> tablosunda actor/target/trace ve eski-yeni değerleri incele.</li>
+        <li>Hassas alanların (şifre, token, e-posta) kesinlikle audit tablosuna yazılmadığını teyit et.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Hangfire temizlik işleri dakikalık 1.000 satırlık sınırlarla hatasız tamamlanır; audit kayıtları iş transaction'ı ile atomik saklanır; DB çökse bile timeout 1 saniyeyi aşmaz.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Infrastructure/BackgroundJobs/LogRetentionJob.cs">src/Nexora.Infrastructure/BackgroundJobs/LogRetentionJob.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="G04"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- G05 -->
+    <article class="card task" id="G05" data-kind="env" data-search="G05 Bütün doğrulama paketini kendi ortamında çalıştır 255 test">
+      <div class="tags"><span class="status todo">Bekliyor</span><b>G05</b><span class="tag-scope">Kalite Güvencesi</span></div>
+      <h3>Tüm Doğrulama ve Test Paketini Kendi Ortamında Çalıştır</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> İnceleme sonrasında 255 otomatik test başarıyla geçti. Kendi ortamında tam koşu yapmalısın.</p>
+      <h4>+30Y Kıdemli QA / Test Yapılacaklar</h4>
+      <ol>
+        <li><code>dotnet test tests/Nexora.UnitTests/Nexora.UnitTests.csproj</code> çalıştır (196 birim/mimari test).</li>
+        <li>Nexora.Admin ve Nexora.Web klasörlerinde <code>node --test tests/*.test.mjs</code> çalıştır (40 frontend oturum ve form testi).</li>
+        <li>İzole Docker Compose ayağa kaldırarak <code>scripts/smoke-api.mjs</code>, <code>smoke-commerce.mjs</code> ve <code>smoke-review.mjs</code> betiklerini koş.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Birim, mimari, frontend ve HTTP seviyesinde sıfır başarısız ve sıfır hata ile tüm testler yeşil olur; atlanan veya gizlenen entegrasyon kalmaz.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../review-hardening.md">docs/review-hardening.md</a></div>
+      <label class="check"><input type="checkbox" data-task="G05"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R01 -->
+    <article class="card task" id="R01" data-kind="arch" data-search="R01 .NET 8 LTS framework ve paket uyumluluğunu koru">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R01</b><span class="tag-scope">Mimari Standart</span></div>
+      <h3>.NET 8 LTS Standardını Koru ve Bağımlılık Güvenliğini Sıkılaştır</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Projenin onaylı temeli .NET 8 (LTS) sürümüdür. Yetkisiz .NET 10 geçişi yasaktır; mevcut LTS üzerinde güvenlik ve paket güncellemeleri yönetilmelidir.</p>
+      <h4>+30Y Kıdemli Yazılım Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>.NET 8 (LTS) çerçevesinde ASP.NET Core, EF Core, MediatR 12 ve Npgsql paketlerinin LTS sürümlerini koru.</li>
+        <li>Kullanıcıdan açık onay almadan kesinlikle ana framework yükseltmesi veya yetkisiz yeni NuGet paketi ekleme.</li>
+        <li>Paket zafiyetlerini (CVE) GitHub Dependabot ve <code>dotnet list package --vulnerable</code> ile düzenli tara.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Temiz restore ve build (0 hata, 0 uyarı); tüm NetArchTest mimari testleri geçer; Dockerfile Alpine .NET 8 LTS container'ı ile tam uyumlu çalışır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../Nexora.sln">Nexora.sln</a></div>
+      <label class="check"><input type="checkbox" data-task="R01"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R02 -->
+    <article class="card task" id="R02" data-kind="arch" data-search="R02 Gerçek tarayıcı ve HTTP sözleşme testlerini genişlet Playwright">
+      <div class="tags"><span class="status partial">Kısmen</span><b>R02</b><span class="tag-scope">Test & E2E</span></div>
+      <h3>Gerçek Tarayıcı ve E2E HTTP Sözleşme Testlerini Genişlet</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Form yarışı ve oturum regresyon testleri eklendi; uçtan uca çok sekmeli Playwright E2E paketi henüz yok.</p>
+      <h4>+30Y Kıdemli QA Mühendisi Yapılacaklar</h4>
+      <ol>
+        <li>İki sekmede eşzamanlı giriş/çıkış, oturum yenileme ve hesap değiştirme senaryolarını otomatikleştir.</li>
+        <li>Varyant oluşturma $\rightarrow$ vitrinde seçme $\rightarrow$ sepete ekleme $\rightarrow$ eşzamanlı checkout ve <code>xmin</code> 409 conflict akışını E2E test et.</li>
+        <li>IDOR matrisi: Müşterinin başka müşterinin sipariş veya adresine erişemediğini API ve tarayıcı seviyesinde doğrula.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>İzole CI ortamında tekrarlanabilir E2E testleri; sahte değil gerçek DOM ve veritabanı durumunu doğrular; kod kapsamı (coverage) ölçülür.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../tests/Nexora.UnitTests">tests/Nexora.UnitTests</a></div>
+      <label class="check"><input type="checkbox" data-task="R02"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R03 -->
+    <article class="card task" id="R03" data-kind="arch" data-search="R03 Sorgu planları sınırsız listeler ve temizlik hacmi EXPLAIN N+1">
+      <div class="tags"><span class="status partial">Kısmen</span><b>R03</b><span class="tag-scope">Veritabanı / Performans</span></div>
+      <h3>Sorgu Planlarını, Sınırsız Listeleri ve Temizlik Hacmini İyileştir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Sayfalama sınırları getirildi. Tam metin arama sorgu planları, sınırsız kupon/favori listeleri ve bounded batch işleme gerekiyor.</p>
+      <h4>+30Y Kıdemli DB Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>Ürün arama ve kullanıcı sorgularında PostgreSQL <code>EXPLAIN (ANALYZE, BUFFERS)</code> al; eksik indeksleri ve <code>pg_trgm</code> ihtiyacını belirle.</li>
+        <li>Kullanıcı favorileri ve aktif kupon sorgularına maksimum üst sınır (limit) ve sayfalama uygula.</li>
+        <li><code>OrderCleanupJob</code> ve <code>CouponCleanupJob</code> işlerini sınırlı batch'ler (örn: 500 satır) halinde işle; kilitlenmeleri önle.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Client-side filtering sıfırdır; N+1 sorgusu bulunmaz; büyük veri kümelerinde CPU ve bellek tüketimi kontrol altındadır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Infrastructure/BackgroundJobs/OrderCleanupJob.cs">src/Nexora.Infrastructure/BackgroundJobs/OrderCleanupJob.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R03"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R04 -->
+    <article class="card task" id="R04" data-kind="arch" data-search="R04 İş kurallarını ve sipariş cleanup geçişlerini birleştir DDD">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R04</b><span class="tag-scope">Domain & DDD</span></div>
+      <h3>İş Kurallarını ve Sipariş Durum Geçişlerini Domain İçinde Birleştir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Entity public setter'ları açık ve OrderCleanupJob doğrudan durum güncellemesi yapabiliyor.</p>
+      <h4>+30Y Kıdemli Yazılım Mimarı Yapılacaklar</h4>
+      <ol>
+        <li><code>Order</code> varlığı üzerindeki durum geçişlerini (Cancel, Pay, Ship, Refund) zengin domain metotları içine enkapsüle et.</li>
+        <li>Arka plan cleanup işi ile API iptal komutunu aynı domain iş kuralına bağla; stok iadesini tek merkezden yönet.</li>
+        <li>Entity setter'larını <code>private set</code> yaparak dışarıdan yetkisiz mutasyonları engelle.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Eşzamanlı iptal veya cleanup geçişlerinde stok yalnızca bir kez iade edilir; geçersiz durum geçişleri <code>DomainException</code> fırlatır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Domain/Entities/Order.cs">src/Nexora.Domain/Entities/Order.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R04"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R05 -->
+    <article class="card task" id="R05" data-kind="arch" data-search="R05 Büyük ekranları böl ProfilePage CheckoutPage SRP sıfır any">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R05</b><span class="tag-scope">Frontend Mimari</span></div>
+      <h3>Büyük Ekranları Böl (SRP) ve Ortak Frontend Yardımcılarını Birleştir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Varyant yöneticisi ayrıldı; <code>ProfilePage.tsx</code> ve <code>CheckoutPage.tsx</code> dosyaları hala monolitik yapıda.</p>
+      <h4>+30Y Kıdemli Frontend Mimarı Yapılacaklar</h4>
+      <ol>
+        <li><code>ProfilePage</code> bileşenini alt modüllere böl: <code>ProfileInfoCard</code>, <code>AddressBookSection</code>, <code>OrderHistoryList</code>, <code>SecuritySettings</code>.</li>
+        <li><code>CheckoutPage</code> bileşenini alt modüllere böl: <code>ShippingAddressSelector</code>, <code>PaymentMethodForm</code>, <code>OrderSummaryQuote</code>.</li>
+        <li>Tüm TypeScript kodlarında sıfır <code>any</code> standardını koru; <code>SafeImage</code> ve token yardımcılarını ortak pakete/klasöre taşı.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Her bileşen 200-250 satır altında kalır; gereksiz re-render'lar engellenir; Fast Refresh uyarıları sıfırlanır; strict type checking tam geçer.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Web/src/pages/ProfilePage.tsx">src/Nexora.Web/src/pages/ProfilePage.tsx</a></div>
+      <label class="check"><input type="checkbox" data-task="R05"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R06 -->
+    <article class="card task" id="R06" data-kind="arch" data-search="R06 API sözleşmesini üretilen frontend tipleriyle eşleştir OpenAPI">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R06</b><span class="tag-scope">Sözleşme / API</span></div>
+      <h3>API Sözleşmesini Üretilen Frontend Tipleriyle Eşleştir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> DTO ve TypeScript arayüzleri elle senkronize ediliyor; şema sapma (drift) riski bulunuyor.</p>
+      <h4>+30Y Kıdemli Yazılım Mühendisi Yapılacaklar</h4>
+      <ol>
+        <li>ASP.NET Core OpenAPI (Swagger) çıktısından otomatik TypeScript API istemcisi ve tip üretim betiği kur (<code>openapi-typescript</code>).</li>
+        <li><code>ProductListDto</code> içindeki alanlarla frontend <code>Product</code> tipinin tam birebir örtüştüğünü garanti et.</li>
+        <li>Standart <code>ApiResponse&lt;T&gt;</code> sarmalayıcısını frontend Axios katmanında jenerik tip olarak bağla.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Backend DTO değiştiğinde frontend derlemesi tip uyumsuzluğunu otomatik yakalar; elle tip kopyalama son bulur.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Features/Products/Dtos/ProductListDto.cs">src/Nexora.Application/Features/Products/Dtos/ProductListDto.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R06"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R07 -->
+    <article class="card task" id="R07" data-kind="arch" data-search="R07 Tedarik zinciri güvenliği global.json packages.lock.json SHA">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R07</b><span class="tag-scope">DevOps / Güvenlik</span></div>
+      <h3>Build ve Tedarik Zinciri Tekrar Üretilebilirliğini Sıkılaştır</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> .dockerignore sıkılaştırıldı; SDK ve bağımlılık kilitleme dosyaları henüz repoya eklenmedi.</p>
+      <h4>+30Y Kıdemli DevOps Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>.NET SDK sürümünü sabitlemek için <code>global.json</code> dosyası oluştur.</li>
+        <li>NuGet bağımlılık kilit mekanizmasını (<code>RestorePackagesWithLockFile = true</code>) aktif et; <code>packages.lock.json</code> üret.</li>
+        <li>GitHub Actions workflow'larında action'ları commit SHA ile sabitle; container image'larına immutable digest ata.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Herhangi bir makinede temiz clone alındığında birebir aynı ikili (binary) bağımlılıklarla deterministik derleme sağlanır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../.github/workflows/security-scan.yml">.github/workflows/security-scan.yml</a></div>
+      <label class="check"><input type="checkbox" data-task="R07"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R08 -->
+    <article class="card task" id="R08" data-kind="arch" data-search="R08 Metrik alarm yük testi ve kurtarma tatbikatı RTO RPO">
+      <div class="tags"><span class="status partial">Kısmen</span><b>R08</b><span class="tag-scope">DevOps / SRE</span></div>
+      <h3>Metrik, Alarm, Yük Testi ve Kurtarma Tatbikatı (Disaster Recovery)</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Temel loglama ve audit tablosu hazır; merkezi OpenTelemetry izleme ve ölçülmüş felaket kurtarma tatbikatı eksik.</p>
+      <h4>+30Y Kıdemli SRE Mühendisi Yapılacaklar</h4>
+      <ol>
+        <li>API için p95/p99 gecikme, hata oranı, Hangfire kuyruk gecikmesi metriklerini topla.</li>
+        <li>k6 veya Artillery ile sepet ve sipariş akışında hedef yük testi uygula; darboğazları ölç.</li>
+        <li>Yedekten geri yükleme (Disaster Recovery) tatbikatı yap; RTO (&le; 1 saat) ve RPO (&le; 15 dk) sürelerini belgele.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Yüksek yük altında sistem davranışı ölçülmüştür; yedekten geri dönülen DB ile API sıfır veri kaybıyla ayağa kaldırılabilir.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../docs/operations.md">docs/operations.md</a></div>
+      <label class="check"><input type="checkbox" data-task="R08"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R09 -->
+    <article class="card task" id="R09" data-kind="arch" data-search="R09 Frontend API TLS dağıtımı Nginx reverse proxy">
+      <div class="tags"><span class="status partial">Kısmen</span><b>R09</b><span class="tag-scope">DevOps / Altyapı</span></div>
+      <h3>Frontend + API + TLS Dağıtımını Canlı Paket Haline Getir</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Nginx frontend referans konfigürasyonu ve CSP hazır; canlı TLS dağıtım doğrulaması yapılmadı.</p>
+      <h4>+30Y Kıdemli DevOps Mühendisi Yapılacaklar</h4>
+      <ol>
+        <li>Nginx reverse proxy şablonunu doğrula: SPA fallback, gzip/brotli sıkıştırma, statik varlık önbellek başlıkları.</li>
+        <li>Let's Encrypt / Certbot veya kurumsal TLS sertifikasını Nginx üzerinde sonlandır; HSTS ve güvenlik başlıklarını uygula.</li>
+        <li>ASP.NET Core API'nin sadece dahili güvenilir Nginx container'ından gelen trafiği kabul etmesini sağla (<code>KnownProxies</code>).</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>HTTPS üzerinden derin bağlantı (deep link) yenilemeleri, HttpOnly cookie akışı, WebSocket (SignalR) bağlantıları hatasız çalışır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../deploy/nginx.frontend.conf">deploy/nginx.frontend.conf</a></div>
+      <label class="check"><input type="checkbox" data-task="R09"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R10 -->
+    <article class="card task" id="R10" data-kind="arch" data-search="R10 Çoklu API instance SignalR Redis backplane">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R10</b><span class="tag-scope">Ölçeklenebilirlik</span></div>
+      <h3>Çoklu API Instance (Horizontal Scaling) Hazırlığı</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Tek instance varsayımı geçerli. SignalR bağlantı kaydı bellek içinde tutuluyor.</p>
+      <h4>+30Y Kıdemli Sistem Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>Yatay ölçekleme gerektiğinde SignalR için Redis Backplane entegrasyonunu devreye al.</li>
+        <li>Oturum sonlandırma ve kullanıcı bildirimlerini dağıtık Redis Pub/Sub üzerinden tüm instance'lara senkronize et.</li>
+        <li>Dağıtık rate limiting politikasını Redis üzerinde merkezi yönet.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>2 veya daha fazla API instance'ı arkasında bir kullanıcıya giden anlık bildirim hangi instance'a bağlı olursa olsun hedefine ulaşır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Api/Services/HubConnectionRegistry.cs">src/Nexora.Api/Services/HubConnectionRegistry.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R10"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R11 -->
+    <article class="card task" id="R11" data-kind="arch" data-search="R11 Kategori marka silme politikası cascade soft delete">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R11</b><span class="tag-scope">İş Kuralları / Katalog</span></div>
+      <h3>Kategori/Marka Silme Politikasını Belirle ve Uygula</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Soft delete uygulanıyor ancak bağlı ürünlerin otomatik durumu ürün kararı olarak açık bırakıldı.</p>
+      <h4>+30Y Kıdemli Çözüm Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>Bağlı ürün varken kategori/marka silinmesini engelle (Restrict) veya bağlı ürünleri otomatik pasife al politikasını seç.</li>
+        <li>Geçmiş sipariş satırlarındaki kategori/marka snapshot'larının bozulmadığını garanti et.</li>
+        <li>Admin panelinde silme öncesi bağlı ürün adedini gösteren bilgilendirme ve onay modalı ekle.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Kategori veya marka silindiğinde geçmiş sipariş verisi bozulmaz; vitrinde sahipsiz ürün listelenmez; panel uyarıları tutarlıdır.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Features/Categories/Commands/DeleteCategory/DeleteCategoryCommandHandler.cs">src/Nexora.Application/Features/Categories/Commands/DeleteCategory/DeleteCategoryCommandHandler.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R11"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R12 -->
+    <article class="card task" id="R12" data-kind="arch" data-search="R12 Kayıp yanıtta idempotency sipariş tekrarı">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R12</b><span class="tag-scope">Güvenilirlik / Ödeme</span></div>
+      <h3>Kayıp Yanıtta İdempotency ve Sipariş Tekrarını Güvenli Kıl</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Eşzamanlı kilitler var; ağ kesintisinde kaybolan yanıtlara karşı resmi Idempotency Key sözleşmesi eksik.</p>
+      <h4>+30Y Kıdemli Güvenlik Mimarı Yapılacaklar</h4>
+      <ol>
+        <li>Sipariş oluşturma endpoint'ine <code>X-Idempotency-Key</code> başlığı desteği getir.</li>
+        <li>Aynı anahtarla gelen mükerrer isteklerde siparişi tekrar oluşturmak yerine önceki oluşturulan sipariş sonucunu dön.</li>
+        <li>Aynı anahtar fakat farklı payload ile gelen kötü niyetli istekleri <code>409 Conflict</code> ile reddet.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Ağ kopması sonrası tekrar denenen checkout isteğinde stok çift düşmez, mükerrer sipariş oluşmaz; kullanıcıya aynı sipariş döner.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Application/Features/Orders/Commands/CreateOrder/CreateOrderCommandHandler.cs">src/Nexora.Application/Features/Orders/Commands/CreateOrder/CreateOrderCommandHandler.cs</a></div>
+      <label class="check"><input type="checkbox" data-task="R12"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R13 -->
+    <article class="card task" id="R13" data-kind="arch" data-search="R13 UI durumları erişilebilirlik a11y WCAG">
+      <div class="tags"><span class="status partial">Kısmen</span><b>R13</b><span class="tag-scope">Kullanıcı Deneyimi</span></div>
+      <h3>UI Durumlarını (Loading/Error/Empty) ve Erişilebilirliği (A11y) Denetle</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Kritik ekranlar çalışır durumda; tüm sayfalarda sistematik WCAG erişilebilirlik denetimi eksik.</p>
+      <h4>+30Y Kıdemli Frontend Mühendisi Yapılacaklar</h4>
+      <ol>
+        <li>Tüm veri çekme ekranlarında Loading Skeleton, Error State (Tekrar Dene), Empty State durumlarını eksiksiz tasarla.</li>
+        <li>Klavye odağı (focus trap), Esc ile modal kapatma, ekran okuyucu aria etiketleri ve kontrast oranlarını (WCAG AA) denetle.</li>
+        <li>Mobil cihazlarda dokunmatik hedef boyutlarını (&ge; 44x44px) ve yatay kaydırma taşmalarını doğrula.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Tüm platform klavye ile uçtan uca kullanılabilir; ağ hatası boş veri gibi sunulmaz; mobil görünümde hiçbir öğe taşmaz.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../src/Nexora.Web/src/pages/CheckoutPage.tsx">src/Nexora.Web/src/pages/CheckoutPage.tsx</a></div>
+      <label class="check"><input type="checkbox" data-task="R13"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+    <!-- R14 -->
+    <article class="card task" id="R14" data-kind="env" data-search="R14 Geliştirme container portlarını 127.0.0.1 loopback bağla">
+      <div class="tags"><span class="status todo">Yapılmadı</span><b>R14</b><span class="tag-scope">DevOps / Güvenlik</span></div>
+      <h3>Geliştirme Container Portlarını Sadece 127.0.0.1 (Loopback) İle Sınırla</h3>
+      <p class="current"><strong>Mevcut Durum:</strong> Önceki raporda container portlarının tüm ağ arayüzlerine (0.0.0.0) açık olabileceği uyarısı vardı.</p>
+      <h4>+30Y Kıdemli DevOps Güvenlik Yapılacaklar</h4>
+      <ol>
+        <li><code>docker-compose.yml</code> içinde PostgreSQL (5432), Redis (6379) ve pgAdmin (5050) portlarını <code>127.0.0.1:5432:5432</code> şeklinde sınırla.</li>
+        <li>Mevcut Docker volume'lerini koruyarak servisleri yeniden oluştur (veri silen <code>down -v</code> kesinlikle kullanma).</li>
+        <li>Yerel ağdaki başka cihazların veritabanı portuna doğrudan erişemediğini doğrula.</li>
+      </ol>
+      <div class="accept">
+        <strong>Bitti Sayma Ölçütü (+30Y Standardı)</strong>
+        <p>Portlar sadece yerel makineden (loopback) erişilebilirdir; geliştirme verileri korunur; yerel ağa port sızıntısı engellenir.</p>
+      </div>
+      <div class="source">Kaynak: <a href="../../docker-compose.yml">docker-compose.yml</a></div>
+      <label class="check"><input type="checkbox" data-task="R14"> Uyguladım ve kabul kriterini doğruladım</label>
+    </article>
+
+  </div>
+  <p id="empty" hidden>Bu filtreyle eşleşen iş bulunamadı.</p>
+</section>
+
+<!-- BÖLÜM 5: V2 YOL HARİTASI -->
+<section id="v2-yol-haritasi">
+  <div class="eyebrow">Gelecek Aşama</div>
+  <h2>V2 İleri Seviye Özellikler Yol Haritası</h2>
+  <p>V1 modülleri ve inceleme sertleştirmeleri tamamlandıktan sonra, kullanıcı onayı alınarak sırayla başlanacak kurumsal modüller:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Öncelik</th>
+          <th>Modül Adı</th>
+          <th>Kapsam ve Mimari Tasarım</th>
+          <th>Standart Şartı</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>1 (Önerilen)</b></td>
+          <td><b>Gerçek Ödeme Entegrasyonu (İyzico Sandbox / Stripe)</b></td>
+          <td>3D Secure, Kart saklama, Webhook dinleyicisi ve imza doğrulama, Otomatik sipariş onaylama.</td>
+          <td>Kullanıcı Onayı + Katı Güvenlik</td>
+        </tr>
+        <tr>
+          <td><b>2</b></td>
+          <td><b>Hangfire ile Arka Plan İşleri (Background Jobs)</b></td>
+          <td>Süresi dolan kuponları pasife çekme, 24 saat ödenmeyen siparişleri düşürme, Terk edilmiş sepet hatırlatma cron job'ları.</td>
+          <td>Bounded Batch + Resilience</td>
+        </tr>
+        <tr>
+          <td><b>3</b></td>
+          <td><b>MinIO / S3 Nesne Depolama</b></td>
+          <td>Ürün ve kullanıcı resimlerinin yerel wwwroot yerine Docker üzerinde S3 uyumlu MinIO bucket'larında saklanması.</td>
+          <td>Clean Architecture Port/Adapter</td>
+        </tr>
+        <tr>
+          <td><b>4</b></td>
+          <td><b>Gelişmiş Kampanya & İndirim Motoru</b></td>
+          <td>"2 Al 1 Öde", "X Kategorisinde 1.000 TL Üzerine %15 İndirim", "Sepette Ücretsiz Kargo" kural motoru.</td>
+          <td>CQRS + SOLID</td>
+        </tr>
+        <tr>
+          <td><b>5</b></td>
+          <td><b>Elasticsearch / OpenSearch Tam Metin Arama</b></td>
+          <td>Yazım hatası tolere eden (fuzzy search), anlık arama önerileri (autocomplete), çoklu filtre fasetleri.</td>
+          <td>Performans Odaklı</td>
+        </tr>
+        <tr>
+          <td><b>6</b></td>
+          <td><b>API Sürümleme (API Versioning)</b></td>
+          <td>Web API için resmi <code>/api/v1/...</code> URL sürümleme altyapısı ve Swagger sürüm ayrımı.</td>
+          <td>Sıfır Boilerplate</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BÖLÜM 6: DOĞRULAMA VE BAŞVURU KAYNAKLARI -->
+<section id="dogrulama">
+  <div class="eyebrow">Kalite Güvencesi Kayıtları</div>
+  <h2>Doğrulama Kayıtları ve Başvuru Dokümanları</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Denetim Katmanı</th>
+          <th>Test Sayısı & Sonuç</th>
+          <th>Kapsam</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>.NET Birim & Mimari Testleri</td><td><b>196 Geçti</b> (0 Hata)</td><td>Mevcut regresyonlar, NetArchTest mimari kuralları ve yeni inceleme testleri.</td></tr>
+        <tr><td>PostgreSQL & Redis Entegrasyonu</td><td><b>19 Geçti</b> (0 Hata)</td><td>Gerçek altyapı, migration, paralel kayıt kilidi ve rollback testleri.</td></tr>
+        <tr><td>Nexora.Admin Frontend Testleri</td><td><b>18 Geçti</b> (0 Hata)</td><td>Oturum yaşam döngüsü, token rotasyonu ve ürün formu yarış korumaları.</td></tr>
+        <tr><td>Nexora.Web Frontend Testleri</td><td><b>22 Geçti</b> (0 Hata)</td><td>Oturum, sepet teklif motoru, sayfalama ve UI durum regresyonları.</td></tr>
+        <tr><td><b>Toplam Otomatik Test</b></td><td><b>255 GEÇTİ</b> (0 Başarısız)</td><td>Tüm bileşenlerde 100% test başarı oranı.</td></tr>
+        <tr><td>Frontend Derleme & Lint</td><td><b>Başarılı</b></td><td>Vite + TypeScript üretim derlemesi; lint 0 hata.</td></tr>
+        <tr><td>HTTP Smoke Betikleri</td><td><b>3 Başarılı</b></td><td><code>smoke-api.mjs</code>, <code>smoke-commerce.mjs</code>, <code>smoke-review.mjs</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul>
+    <li><a href="nexora-code-review-2026-10-11.html">İlk Code Review Raporu — 11 Ekim 2026 (Bulgular ve 7,6/10 puan)</a></li>
+    <li><a href="nexora-fixes-2026-10-12.html">Düzeltme Raporu — 12 Ekim 2026 (Somut Kanıtlar ve Ekran Görüntüsü)</a></li>
+    <li><a href="../review-hardening.md">Geçiş ve Sertleştirme Kılavuzu (Migration, Origin/Cookie, Proxy)</a></li>
+    <li><a href="../../docs/operations.md">Operasyonel Runbook ve Dağıtım Notları</a></li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <strong>Nexora · Kurumsal Geliştirme ve Mimari Devir Belgesi</strong><br>
+    31 Kayıt: 12 Tamamlanan Bulgu (F01–F12) + 5 Ortam Geçiş Kontrolü (G01–G05) + 14 Mimari Gelişim Alanı (R01–R14).<br>
+    Bu döküman tamamen çevrimdışı çalışır; harici font, izleyici veya ağ bağımlılığı içermez.
+  </div>
+</footer>
+
+<script>
+  const key = 'nexora-development-guide-2026-10-12-v2';
+  const boxes = [...document.querySelectorAll('[data-task]')];
+  let saved = {};
+  let storageOK = true;
+
+  try {
+    saved = JSON.parse(localStorage.getItem(key) || '{}') || {};
+  } catch {
+    storageOK = false;
+  }
+
+  boxes.forEach(box => {
+    box.checked = saved[box.dataset.task] === true;
+    box.addEventListener('change', () => {
+      saved[box.dataset.task] = box.checked;
+      try {
+        localStorage.setItem(key, JSON.stringify(saved));
+      } catch {
+        storageOK = false;
+      }
+      filterTasks();
+    });
+  });
+
+  function filterTasks() {
+    const searchVal = document.querySelector('#search').value.toLocaleLowerCase('tr').trim();
+    const filterVal = document.querySelector('#filter').value;
+    let visibleCount = 0;
+
+    document.querySelectorAll('.task').forEach(card => {
+      const checkbox = card.querySelector('input');
+      const isChecked = checkbox ? checkbox.checked : false;
+      card.classList.toggle('checked', isChecked);
+
+      const text = card.textContent.toLocaleLowerCase('tr');
+      const matchesSearch = text.includes(searchVal);
+      let matchesFilter = true;
+
+      if (filterVal === 'env') {
+        matchesFilter = card.dataset.kind === 'env';
+      } else if (filterVal === 'arch') {
+        matchesFilter = card.dataset.kind === 'arch';
+      } else if (filterVal === 'todo') {
+        matchesFilter = card.querySelector('.status.todo') !== null;
+      } else if (filterVal === 'partial') {
+        matchesFilter = card.querySelector('.status.partial') !== null;
+      } else if (filterVal === 'unchecked') {
+        matchesFilter = !isChecked;
+      }
+
+      const show = matchesSearch && matchesFilter;
+      card.hidden = !show;
+      if (show) visibleCount++;
+    });
+
+    const emptyMsg = document.querySelector('#empty');
+    if (emptyMsg) emptyMsg.hidden = visibleCount !== 0;
+
+    const progressEl = document.querySelector('#progress');
+    if (progressEl) {
+      const checkedCount = boxes.filter(b => b.checked).length;
+      progressEl.textContent = `Kişisel Takip: ${checkedCount} / ${boxes.length} işaretlendi · ${visibleCount} iş listeleniyor.` +
+        (storageOK ? '' : ' (Tarayıcı yerel depolaması kapalı; ilerleme için Yazdır/PDF kullanın.)');
+    }
+  }
+
+  document.querySelector('#search').addEventListener('input', filterTasks);
+  document.querySelector('#filter').addEventListener('change', filterTasks);
+  document.querySelector('#print').addEventListener('click', () => window.print());
+
+  filterTasks();
+</script>
+
+</body>
+</html>

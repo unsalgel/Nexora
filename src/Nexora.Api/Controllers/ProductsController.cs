@@ -42,7 +42,7 @@ public sealed class ProductsController : ApiControllerBase
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetProductByIdQuery(id), cancellationToken);
+        var result = await Sender.Send(new GetProductByIdQuery(id, User.IsInRole("Admin")), cancellationToken);
         return Ok(result);
     }
 

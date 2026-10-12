@@ -17,8 +17,9 @@ public sealed class GetUserNotificationsQueryHandler : IRequestHandler<GetUserNo
 
     public async Task<Result<PagedResult<NotificationDto>>> Handle(GetUserNotificationsQuery request, CancellationToken cancellationToken)
     {
-        var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize < 1 ? 20 : (request.PageSize > 100 ? 100 : request.PageSize);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var query = _context.Notifications
             .AsNoTracking()
@@ -34,7 +35,7 @@ public sealed class GetUserNotificationsQueryHandler : IRequestHandler<GetUserNo
         var notifications = await query
             .OrderByDescending(n => n.CreatedAtUtc)
             .ThenBy(n => n.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(n => new NotificationDto(
                 n.Id,

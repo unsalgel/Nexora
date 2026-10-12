@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexora.Application.Common;
 
 namespace Nexora.Application.Features.Auth.Commands.Login;
 
@@ -12,6 +13,6 @@ public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Şifre alanı boş bırakılamaz.")
-            .MaximumLength(72).WithMessage("Şifre en fazla 72 karakter olabilir.");
+            .Must(PasswordPolicy.FitsBcrypt).WithMessage("Şifre UTF-8 olarak en fazla 72 byte olabilir. Uzun eski parolalar için şifre sıfırlamayı kullanın.");
     }
 }

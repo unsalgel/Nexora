@@ -30,10 +30,12 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
     public async Task<Result<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        await using var transaction = await _context.BeginTransactionAsync("auth-email", cancellationToken);
+        var passwordHash = _passwordHasher.Hash(request.Password);
+        var now = DateTime.UtcNow;
+        await using var transaction = await _context.BeginTransactionAsync("auth-email:" + normalizedEmail, cancellationToken);
 
         var existingUser = await _context.Users
-            .AnyAsync(u => u.Email == normalizedEmail || u.PendingEmail == normalizedEmail, cancellationToken);
+            .AnyAsync(u => u.Email == normalizedEmail || (u.PendingEmail == normalizedEmail && u.PendingEmailExpiresAtUtc > now), cancellationToken);
 
         if (existingUser)
             throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
@@ -47,7 +49,7 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
             Email = normalizedEmail,
-            PasswordHash = _passwordHasher.Hash(request.Password),
+            PasswordHash = passwordHash,
             IsActive = true
         };
 
