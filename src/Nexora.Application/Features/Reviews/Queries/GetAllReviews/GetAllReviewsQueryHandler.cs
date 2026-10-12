@@ -38,15 +38,16 @@ public sealed class GetAllReviewsQueryHandler : IRequestHandler<GetAllReviewsQue
             query = query.Where(r => r.Rating == request.Rating.Value);
         }
 
-        var page = Math.Max(request.Page, 1);
-        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
             .OrderByDescending(r => r.CreatedAtUtc)
             .ThenBy(r => r.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(r => new AdminReviewDto(
                 r.Id,

@@ -22,6 +22,10 @@ public sealed class UsersController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpDelete("me/pending-email")]
+    public async Task<IActionResult> CancelEmailChange(CancellationToken ct) =>
+        Ok(await Sender.Send(new CancelEmailChangeCommand(GetCurrentUserId()), ct));
+
     [HttpPut("me")]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthPolicy")]
     public async Task<ActionResult<Result<UserProfileDto>>> UpdateProfile(

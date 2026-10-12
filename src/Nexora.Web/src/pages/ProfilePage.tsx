@@ -1,137 +1,86 @@
-import { Dialog } from '../components/ui/Dialog';
-import { SafeImage } from '../components/common/SafeImage';
-
 import React, { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pagination } from '../components/ui/Pagination';
-import { clearSession } from '../lib/session';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { useFavorites } from '../context/FavoritesContext';
-import { useCart } from '../context/CartContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+import { Package, Heart, MapPin, User, LogOut, ChevronRight } from 'lucide-react';
+import { clearSession, getAccessToken } from '../lib/session';
 import { decodeJwt } from '../lib/jwt';
 import { apiClient, logout } from '../lib/apiClient';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
+import { useFavorites } from '../context/FavoritesContext';
+import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
-import { AxiosError } from 'axios';
-import { 
-  Package, 
-  Heart, 
-  MapPin, 
-  User,
-  Mail, 
-  ShoppingBag, 
-  Trash2, 
-  Plus, 
-  ChevronRight,
-  LogOut,
-  Clock,
-  CheckCircle2,
-  Truck,
-  XCircle,
-  ExternalLink,
-  Copy,
-  Check,
-  X,
-  Star
-} from 'lucide-react';
 import type { AddressDto } from '../types/address';
-import { TURKEY_CITIES } from '../data/turkeyLocations';
-import { SearchableSelect } from '../components/ui/SearchableSelect';
-
-
-interface OrderItemDto {
-  id: string;
-  productId?: string;
-  productName: string;
-  productVariantId?: string;
-  variantSKU?: string;
-  unitPrice: number;
-  quantity: number;
-  totalPrice: number;
-}
-
-interface OrderDto {
-  id: string;
-  orderNumber: string;
-  userId: string;
-  shippingAddress: string;
-  totalAmount: number;
-  status: string;
-  paymentStatus: string;
-  createdAtUtc: string;
-  items: OrderItemDto[];
-  trackingNumber?: string | null;
-  carrier?: string | null;
-}
+import type { OrderDto } from '../types/order';
+import type { UserProfileDto } from '../types/user';
+import { OrderHistoryTab } from '../components/profile/OrderHistoryTab';
+import { FavoritesTab } from '../components/profile/FavoritesTab';
+import { AddressBookTab } from '../components/profile/AddressBookTab';
+import { AccountSecurityTab } from '../components/profile/AccountSecurityTab';
 
 export const ProfilePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { success: showSuccess, error: showError } = useToast();
+  const { addToCart } = useCart();
+  const {
+    favorites,
+    toggleFavorite,
+    refreshFavorites,
+    page: favoritesPage,
+    setPage: setFavoritesPage,
+    totalPages: favoritesPages,
+    totalCount: favoritesCount,
+    isLoading: isFavoritesLoading,
+    isError: isFavoritesError,
+  } = useFavorites();
 
   const getInitialTab = (): 'orders' | 'favorites' | 'addresses' | 'account' => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'favorites' || tabParam === 'orders' || tabParam === 'addresses' || tabParam === 'account') return tabParam;
+    if (tabParam === 'favorites' || tabParam === 'orders' || tabParam === 'addresses' || tabParam === 'account') {
+      return tabParam;
+    }
     if (location.pathname === '/favorites') return 'favorites';
     if (location.pathname === '/orders') return 'orders';
+    if (location.pathname === '/addresses') return 'addresses';
     return 'orders';
   };
+
   const [activeTab, setActiveTab] = useState<'orders' | 'favorites' | 'addresses' | 'account'>(getInitialTab);
 
-  useEffect(() => {
-    if (location.pathname === '/addresses') {
-      setActiveTab('addresses');
-    } else if (location.pathname === '/orders') {
-      setActiveTab('orders');
-    } else if (location.pathname === '/favorites') {
-      setActiveTab('favorites');
-    }
-  }, [location.pathname]);
-  const { favorites, toggleFavorite, refreshFavorites, page: favoritesPage, setPage: setFavoritesPage, totalPages: favoritesPages, totalCount: favoritesCount, isLoading: isFavoritesLoading, isError: isFavoritesError } = useFavorites();
-  const { addToCart } = useCart();
-  const { success: showSuccess, error: showError } = useToast();
-  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ firstName: string; lastName: string; email: string; pendingEmail?: string | null } | null>(null);
-  const [editFirstName, setEditFirstName] = useState('');
-  const [editLastName, setEditLastName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  // Profil Verisi
+  const [userProfile, setUserProfile] = useState<UserProfileDto | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
-  const queryClient = useQueryClient();
+  // Siparişler Verisi
   const [ordersPage, setOrdersPage] = useState(1);
-  const { data: ordersData, isLoading: isOrdersLoading, isError: isOrdersError, refetch: refetchOrders } = useQuery({
-    queryKey: ['my-orders', ordersPage], enabled: activeTab === 'orders',
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+
+  const {
+    data: ordersData,
+    isLoading: isOrdersLoading,
+    isError: isOrdersError,
+    refetch: refetchOrders,
+  } = useQuery({
+    queryKey: ['my-orders', ordersPage],
+    enabled: activeTab === 'orders',
     queryFn: async () => {
-      const res = await apiClient.get<ApiResponse<PagedResponse<OrderDto>>>('/orders', { params: { page: ordersPage, pageSize: 10 } });
+      const res = await apiClient.get<ApiResponse<PagedResponse<OrderDto>>>('/orders', {
+        params: { page: ordersPage, pageSize: 10 },
+      });
       if (!res.data.isSuccess) throw new Error(res.data.message);
       return res.data.data;
-    }
+    },
   });
-  const orders = ordersData?.items || [];
-  const fetchOrders = async () => { await queryClient.invalidateQueries({ queryKey: ['my-orders'] }); };
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  // Adresler Verisi
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
   const [addressesLoadError, setAddressesLoadError] = useState(false);
-  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [newAddress, setNewAddress] = useState({
-    title: '',
-    fullName: '',
-    phoneNumber: '',
-    city: '',
-    district: '',
-    detailedAddress: '',
-    postalCode: '',
-    isDefault: false
-  });
-  const [addressError, setAddressError] = useState<string | null>(null);
-  const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -141,62 +90,111 @@ export const ProfilePage: React.FC = () => {
       setActiveTab('favorites');
     } else if (location.pathname === '/orders') {
       setActiveTab('orders');
+    } else if (location.pathname === '/addresses') {
+      setActiveTab('addresses');
     }
   }, [searchParams, location.pathname]);
 
+  const fetchProfile = async () => {
+    try {
+      const response = await apiClient.get<ApiResponse<UserProfileDto>>('/users/me');
+      if (response.data?.isSuccess && response.data.data) {
+        setUserProfile(response.data.data);
+      }
+    } catch {
+      setProfileError('Profil bilgileri yüklenemedi. Lütfen hesabım sekmesini yeniden açın.');
+    }
+  };
+
+  const fetchAddresses = async () => {
+    setIsAddressesLoading(true);
+    setAddressesLoadError(false);
+    try {
+      const response = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');
+      if (response.data?.isSuccess && response.data.data) {
+        setAddresses(response.data.data);
+      } else {
+        throw new Error(response.data.message);
+      }
+    } catch {
+      setAddressesLoadError(true);
+    } finally {
+      setIsAddressesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (token) {
       const claims = decodeJwt(token);
       if (claims) {
         setUserProfile({
-          firstName: claims.firstName,
-          lastName: claims.lastName,
-          email: claims.email
+          id: claims.id || '',
+          firstName: claims.firstName || '',
+          lastName: claims.lastName || '',
+          email: claims.email || '',
+          isEmailConfirmed: true,
         });
-        setEditFirstName(claims.firstName || '');
-        setEditLastName(claims.lastName || '');
-        setEditEmail(claims.email || '');
-        fetchProfile();
-
-        setNewAddress((prev) => ({
-          ...prev,
-          fullName: `${claims.firstName} ${claims.lastName}`.trim()
-        }));
+        void fetchProfile();
       }
     } else {
       navigate('/login');
     }
   }, [navigate]);
 
-  const fetchProfile = async () => {
-    try {
-      const response = await apiClient.get<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; pendingEmail: string | null; isEmailConfirmed: boolean }>>('/users/me');
-      if (response.data?.isSuccess && response.data.data) {
-        const data = response.data.data;
-        setUserProfile({
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email, pendingEmail: data.pendingEmail
-        });
-        setEditFirstName(data.firstName);
-        setEditLastName(data.lastName);
-        setEditEmail(data.email);
+  useEffect(() => {
+    if (activeTab === 'addresses' && getAccessToken()) {
+      void fetchAddresses();
+    } else if (activeTab === 'account' && getAccessToken()) {
+      void fetchProfile();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleOrderChange = () => {
+      if (getAccessToken()) {
+        void queryClient.invalidateQueries({ queryKey: ['my-orders'] });
       }
-    } catch (error) {
-      console.error('Profil bilgileri alınamadı:', error);
-      setProfileError('Profil bilgileri yüklenemedi. Lütfen hesabım sekmesini yeniden açın.');
+    };
+    window.addEventListener('nexora:order-status-changed', handleOrderChange);
+    window.addEventListener('nexora:order-created', handleOrderChange);
+    return () => {
+      window.removeEventListener('nexora:order-status-changed', handleOrderChange);
+      window.removeEventListener('nexora:order-created', handleOrderChange);
+    };
+  }, [queryClient]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm('Bu siparişi iptal etmek istediğinize emin misiniz?')) return;
+    try {
+      setCancellingOrderId(orderId);
+      const response = await apiClient.post<ApiResponse<string>>(`/orders/${orderId}/cancel`);
+      if (response.data?.isSuccess) {
+        showSuccess(response.data.message || 'Siparişiniz başarıyla iptal edildi.');
+        await queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      } else {
+        showError(response.data?.message || 'Sipariş iptal edilemedi.');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      showError(error.response?.data?.message || 'Sipariş iptal edilirken bir hata oluştu.');
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveProfile = async (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    currentPassword?: string;
+  }) => {
     setProfileError(null);
     setProfileSuccess(null);
 
-    const trimmedFirst = editFirstName.trim();
-    const trimmedLast = editLastName.trim();
-    const trimmedEmail = editEmail.trim();
+    const trimmedFirst = data.firstName.trim();
+    const trimmedLast = data.lastName.trim();
+    const trimmedEmail = data.email.trim();
 
     if (!trimmedFirst || !trimmedLast) {
       setProfileError('Ad ve soyad alanları zorunludur.');
@@ -210,24 +208,21 @@ export const ProfilePage: React.FC = () => {
 
     setIsSavingProfile(true);
     try {
-      const response = await apiClient.put<ApiResponse<{ id: string; firstName: string; lastName: string; email: string; pendingEmail: string | null; isEmailConfirmed: boolean }>>('/users/me', {
+      const response = await apiClient.put<ApiResponse<UserProfileDto>>('/users/me', {
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        email: trimmedEmail, currentPassword: currentPassword || undefined
+        email: trimmedEmail,
+        currentPassword: data.currentPassword || undefined,
       });
 
       if (response.data?.isSuccess && response.data.data) {
         const updated = response.data.data;
-        setUserProfile({
-          firstName: updated.firstName,
-          lastName: updated.lastName,
-          email: updated.email, pendingEmail: updated.pendingEmail
-        });
-        setEditFirstName(updated.firstName);
-        setEditLastName(updated.lastName);
-        setEditEmail(updated.email);
-        setCurrentPassword('');
-        setProfileSuccess(updated.pendingEmail ? 'Yeni e-posta adresinize doğrulama kodu gönderildi. Doğrulama tamamlanana kadar mevcut adresiniz kullanılır.' : 'Kişisel bilgileriniz başarıyla güncellendi.');
+        setUserProfile(updated);
+        setProfileSuccess(
+          updated.pendingEmail
+            ? 'Yeni e-posta adresinize doğrulama kodu gönderildi. Doğrulama tamamlanana kadar mevcut adresiniz kullanılır.'
+            : 'Kişisel bilgileriniz başarıyla güncellendi.'
+        );
         showSuccess('Profil bilgileriniz başarıyla kaydedildi.');
       } else {
         const errorMsg = response.data?.message || 'Profil güncellenirken bir hata oluştu.';
@@ -246,71 +241,62 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const fetchAddresses = async () => {
-    setIsAddressesLoading(true);
-    setAddressesLoadError(false);
+  const handleVerifyPendingEmail = async (code: string) => {
+    if (!userProfile?.pendingEmail) return;
     try {
-      const response = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');
-      if (response.data?.isSuccess && response.data.data) {
-        setAddresses(response.data.data);
-      } else { throw new Error(response.data.message); }
-    } catch (error) {
-      console.error(error);
-      setAddressesLoadError(true);
-    } finally {
-      setIsAddressesLoading(false);
+      const res = await apiClient.post<ApiResponse<string>>('/auth/verify-email', {
+        email: userProfile.pendingEmail,
+        code,
+      });
+      if (!res.data.isSuccess) throw new Error(res.data.message);
+      clearSession();
+      navigate('/login?reason=email-changed');
+    } catch {
+      setProfileError('E-posta doğrulanamadı. Kodu kontrol ederek tekrar deneyin.');
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
-      fetchAddresses();
-    } else if (activeTab === 'account' && localStorage.getItem('accessToken')) {
-      fetchProfile();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    const handleOrderChange = () => {
-      if (localStorage.getItem('accessToken')) {
-        void queryClient.invalidateQueries({ queryKey: ['my-orders'] });
-      }
-    };
-    window.addEventListener('nexora:order-status-changed', handleOrderChange);
-    window.addEventListener('nexora:order-created', handleOrderChange);
-    return () => { window.removeEventListener('nexora:order-status-changed', handleOrderChange); window.removeEventListener('nexora:order-created', handleOrderChange); };
-  }, [queryClient]);
-
-  const handleCreateAddress = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddressError(null);
-    if (!newAddress.title || !newAddress.fullName || !newAddress.phoneNumber || !newAddress.city || !newAddress.district || !newAddress.detailedAddress) {
-      setAddressError('Lütfen zorunlu alanları eksiksiz doldurun.');
-      return;
-    }
-
-    setIsSavingAddress(true);
+  const handleResendPendingCode = async () => {
+    if (!userProfile?.pendingEmail) return;
     try {
-      const res = await apiClient.post<ApiResponse<AddressDto>>('/addresses', newAddress);
+      await apiClient.post('/auth/resend-verification-code', { email: userProfile.pendingEmail });
+      setProfileSuccess('Kod isteği alındı. Yeni kod istemeden önce 1 dakika bekleyin.');
+    } catch {
+      setProfileError('Kod yeniden gönderilemedi. Lütfen tekrar deneyin.');
+    }
+  };
+
+  const handleCancelPendingEmail = async () => {
+    try {
+      await apiClient.delete('/users/me/pending-email');
+      setUserProfile((prev) => (prev ? { ...prev, pendingEmail: null } : null));
+      setProfileSuccess('E-posta değişikliği iptal edildi.');
+    } catch {
+      setProfileError('E-posta değişikliği iptal edilemedi.');
+    }
+  };
+
+  const handleCreateAddress = async (newAddr: {
+    title: string;
+    fullName: string;
+    phoneNumber: string;
+    city: string;
+    district: string;
+    detailedAddress: string;
+    postalCode?: string;
+    isDefault: boolean;
+  }): Promise<boolean> => {
+    try {
+      const res = await apiClient.post<ApiResponse<AddressDto>>('/addresses', newAddr);
       if (res.data?.isSuccess) {
-        setIsAddressModalOpen(false);
-        setNewAddress({
-          title: '',
-          fullName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : '',
-          phoneNumber: '',
-          city: '',
-          district: '',
-          detailedAddress: '',
-          postalCode: '',
-          isDefault: false
-        });
         await fetchAddresses();
+        showSuccess('Adres başarıyla kaydedildi.');
+        return true;
       }
-    } catch (err: unknown) {
-      console.error(err);
-      setAddressError('Adres kaydedilirken bir hata oluştu.');
-    } finally {
-      setIsSavingAddress(false);
+      return false;
+    } catch {
+      showError('Adres kaydedilemedi.');
+      return false;
     }
   };
 
@@ -318,8 +304,9 @@ export const ProfilePage: React.FC = () => {
     try {
       await apiClient.delete(`/addresses/${addressId}`);
       await fetchAddresses();
-    } catch (err) {
-      console.error(err);
+      showSuccess('Adres silindi.');
+    } catch {
+      showError('Adres silinemedi.');
     }
   };
 
@@ -327,105 +314,23 @@ export const ProfilePage: React.FC = () => {
     try {
       await apiClient.put(`/addresses/${addressId}/default`);
       await fetchAddresses();
-    } catch (err) {
-      console.error(err);
+      showSuccess('Varsayılan adres güncellendi.');
+    } catch {
+      showError('Varsayılan adres ayarlanamadı.');
     }
   };
 
-  const handleLogout = () => {
-    void logout();
+  const handleTabChange = (tab: 'orders' | 'favorites' | 'addresses' | 'account') => {
+    setActiveTab(tab);
+    navigate(`/profile?tab=${tab}`);
   };
-
-  
-  const handleCancelOrder = async (orderId: string) => {
-    if (!window.confirm('Bu siparişi iptal etmek istediğinize emin misiniz?')) return;
-    try {
-      setCancellingOrderId(orderId);
-      const response = await apiClient.post(`/orders/${orderId}/cancel`);
-      if (response.data?.isSuccess) {
-        showSuccess(response.data.message || 'Siparişiniz başarıyla iptal edildi.');
-        await fetchOrders();
-      } else {
-        showError(response.data?.message || 'Sipariş iptal edilemedi.');
-      }
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      showError(error.response?.data?.message || 'Sipariş iptal edilirken bir hata oluştu.');
-    } finally {
-      setCancellingOrderId(null);
-    }
-  };
-
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  const getStatusStepIndex = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-      case 'paid':
-        return 1;
-      case 'processing':
-        return 2;
-      case 'shipped':
-        return 3;
-      case 'delivered':
-        return 4;
-      case 'cancelled':
-        return -1;
-      default:
-        return 1;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Teslim Edildi
-          </span>
-        );
-      case 'shipped':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Truck className="w-3.5 h-3.5" /> Kargoya Verildi
-          </span>
-        );
-      case 'processing':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Package className="w-3.5 h-3.5" /> Hazırlanıyor
-          </span>
-        );
-      case 'cancelled':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle className="w-3.5 h-3.5" /> İptal Edildi
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            <Clock className="w-3.5 h-3.5" /> Sipariş Alındı
-          </span>
-        );
-    }
-  };
-
-  const orderSteps = [
-    { label: 'Sipariş Alındı', icon: CheckCircle2 },
-    { label: 'Hazırlanıyor', icon: Package },
-    { label: 'Kargoya Verildi', icon: Truck },
-    { label: 'Teslim Edildi', icon: CheckCircle2 },
-  ];
 
   return (
     <div className="space-y-8 pb-16 font-sans">
       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-        <span className="hover:text-orange-600 cursor-pointer" onClick={() => navigate('/')}>Ana Sayfa</span>
+        <span className="hover:text-orange-600 cursor-pointer" onClick={() => navigate('/')}>
+          Ana Sayfa
+        </span>
         <ChevronRight className="w-3 h-3 text-slate-400" />
         <span className="text-slate-800 font-semibold">Hesabım</span>
       </div>
@@ -440,16 +345,18 @@ export const ProfilePage: React.FC = () => {
               <h2 className="text-sm font-bold text-slate-900 truncate">
                 {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Yükleniyor...'}
               </h2>
-              <span className="text-[11px] text-slate-400 font-medium truncate block">{userProfile?.email}</span>
+              <span className="text-[11px] text-slate-400 font-medium truncate block">
+                {userProfile?.email}
+              </span>
             </div>
           </div>
 
           <nav className="flex flex-col gap-1.5">
             <button
-              onClick={() => { setActiveTab('orders'); navigate('/profile?tab=orders'); }}
+              onClick={() => handleTabChange('orders')}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'orders' 
-                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs' 
+                activeTab === 'orders'
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -458,10 +365,10 @@ export const ProfilePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => { setActiveTab('favorites'); navigate('/profile?tab=favorites'); }}
+              onClick={() => handleTabChange('favorites')}
               className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'favorites' 
-                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs' 
+                activeTab === 'favorites'
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -469,14 +376,16 @@ export const ProfilePage: React.FC = () => {
                 <Heart className="w-4 h-4" />
                 <span>Favorilerim</span>
               </div>
-              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{favorites.length}</span>
+              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                {favorites.length}
+              </span>
             </button>
 
             <button
-              onClick={() => { setActiveTab('addresses'); navigate('/profile?tab=addresses'); }}
+              onClick={() => handleTabChange('addresses')}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'addresses' 
-                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs' 
+                activeTab === 'addresses'
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -485,10 +394,10 @@ export const ProfilePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => { setActiveTab('account'); navigate('/profile?tab=account'); }}
+              onClick={() => handleTabChange('account')}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'account' 
-                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs' 
+                activeTab === 'account'
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200/80 shadow-2xs'
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -499,7 +408,7 @@ export const ProfilePage: React.FC = () => {
             <div className="border-t border-slate-100 my-1" />
 
             <button
-              onClick={handleLogout}
+              onClick={() => void logout()}
               className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors w-full text-left cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
@@ -510,648 +419,62 @@ export const ProfilePage: React.FC = () => {
 
         <main className="lg:col-span-9 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs min-h-[50vh]">
           {activeTab === 'orders' && (
-            <div className="space-y-5 animate-in fade-in-50">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">Siparişlerim</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">
-                    Geçmiş ve devam eden tüm siparişlerinizin anlık kargo takip durumu
-                  </p>
-                </div>
-                <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                  {ordersData?.totalCount || 0} Sipariş
-                </span>
-              </div>
-              
-              {isOrdersError ? (<p role="alert" className="p-5 text-rose-600">Siparişler yüklenemedi. <button onClick={() => void refetchOrders()}>Tekrar dene</button></p>) : isOrdersLoading ? (
-                <div className="flex justify-center items-center py-16">
-                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="bg-white rounded-3xl p-16 border border-slate-200/80 text-center space-y-3">
-                  <Package className="w-12 h-12 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-semibold">Henüz verilmiş bir siparişiniz bulunmuyor.</p>
-                  <button
-                    onClick={() => navigate('/products')}
-                    className="mt-2 px-5 py-2.5 bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs hover:bg-orange-600 transition-all cursor-pointer"
-                  >
-                    Alışverişe Başla
-                  </button>
-                </div>
-              ) : (
-                orders.map((order) => {
-                  const currentStep = getStatusStepIndex(order.status);
-                  const isCancelled = order.status.toLowerCase() === 'cancelled';
-                  const orderDate = new Date(order.createdAtUtc).toLocaleDateString('tr-TR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-
-                  return (
-                    <div key={order.id} className="border border-slate-200/90 rounded-3xl p-5 sm:p-6 space-y-5 shadow-xs hover:shadow-sm transition-all bg-white">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                        <div>
-                          <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Sipariş No</span>
-                          <span className="font-extrabold text-slate-900 text-xs font-mono">{order.orderNumber}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Sipariş Tarihi</span>
-                          <span className="font-bold text-slate-700 text-xs">{orderDate}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Toplam Tutar</span>
-                          <span className="font-black text-orange-600 text-sm">
-                            {order.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                          </span>
-                        </div>
-                        <div>
-                          {getStatusBadge(order.status)}
-
-                        </div>
-                      </div>
-
-                      {!isCancelled ? (
-                        <div className="py-3 px-2 space-y-4">
-                          <div className="grid grid-cols-4 relative">
-                            <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 h-1 bg-slate-100 z-0" />
-                            <div 
-                              className="absolute top-1/2 left-0 -translate-y-1/2 h-1 bg-orange-500 z-0 transition-all duration-500"
-                              style={{ width: `${((Math.max(1, currentStep) - 1) / 3) * 100}%` }}
-                            />
-
-                            {orderSteps.map((step, idx) => {
-                              const stepNum = idx + 1;
-                              const isCompleted = stepNum <= currentStep;
-                              const isCurrent = stepNum === currentStep;
-                              const Icon = step.icon;
-
-                              return (
-                                <div key={step.label} className="relative z-10 flex flex-col items-center text-center gap-2">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                                    isCompleted 
-                                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 ring-4 ring-orange-50' 
-                                      : 'bg-white border-2 border-slate-200 text-slate-300'
-                                  }`}>
-                                    <Icon className="w-4 h-4" />
-                                  </div>
-                                  <span className={`text-[11px] font-bold tracking-tight ${
-                                    isCurrent ? 'text-orange-600' : isCompleted ? 'text-slate-800' : 'text-slate-400'
-                                  }`}>
-                                    {step.label}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Kargo Takip Kartı */}
-                          {order.trackingNumber && (
-                            <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/70 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shadow-blue-500/30 shrink-0">
-                                  <Truck className="w-5 h-5" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-slate-900">
-                                      {order.carrier || 'Kargo Firması'}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800">
-                                      Yolda
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-600">
-                                    <span>Takip No:</span>
-                                    <strong className="font-mono text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-blue-200/80">
-                                      {order.trackingNumber}
-                                    </strong>
-                                    <button aria-label="Takip Kodu Kopyala"
-                                      onClick={() => handleCopy(order.trackingNumber!)}
-                                      className="p-1 hover:bg-blue-100/60 rounded-md text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-                                      title="Takip Kodu Kopyala"
-                                    >
-                                      {copiedCode === order.trackingNumber ? (
-                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                      ) : (
-                                        <Copy className="w-3.5 h-3.5" />
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <a
-                                href={`https://www.google.com/search?q=${encodeURIComponent((order.carrier || 'kargo') + ' takip ' + order.trackingNumber)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white hover:bg-blue-600 text-blue-700 hover:text-white rounded-xl text-xs font-bold transition-all shadow-2xs border border-blue-200 cursor-pointer self-start sm:self-auto"
-                              >
-                                <span>Kargom Nerede</span>
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2">
-                          <XCircle className="w-4 h-4 shrink-0" />
-                          <span>Bu sipariş iptal edilmiştir. Ödeme ve iade akışı bu projede simülasyondur.</span>
-                        </div>
-                      )}
-
-                      <div className="space-y-3 pt-2">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Sipariş Edilen Ürünler</span>
-                        <div className="border border-slate-100 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="p-3.5 bg-slate-50/50 flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-white border border-slate-200/80 p-1 shrink-0 flex items-center justify-center">
-                                  <Package className="w-6 h-6 text-slate-400" />
-                                </div>
-                                <div>
-                                  <h4 className="font-bold text-slate-900 text-xs">{item.productName}</h4>
-                                  {item.variantSKU && (
-                                    <span className="text-[10px] text-slate-400 font-mono block">SKU: {item.variantSKU}</span>
-                                  )}
-                                  <span className="text-slate-500 text-[11px] font-medium">
-                                    {item.quantity} Adet x {item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                                  </span>
-                                </div>
-                              </div>
-                              <span className="font-extrabold text-slate-900 text-xs shrink-0">
-                                {item.totalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="line-clamp-1">{order.shippingAddress}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold shrink-0">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Teslimat bilgisi kargo takibinden izlenebilir</span>
-                        </div>
-                        {(order.status.toLowerCase() === 'pending' || order.status.toLowerCase() === 'paid') && (
-                          <button
-                            onClick={() => handleCancelOrder(order.id)}
-                            disabled={cancellingOrderId === order.id}
-                            className="text-[11px] font-medium text-rose-600 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {cancellingOrderId === order.id ? 'İptal Ediliyor...' : 'Siparişi İptal Et'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            <OrderHistoryTab
+              orders={ordersData?.items || []}
+              ordersPage={ordersPage}
+              totalPages={ordersData?.totalPages || 0}
+              totalCount={ordersData?.totalCount || 0}
+              isLoading={isOrdersLoading}
+              isError={isOrdersError}
+              onPageChange={setOrdersPage}
+              onRefetch={() => void refetchOrders()}
+              onCancelOrder={handleCancelOrder}
+              cancellingOrderId={cancellingOrderId}
+            />
           )}
 
-          {activeTab === 'orders' && <Pagination page={ordersPage} totalPages={ordersData?.totalPages || 0} onPageChange={setOrdersPage} isLoading={isOrdersLoading} />}
           {activeTab === 'favorites' && (
-            <div className="space-y-4 animate-in fade-in-50">
-              <h2 className="text-base font-bold text-slate-900">Favori Ürünlerim ({favoritesCount})</h2>
-
-              {isFavoritesError ? (<p role="alert" className="text-rose-600">Favoriler yüklenemedi. <button onClick={() => void refreshFavorites()}>Tekrar dene</button></p>) : isFavoritesLoading ? (<p>Favoriler yükleniyor...</p>) : favorites.length === 0 ? (
-                <div className="bg-white rounded-3xl p-8 border border-slate-200/80 text-center space-y-3">
-                  <Heart className="w-10 h-10 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-medium">Henüz favorilere ürün eklemediniz.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {favorites.map((item) => (
-                    <div key={item.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3 flex flex-col justify-between relative">
-                      <button aria-label="Favorilerden Çıkar"
-                        onClick={() => toggleFavorite(item)}
-                        className="absolute top-3 right-3 text-rose-500 hover:text-rose-700 transition-colors p-1 cursor-pointer"
-                        title="Favorilerden Çıkar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-
-                      <div className="flex gap-3.5">
-                        <div className="w-16 h-16 rounded-xl bg-slate-50 border p-1 shrink-0 flex items-center justify-center">
-                          <SafeImage src={item.image} alt={item.title} className="max-h-full object-contain" />
-                        </div>
-                        <div className="min-w-0 flex-1 pr-6">
-                          <h3 className="text-xs font-bold text-slate-800 line-clamp-1">{item.title}</h3>
-                          <div className="mt-1">
-                            <span className="text-xs font-extrabold text-orange-600">
-                              {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => addToCart(item.id)}
-                        className="w-full py-2 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>Sepete Ekle</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <FavoritesTab
+              favorites={favorites}
+              favoritesCount={favoritesCount}
+              favoritesPage={favoritesPage}
+              favoritesPages={favoritesPages}
+              isLoading={isFavoritesLoading}
+              isError={isFavoritesError}
+              onPageChange={setFavoritesPage}
+              onRefresh={() => void refreshFavorites()}
+              onToggleFavorite={toggleFavorite}
+              onAddToCart={addToCart}
+            />
           )}
 
-          {activeTab === 'favorites' && <Pagination page={favoritesPage} totalPages={favoritesPages} onPageChange={setFavoritesPage} isLoading={isFavoritesLoading} />}
           {activeTab === 'addresses' && (
-            <div className="space-y-5 animate-in fade-in-50">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">Kayıtlı Adreslerim</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">
-                    Siparişlerinizde hızlı teslimat için kayıtlı adreslerinizi yönetin
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setIsAddressModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Yeni Adres Ekle</span>
-                </button>
-              </div>
-
-              {addressesLoadError ? (<p role="alert" className="text-rose-600">Adresler yüklenemedi. <button onClick={() => void fetchAddresses()}>Tekrar dene</button></p>) : isAddressesLoading ? (
-                <div className="flex justify-center items-center py-16">
-                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : addresses.length === 0 ? (
-                <div className="bg-white rounded-3xl p-16 border border-slate-200/80 text-center space-y-3">
-                  <MapPin className="w-12 h-12 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-semibold">Henüz kayıtlı bir adresiniz bulunmamaktadır.</p>
-                  <button
-                    onClick={() => setIsAddressModalOpen(true)}
-                    className="mt-2 px-5 py-2.5 bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs hover:bg-orange-600 transition-all cursor-pointer"
-                  >
-                    Hemen Adres Ekle
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {addresses.map((addr) => (
-                    <div 
-                      key={addr.id}
-                      className={`rounded-3xl p-5 border transition-all relative flex flex-col justify-between space-y-3 ${
-                        addr.isDefault 
-                          ? 'border-orange-300 bg-orange-50/20 shadow-xs' 
-                          : 'border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs'
-                      }`}
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                            <MapPin className="w-4 h-4 text-orange-500" /> {addr.title}
-                          </span>
-                          {addr.isDefault && (
-                            <span className="text-[10px] bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1">
-                              <Star className="w-3 h-3 fill-orange-500 text-orange-500" /> Varsayılan
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="text-xs font-semibold text-slate-800">
-                          {addr.fullName} • <span className="text-slate-500 font-mono">{addr.phoneNumber}</span>
-                        </div>
-
-                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                          {addr.detailedAddress}
-                        </p>
-
-                        <div className="text-[11px] font-bold text-slate-500">
-                          {addr.district} / {addr.city} {addr.postalCode ? `(${addr.postalCode})` : ''}
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        {!addr.isDefault ? (
-                          <button
-                            onClick={() => handleSetDefaultAddress(addr.id)}
-                            className="text-slate-500 hover:text-orange-600 font-semibold text-[11px] cursor-pointer"
-                          >
-                            Varsayılan Yap
-                          </button>
-                        ) : <div />}
-
-                        <button
-                          onClick={() => handleDeleteAddress(addr.id)}
-                          className="text-rose-500 hover:text-rose-700 font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" /> Sil
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AddressBookTab
+              addresses={addresses}
+              isLoading={isAddressesLoading}
+              isError={addressesLoadError}
+              onRefresh={() => void fetchAddresses()}
+              onCreateAddress={handleCreateAddress}
+              onDeleteAddress={handleDeleteAddress}
+              onSetDefaultAddress={handleSetDefaultAddress}
+              defaultFullName={userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : ''}
+            />
           )}
 
           {activeTab === 'account' && (
-            <div className="space-y-6 animate-in fade-in-50">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">Kişisel Bilgilerim</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Hesap bilgilerinizi ve iletişim detaylarınızı buradan güncelleyebilirsiniz.
-                  </p>
-                </div>
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50/80 border border-orange-100/90 rounded-xl text-orange-700 text-xs font-semibold">
-                  <User className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Profil Ayarları</span>
-                </div>
-              </div>
-
-              {profileError && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200/80 rounded-2xl flex items-center gap-2.5 text-rose-700 text-xs font-medium animate-in fade-in-50">
-                  <XCircle className="w-4 h-4 shrink-0 text-rose-500" />
-                  <span>{profileError}</span>
-                </div>
-              )}
-
-              {profileSuccess && (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center gap-2.5 text-emerald-700 text-xs font-medium animate-in fade-in-50">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                  <span>{profileSuccess}</span>
-                </div>
-              )}
-
-              {userProfile?.pendingEmail && (
-                <form className="p-4 border rounded-xl space-y-3" onSubmit={async event => {
-                  event.preventDefault(); setIsVerifyingEmail(true); setProfileError(null);
-                  try {
-                    const res = await apiClient.post<ApiResponse<string>>('/auth/verify-email', { email: userProfile.pendingEmail, code: verificationCode });
-                    if (!res.data.isSuccess) throw new Error(res.data.message);
-                    clearSession(); navigate('/login?reason=email-changed');
-                  } catch { setProfileError('E-posta doğrulanamadı. Kodu kontrol ederek tekrar deneyin.'); }
-                  finally { setIsVerifyingEmail(false); }
-                }}>
-                  <p className="text-xs">{userProfile.pendingEmail} adresine gelen kodu girin. Onay sonrası tekrar giriş yapmanız gerekir.</p>
-                  <label htmlFor="pending-email-code" className="text-xs">Doğrulama kodu</label>
-                  <input id="pending-email-code" autoComplete="one-time-code" inputMode="numeric" required value={verificationCode} onChange={e => setVerificationCode(e.target.value)} className="border rounded-lg p-2" />
-                  <button type="button" disabled={isVerifyingEmail} onClick={async () => {
-                    setIsVerifyingEmail(true);
-                    try { await apiClient.post('/auth/resend-verification-code', { email: userProfile.pendingEmail }); setProfileSuccess('Kod isteği alındı. Yeni kod istemeden önce 1 dakika bekleyin.'); }
-                    catch { setProfileError('Kod yeniden gönderilemedi. Lütfen tekrar deneyin.'); }
-                    finally { setIsVerifyingEmail(false); }
-                  }} className="p-2 rounded-lg border">Kodu yeniden gönder</button>
-                  <button type="submit" disabled={isVerifyingEmail} className="p-2 rounded-lg bg-orange-500 text-white">E-postayı doğrula</button>
-                </form>
-              )}
-              <form onSubmit={handleSaveProfile} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="profilepage-field-1" className="text-xs font-bold text-slate-700 block">Ad *</label>
-                    <div className="relative flex items-center">
-                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input id="profilepage-field-1"
-                        type="text"
-                        required
-                        value={editFirstName}
-                        onChange={(e) => {
-                          setEditFirstName(e.target.value);
-                          setProfileError(null);
-                          setProfileSuccess(null);
-                        }}
-                        placeholder="Adınız"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label htmlFor="profilepage-field-2" className="text-xs font-bold text-slate-700 block">Soyad *</label>
-                    <div className="relative flex items-center">
-                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input id="profilepage-field-2"
-                        type="text"
-                        required
-                        value={editLastName}
-                        onChange={(e) => {
-                          setEditLastName(e.target.value);
-                          setProfileError(null);
-                          setProfileSuccess(null);
-                        }}
-                        placeholder="Soyadınız"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="profilepage-field-3" className="text-xs font-bold text-slate-700 block">E-Posta Adresi *</label>
-                      <span className="text-[11px] text-slate-400 font-medium">Giriş ve sipariş bildirimleri için kullanılır</span>
-                    </div>
-                    <div className="relative flex items-center">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                      <input id="profilepage-field-3"
-                        type="email"
-                        required
-                        value={editEmail}
-                        onChange={(e) => {
-                          setEditEmail(e.target.value);
-                          setProfileError(null);
-                          setProfileSuccess(null);
-                        }}
-                        placeholder="ornek@domain.com"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {editEmail.trim().toLowerCase() !== userProfile?.email.toLowerCase() && (
-                  <div className="space-y-2">
-                    <label htmlFor="profile-current-password" className="text-xs font-bold">E-posta değişikliği için mevcut parolanız</label>
-                    <input id="profile-current-password" type="password" autoComplete="current-password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full border rounded-xl p-3" />
-                  </div>
-                )}
-                <div className="flex items-center justify-end pt-2">
-                  <button
-                    type="submit"
-                    disabled={isSavingProfile}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {isSavingProfile ? (
-                      <>
-                        <Clock className="w-4 h-4 animate-spin" />
-                        <span>Kaydediliyor...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" />
-                        <span>Değişiklikleri Kaydet</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
+            <AccountSecurityTab
+              userProfile={userProfile}
+              isSaving={isSavingProfile}
+              profileError={profileError}
+              profileSuccess={profileSuccess}
+              onSaveProfile={handleSaveProfile}
+              onVerifyPendingEmail={handleVerifyPendingEmail}
+              onResendPendingCode={handleResendPendingCode}
+              onCancelPendingEmail={handleCancelPendingEmail}
+            />
           )}
         </main>
       </div>
-
-      {/* Yeni Adres Ekleme Modalı */}
-      {isAddressModalOpen && (
-        <Dialog label="Adres ekle" onClose={() => setIsAddressModalOpen(false)} className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div
-            className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in-50"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <h2 className="text-base font-bold text-slate-900">Yeni Teslimat Adresi</h2>
-              </div>
-              <button aria-label="Kapat"
-                onClick={() => setIsAddressModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {addressError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
-                {addressError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateAddress} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label htmlFor="profilepage-field-4" className="text-[11px] font-bold text-slate-700 block mb-1">Adres Başlığı *</label>
-                  <input id="profilepage-field-4"
-                    type="text"
-                    required
-                    placeholder="Örn: Evim, İş Yeri, Yazlık"
-                    value={newAddress.title}
-                    onChange={(e) => setNewAddress({ ...newAddress, title: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="profilepage-field-5" className="text-[11px] font-bold text-slate-700 block mb-1">Teslim Alacak Kişi (Ad Soyad) *</label>
-                  <input id="profilepage-field-5"
-                    type="text"
-                    required
-                    placeholder="Örn: Ahmet Yılmaz"
-                    value={newAddress.fullName}
-                    onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="profilepage-field-6" className="text-[11px] font-bold text-slate-700 block mb-1">Telefon Numarası *</label>
-                  <input id="profilepage-field-6"
-                    type="tel"
-                    required
-                    maxLength={11}
-                    placeholder="05XXXXXXXXX"
-                    value={newAddress.phoneNumber}
-                    onChange={(e) => setNewAddress({ ...newAddress, phoneNumber: e.target.value.replace(/\D/g, '') })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="profilepage-field-7" className="text-[11px] font-bold text-slate-700 block mb-1">Posta Kodu</label>
-                  <input id="profilepage-field-7"
-                    type="text"
-                    maxLength={5}
-                    placeholder="Örn: 34710"
-                    value={newAddress.postalCode}
-                    onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <SearchableSelect
-                    label="İl *"
-                    required
-                    placeholder="İl Seçiniz..."
-                    options={TURKEY_CITIES.map((c) => c.name)}
-                    value={newAddress.city}
-                    onChange={(val) => setNewAddress({ ...newAddress, city: val, district: '' })}
-                  />
-                </div>
-
-                <div>
-                  <SearchableSelect
-                    label="İlçe *"
-                    required
-                    disabled={!newAddress.city}
-                    placeholder="İlçe Seçiniz..."
-                    options={TURKEY_CITIES.find((c) => c.name === newAddress.city)?.districts || []}
-                    value={newAddress.district}
-                    onChange={(val) => setNewAddress({ ...newAddress, district: val })}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="profilepage-field-8" className="text-[11px] font-bold text-slate-700 block mb-1">Açık Adres (Cadde, Mahalle, Kapı No, Daire) *</label>
-                  <textarea id="profilepage-field-8"
-                    rows={3}
-                    required
-                    placeholder="Paketin sorunsuz teslim edilmesi için detaylı açık adresinizi giriniz..."
-                    value={newAddress.detailedAddress}
-                    onChange={(e) => setNewAddress({ ...newAddress, detailedAddress: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white transition-all leading-relaxed"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="isDefault"
-                    checked={newAddress.isDefault}
-                    onChange={(e) => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
-                    className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
-                  />
-                  <label htmlFor="isDefault" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                    Bu adresi varsayılan teslimat adresim olarak kaydet
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAddressModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingAddress}
-                  className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  {isSavingAddress ? 'Kaydediliyor...' : 'Adresi Kaydet'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Dialog>
-      )}
     </div>
   );
 };

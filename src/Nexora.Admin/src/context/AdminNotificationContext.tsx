@@ -1,5 +1,5 @@
 import { startHubConnection } from '../lib/startHubConnection';
-import { useAccessToken, clearSession } from '../lib/session';
+import { useAccessToken, clearSession, getAccessToken } from '../lib/session';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { useQueryClient } from '@tanstack/react-query';
@@ -57,7 +57,7 @@ export const AdminNotificationProvider: React.FC<{ children: React.ReactNode }> 
     let isCancelled = false;
     const connection = new HubConnectionBuilder()
       .withUrl(ENV.HUBS.APP, {
-        accessTokenFactory: () => localStorage.getItem('adminAccessToken') || '',
+        accessTokenFactory: () => getAccessToken() || '',
         transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents
       })
       .withAutomaticReconnect()

@@ -20,7 +20,12 @@ public sealed class OrdersController : ApiControllerBase
         CreateOrderCommand command,
         CancellationToken cancellationToken = default)
     {
-        var safeCommand = command with { UserId = GetCurrentUserId() };
+        var idempotencyHeader = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
+        var safeCommand = command with
+        {
+            UserId = GetCurrentUserId(),
+            IdempotencyKey = string.IsNullOrWhiteSpace(command.IdempotencyKey) ? idempotencyHeader : command.IdempotencyKey
+        };
         var result = await Sender.Send(safeCommand, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }

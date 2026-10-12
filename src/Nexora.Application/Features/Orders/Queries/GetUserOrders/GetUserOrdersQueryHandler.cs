@@ -17,8 +17,9 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
 
     public async Task<Result<PagedResult<OrderDto>>> Handle(GetUserOrdersQuery request, CancellationToken cancellationToken)
     {
-        var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize < 1 ? 20 : (request.PageSize > 100 ? 100 : request.PageSize);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var query = _context.Orders
             .AsNoTracking()
@@ -29,7 +30,7 @@ public sealed class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQue
         var dtos = await query
             .OrderByDescending(o => o.CreatedAtUtc)
             .ThenBy(o => o.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(o => new OrderDto(
                 o.Id,

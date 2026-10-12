@@ -38,6 +38,7 @@ public sealed class UpdateUserRolesCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "admin@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
         _context.Users.Add(adminUser);
@@ -65,6 +66,7 @@ public sealed class UpdateUserRolesCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "admin1@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
         var admin2 = new User
@@ -74,6 +76,7 @@ public sealed class UpdateUserRolesCommandHandlerTests : IDisposable
             LastName = "User",
             Email = "admin2@nexora.com",
             PasswordHash = "hash",
+            IsEmailConfirmed = true,
             IsActive = true
         };
         _context.Users.AddRange(admin1, admin2);

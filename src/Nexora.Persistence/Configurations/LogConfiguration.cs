@@ -10,6 +10,7 @@ public sealed class LogConfiguration : IEntityTypeConfiguration<Log>
     {
         builder.ToTable("logs");
 
+        builder.HasIndex(l => l.TimestampUtc);
         builder.HasKey(l => l.Id);
         builder.Property(l => l.Id).HasColumnName("id");
         builder.Property(l => l.Message).HasColumnName("message");

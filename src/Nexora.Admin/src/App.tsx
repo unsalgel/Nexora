@@ -43,10 +43,10 @@ export const App: React.FC = () => {
 }), [sessionId]);
   return (
     <AdminErrorBoundary>
+      <Router>
       <QueryClientProvider key={sessionId} client={queryClient}>
         <AdminNotificationProvider>
           <AdminToastProvider>
-            <Router>
               <Suspense fallback={<AdminLoadingFallback />}>
                 <Routes>
                   <Route path="/login" element={<AdminLoginPage />} />
@@ -69,10 +69,10 @@ export const App: React.FC = () => {
                   <Route path="*" element={<AdminNotFoundPage />} />
                 </Routes>
               </Suspense>
-            </Router>
       </AdminToastProvider>
     </AdminNotificationProvider>
   </QueryClientProvider>
+    </Router>
 </AdminErrorBoundary>
   );
 };

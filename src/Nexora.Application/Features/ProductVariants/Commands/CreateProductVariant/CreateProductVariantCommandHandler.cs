@@ -19,6 +19,7 @@ public sealed class CreateProductVariantCommandHandler : IRequestHandler<CreateP
     public async Task<Result<Guid>> Handle(CreateProductVariantCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.BeginTransactionAsync($"variants:{request.ProductId}", cancellationToken);
+        await transaction.AcquireLockAsync("catalog-attributes", cancellationToken);
         var productExists = await _context.Products
             .AnyAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken);
 

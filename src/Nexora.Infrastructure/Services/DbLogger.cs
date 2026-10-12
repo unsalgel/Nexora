@@ -16,6 +16,8 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
         string? clientIp = null,
         CancellationToken cancellationToken = default)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(1));
         try
         {
             var logEntry = new Log
@@ -33,7 +35,7 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
             using var scope = scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
-            await context.SaveChangesAsync(cancellationToken);
+            await context.SaveChangesAsync(timeout.Token);
         }
         catch (Exception loggingEx)
         {
@@ -50,6 +52,8 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
         string? clientIp = null,
         CancellationToken cancellationToken = default)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(1));
         try
         {
             var logEntry = new Log
@@ -68,7 +72,7 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
             using var scope = scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
-            await context.SaveChangesAsync(cancellationToken);
+            await context.SaveChangesAsync(timeout.Token);
         }
         catch (Exception loggingEx)
         {
@@ -84,6 +88,8 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
         string? clientIp = null,
         CancellationToken cancellationToken = default)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(1));
         try
         {
             var detailsBuilder = new StringBuilder();
@@ -122,7 +128,7 @@ public sealed class DbLogger(IServiceScopeFactory scopeFactory, ILogger<DbLogger
             using var scope = scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             context.Logs.Add(logEntry);
-            await context.SaveChangesAsync(cancellationToken);
+            await context.SaveChangesAsync(timeout.Token);
         }
         catch (Exception loggingEx)
         {

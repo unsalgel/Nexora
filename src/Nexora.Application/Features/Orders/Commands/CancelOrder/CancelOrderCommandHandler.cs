@@ -50,19 +50,7 @@ public sealed class CancelOrderCommandHandler : IRequestHandler<CancelOrderComma
             throw new ConflictException("Hazırlanmakta olan veya kargoya verilmiş siparişler iptal edilemez. Lütfen müşteri hizmetleri ile iletişime geçiniz.");
         }
 
-        order.ChangeStatus(OrderStatus.Cancelled);
-
-        foreach (var item in order.Items)
-        {
-            if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
-            {
-                item.ProductVariant.StockQuantity += item.Quantity;
-            }
-            else if (item.Product is not null)
-            {
-                item.Product.StockQuantity += item.Quantity;
-            }
-        }
+        order.CancelAndRestock(PaymentStatus.Failed);
 
         var notification = new Notification
         {

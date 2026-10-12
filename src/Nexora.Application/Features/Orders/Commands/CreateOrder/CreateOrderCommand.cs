@@ -9,4 +9,6 @@ public sealed record CreateOrderCommand(
     string ShippingAddress,
     PaymentRequestDto PaymentInfo,
     string? CouponCode = null,
-    decimal? ExpectedTotalAmount = null) : IRequest<Result<OrderDto>>;
+    decimal? ExpectedTotalAmount = null,
+    string? IdempotencyKey = null) : IRequest<Result<OrderDto>>;
+

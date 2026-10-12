@@ -35,7 +35,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Re
             user.LastName,
             user.Email,
             user.IsEmailConfirmed,
-            user.PendingEmail);
+            user.PendingEmailExpiresAtUtc > DateTime.UtcNow ? user.PendingEmail : null);
 
         return Result<UserProfileDto>.Success(dto);
     }

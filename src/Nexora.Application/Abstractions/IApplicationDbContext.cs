@@ -5,6 +5,7 @@ namespace Nexora.Application.Abstractions;
 
 public interface IApplicationDbContext
 {
+    DbSet<AuditEntry> AuditEntries { get; }
     DbSet<User> Users { get; }
     DbSet<Role> Roles { get; }
     DbSet<UserRole> UserRoles { get; }

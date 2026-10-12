@@ -13,8 +13,9 @@ public sealed class VerifyEmailCommandHandler(IApplicationDbContext context, IEm
     public async Task<Result<string>> Handle(VerifyEmailCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        await using var transaction = await context.BeginTransactionAsync("auth-email", ct);
-        var userId = await context.Users.AsNoTracking().Where(u => u.Email == email || u.PendingEmail == email)
+        var now = DateTime.UtcNow;
+        await using var transaction = await context.BeginTransactionAsync("auth-email:" + email, ct);
+        var userId = await context.Users.AsNoTracking().Where(u => u.Email == email || (u.PendingEmail == email && u.PendingEmailExpiresAtUtc > now))
             .Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct)
             ?? throw new BusinessValidationException("Geçersiz e-posta adresi veya doğrulama kodu.");
         await transaction.AcquireLockAsync($"auth:{userId}", ct);
@@ -31,7 +32,7 @@ public sealed class VerifyEmailCommandHandler(IApplicationDbContext context, IEm
             await transaction.CommitAsync(ct);
             throw new BusinessValidationException("Geçersiz e-posta adresi veya doğrulama kodu.");
         }
-        var changedEmail = user.PendingEmail == email;
+        var changedEmail = user.PendingEmail == email && user.PendingEmailExpiresAtUtc > DateTime.UtcNow;
         if (changedEmail)
         {
             if (await context.Users.AnyAsync(u => u.Id != userId && u.Email == email, ct))
@@ -39,6 +40,7 @@ public sealed class VerifyEmailCommandHandler(IApplicationDbContext context, IEm
             var oldEmail = user.Email;
             user.Email = email;
             user.PendingEmail = null;
+            user.PendingEmailExpiresAtUtc = null;
             await context.InvalidateSessionsAsync(user, ct);
             await emailService.SendEmailAsync(oldEmail, "Nexora e-posta değişikliği", "<p>Hesabınızın e-posta adresi değiştirildi. İşlem size ait değilse destek ile iletişime geçin.</p>", ct);
         }

@@ -18,16 +18,17 @@ public sealed class UpdateProfileCommandHandler(IApplicationDbContext context, I
 {
     public async Task<Result<UserProfileDto>> Handle(UpdateProfileCommand request, CancellationToken ct)
     {
-        await using var transaction = await context.BeginTransactionAsync("auth-email", ct);
+        var email = request.Email.Trim().ToLowerInvariant();
+        var now = DateTime.UtcNow;
+        await using var transaction = await context.BeginTransactionAsync("auth-email:" + email, ct);
         await transaction.AcquireLockAsync($"auth:{request.UserId}", ct);
         var user = await context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, ct)
             ?? throw new NotFoundException("Kullanıcı bulunamadı.");
-        var email = request.Email.Trim().ToLowerInvariant();
         if (email != user.Email)
         {
             if (string.IsNullOrWhiteSpace(request.CurrentPassword) || !passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
                 throw new BusinessValidationException("E-posta değişikliği için mevcut şifrenizi doğrulayın.");
-            if (await context.Users.AnyAsync(u => u.Id != user.Id && (u.Email == email || u.PendingEmail == email), ct))
+            if (await context.Users.AnyAsync(u => u.Id != user.Id && (u.Email == email || (u.PendingEmail == email && u.PendingEmailExpiresAtUtc > now)), ct))
                 throw new ConflictException("Bu e-posta adresi kullanılamıyor.");
             var latest = await context.EmailVerificationCodes.Where(c => c.UserId == user.Id && c.TargetEmail == email)
                 .OrderByDescending(c => c.CreatedAtUtc).FirstOrDefaultAsync(ct);
@@ -35,6 +36,7 @@ public sealed class UpdateProfileCommandHandler(IApplicationDbContext context, I
                 (latest.IsUsed || latest.ExpiresAtUtc <= DateTime.UtcNow))
                 throw new TooManyRequestsException("Bu adrese yeni doğrulama kodu göndermek için lütfen bir dakika bekleyin.");
             user.PendingEmail = email;
+            user.PendingEmailExpiresAtUtc = latest is not null && latest.CreatedAtUtc > now.AddMinutes(-1) ? latest.ExpiresAtUtc : now.AddMinutes(15);
             if (latest is null || latest.CreatedAtUtc <= DateTime.UtcNow.AddMinutes(-1))
             {
                 var codes = await context.EmailVerificationCodes.Where(c => c.UserId == user.Id && !c.IsUsed).ToListAsync(ct);
