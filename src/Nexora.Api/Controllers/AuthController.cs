@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Nexora.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
 using Nexora.Application.Features.Auth.Dtos;
@@ -14,7 +15,7 @@ using Nexora.Application.Features.Auth.Commands.ResendVerificationCode;
 namespace Nexora.Api.Controllers;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthPolicy")]
-public sealed class AuthController : ApiControllerBase
+public sealed class AuthController(BrowserSession browserSession) : ApiControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -32,10 +33,11 @@ public sealed class AuthController : ApiControllerBase
         LoginCommand command,
         CancellationToken cancellationToken = default)
     {
+        var browserClient = browserSession.Client(Request);
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var safeCommand = command with { IpAddress = clientIp };
         var result = await Sender.Send(safeCommand, cancellationToken);
-        return Ok(result);
+        return Ok(browserSession.Write(HttpContext, browserClient, result));
     }
 
     [HttpPost("verify-email")]
@@ -64,8 +66,10 @@ public sealed class AuthController : ApiControllerBase
         RefreshTokenCommand command,
         CancellationToken cancellationToken = default)
     {
+        var browserClient = browserSession.Client(Request);
+        if (browserClient is not null) command = command with { RefreshToken = browserSession.Read(Request, browserClient) };
         var result = await Sender.Send(command, cancellationToken);
-        return Ok(result);
+        return Ok(browserSession.Write(HttpContext, browserClient, result));
     }
 
     [HttpPost("revoke-token")]
@@ -74,6 +78,8 @@ public sealed class AuthController : ApiControllerBase
         RevokeTokenCommand command,
         CancellationToken cancellationToken = default)
     {
+        var browserClient = browserSession.Client(Request);
+        if (browserClient is not null) command = command with { RefreshToken = browserSession.Read(Request, browserClient) };
         Guid.TryParse(User.FindFirst("sid")?.Value, out var sessionId);
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         Guid.TryParse(userIdClaim, out var userId);
@@ -84,6 +90,7 @@ public sealed class AuthController : ApiControllerBase
             UserId = userId != Guid.Empty ? userId : null
         };
         var result = await Sender.Send(commandWithValidatedData, cancellationToken);
+        if (browserClient is not null) browserSession.Clear(HttpContext, browserClient);
         return Ok(result);
     }
 

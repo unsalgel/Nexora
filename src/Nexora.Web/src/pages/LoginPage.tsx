@@ -2,9 +2,8 @@ import { Dialog } from '../components/ui/Dialog';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, RotateCw, ShieldCheck, CheckCircle2, AlertCircle, KeyRound, X, Sparkles } from 'lucide-react';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, login } from '../lib/apiClient';
 import { AxiosError } from 'axios';
-import { setSessionTokens } from '../lib/session';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 
@@ -99,13 +98,11 @@ export const LoginPage: React.FC = () => {
 
       if (response.data?.isSuccess) {
         try {
-          const loginRes = await apiClient.post('/auth/login', {
+          const loginRes = await login({
             email: identity.trim(),
             password
           });
           if (loginRes.data?.isSuccess && loginRes.data.data) {
-            const { accessToken, refreshToken } = loginRes.data.data;
-            setSessionTokens(accessToken, refreshToken);
             await refreshFavorites();
             await refreshCart();
             setIsSuccess(true);
@@ -154,14 +151,13 @@ export const LoginPage: React.FC = () => {
 
     try {
       if (activeTab === 'login') {
-        const response = await apiClient.post('/auth/login', {
+        const response = await login({
           email: identity,
           password: password
         });
 
         if (response.data?.isSuccess) {
-          const { accessToken, refreshToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
-          setSessionTokens(accessToken, refreshToken);
+          const { failedLoginAttempts, failedAttemptDetails } = response.data.data;
 
           if (failedLoginAttempts && failedLoginAttempts > 0) {
             sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({

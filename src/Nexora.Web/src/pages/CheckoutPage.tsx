@@ -1,3 +1,4 @@
+import { getAccessToken } from '../lib/session';
 import { useCartQuote } from '../hooks/useCartQuote';
 import { getQuotedCartItems } from '../lib/cartQuote';
 import { SafeImage } from '../components/common/SafeImage';
@@ -56,7 +57,7 @@ export const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     const fetchUserAddresses = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = getAccessToken();
       if (!token) return;
       try {
         const res = await apiClient.get<ApiResponse<AddressDto[]>>('/addresses');

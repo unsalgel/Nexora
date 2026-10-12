@@ -25,13 +25,14 @@ public sealed class GetUserFavoritesQueryHandler : IRequestHandler<GetUserFavori
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize < 1 ? 20 : (request.PageSize > 100 ? 100 : request.PageSize);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var items = await query
             .OrderByDescending(f => f.CreatedAtUtc)
             .ThenBy(f => f.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(f => new FavoriteProductDto(
                 f.Id,

@@ -36,7 +36,7 @@ public sealed class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserS
             if (isUserAdmin)
             {
                 var otherActiveAdminsCount = await _context.UserRoles
-                    .CountAsync(ur => ur.Role.Name == "Admin" && ur.UserId != user.Id && ur.User.IsActive, cancellationToken);
+                    .CountAsync(ur => ur.Role.Name == "Admin" && ur.UserId != user.Id && ur.User.IsActive && ur.User.IsEmailConfirmed, cancellationToken);
 
                 if (otherActiveAdminsCount == 0)
                 {

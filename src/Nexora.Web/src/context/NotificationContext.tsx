@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { apiClient } from '../lib/apiClient';
-import { useAccessToken, clearSession } from '../lib/session';
+import { useAccessToken, clearSession, getAccessToken } from '../lib/session';
 import { ENV } from '../lib/env';
 import type { ApiResponse, PagedResponse } from '../lib/apiClient';
 import type { NotificationDto } from '../types/notification';
@@ -55,7 +55,7 @@ export const NotificationProvider: React.FC<{
     if (!token)
       return;
     const connection = new HubConnectionBuilder().withUrl(ENV.HUBS.APP, {
-      accessTokenFactory: () => localStorage.getItem('accessToken') || '',
+      accessTokenFactory: () => getAccessToken() || '',
       transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents
     }).withAutomaticReconnect().configureLogging(LogLevel.Warning).build();
     const onOrder = (payload: {

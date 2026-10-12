@@ -138,6 +138,10 @@ jobs:
       run: node scripts/smoke-api.mjs
     - name: Gercek HTTP checkout, snapshot ve durum gecisleri
       run: node scripts/smoke-commerce.mjs
+    - name: Izole tarayici cookie ve katalog regresyonlari
+      run: |
+        docker compose -p nexora-review-tests -f docker-compose.test.yml -f docker-compose.browser-test.yml --profile smoke up -d --force-recreate api
+        node scripts/smoke-review.mjs
     - name: Basarisizlikta container loglari
       if: failure()
       run: docker compose -p nexora-review-tests -f docker-compose.test.yml logs --no-color

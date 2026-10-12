@@ -4,4 +4,4 @@ using Nexora.Application.Features.Products.Dtos;
 
 namespace Nexora.Application.Features.Products.Queries.GetProductById;
 
-public sealed record GetProductByIdQuery(Guid Id) : IRequest<Result<ProductDto>>;
+public sealed record GetProductByIdQuery(Guid Id, bool IncludeInactive = false) : IRequest<Result<ProductDto>>;

@@ -42,6 +42,7 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../context/SettingsContext': { useSettings: () => ({ settings: { freeShippingThreshold: 500, shippingCost: 29.9 } }) },
       '../context/ToastContext': { useToast: () => ({ showToast: () => {} }) },
       '../lib/apiClient': {},
+      '../lib/session': { getAccessToken: () => null },
       '../components/common/SafeImage': { SafeImage: 'img' },
       '../components/common/EmptyState': { EmptyState: 'div' },
       '../data/turkeyLocations': { TURKEY_CITIES: [] },

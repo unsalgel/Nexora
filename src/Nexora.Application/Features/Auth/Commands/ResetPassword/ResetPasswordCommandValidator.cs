@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexora.Application.Common;
 
 namespace Nexora.Application.Features.Auth.Commands.ResetPassword;
 
@@ -17,7 +18,7 @@ public sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPassw
         RuleFor(x => x.NewPassword)
             .NotEmpty().WithMessage("Yeni şifre boş bırakılamaz.")
             .MinimumLength(8).WithMessage("Yeni şifre en az 8 karakter olmalıdır.")
-            .MaximumLength(72).WithMessage("Yeni şifre en fazla 72 karakter olabilir.")
+            .Must(PasswordPolicy.FitsBcrypt).WithMessage("Şifre UTF-8 olarak en fazla 72 byte olabilir. Uzun eski parolalar için şifre sıfırlamayı kullanın.")
             .Matches("[A-Z]").WithMessage("Yeni şifre en az 1 büyük harf içermelidir.")
             .Matches("[a-z]").WithMessage("Yeni şifre en az 1 küçük harf içermelidir.")
             .Matches("[0-9]").WithMessage("Yeni şifre en az 1 rakam içermelidir.");

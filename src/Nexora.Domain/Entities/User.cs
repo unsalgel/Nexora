@@ -10,6 +10,7 @@ public sealed class User : BaseEntity
     public bool IsEmailConfirmed { get; set; } = false;
     public Guid SecurityStamp { get; set; } = Guid.NewGuid();
     public string? PendingEmail { get; set; }
+    public DateTime? PendingEmailExpiresAtUtc { get; set; }
 
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
