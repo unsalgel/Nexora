@@ -19,23 +19,45 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     private readonly IEmailService _emailService;
     private readonly IRealTimeNotificationService _notificationService;
     private readonly ILogger<CreateOrderCommandHandler> _logger;
+    private readonly ICacheService? _cacheService;
 
     public CreateOrderCommandHandler(
         IApplicationDbContext context,
         IPaymentService paymentService,
         IEmailService emailService,
         IRealTimeNotificationService notificationService,
-        ILogger<CreateOrderCommandHandler> logger)
+        ILogger<CreateOrderCommandHandler> logger,
+        ICacheService? cacheService = null)
     {
         _context = context;
         _paymentService = paymentService;
         _emailService = emailService;
         _notificationService = notificationService;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<OrderDto>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
+        string? idempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();
+        string? cacheKey = idempotencyKey is not null ? $"idempotency:order:{request.UserId}:{idempotencyKey}" : null;
+
+        if (cacheKey is not null && _cacheService is not null)
+        {
+            var cached = await _cacheService.GetAsync<OrderIdempotencyRecord>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                var currentHash = ComputePayloadHash(request);
+                if (cached.PayloadHash != currentHash)
+                {
+                    throw new ConflictException("Aynı idempotency anahtarı ile farklı parametreli bir sipariş isteği gönderilemez.");
+                }
+
+                _logger.LogInformation("Mükerrer sipariş isteği tespit edildi, önbellekteki sipariş döndürülüyor: {OrderNumber}", cached.OrderResult.OrderNumber);
+                return Result<OrderDto>.Success(cached.OrderResult, "Siparişiniz başarıyla oluşturuldu.");
+            }
+        }
+
         await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
         var cart = await _context.Carts
             .Include(c => c.User)
@@ -307,6 +329,21 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             _logger.LogWarning(ex, "Sipariş gerçek zamanlı bildirimleri iletilirken hata oluştu. OrderId: {OrderId}", order.Id);
         }
 
+        if (cacheKey is not null && _cacheService is not null)
+        {
+            var record = new OrderIdempotencyRecord(dto, ComputePayloadHash(request), DateTime.UtcNow);
+            await _cacheService.SetAsync(cacheKey, record, TimeSpan.FromHours(24), cancellationToken);
+        }
+
         return Result<OrderDto>.Success(dto, "Siparişiniz başarıyla oluşturuldu.");
+    }
+
+    private static string ComputePayloadHash(CreateOrderCommand request)
+    {
+        var cardLast4 = request.PaymentInfo?.CardNumber is { Length: >= 4 } num ? num[^4..] : string.Empty;
+        var raw = $"{request.UserId:N}:{request.ShippingAddress.Trim()}:{request.CouponCode?.Trim().ToUpperInvariant()}:{request.ExpectedTotalAmount}:{cardLast4}";
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw));
+        return Convert.ToHexString(bytes);
     }
 }

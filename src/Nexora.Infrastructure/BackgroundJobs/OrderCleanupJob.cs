@@ -16,49 +16,49 @@ public sealed class OrderCleanupJob(
     public async Task CancelStalePendingOrdersAsync(CancellationToken cancellationToken = default)
     {
         var cutoffTime = DateTime.UtcNow.AddHours(-24);
+        const int batchSize = 100;
+        const int maxBatches = 10;
+        var totalProcessed = 0;
 
-        var staleOrders = await dbContext.Orders
-            .Include(o => o.Items)
-                .ThenInclude(i => i.Product)
-            .Include(o => o.Items)
-                .ThenInclude(i => i.ProductVariant)
-            .Where(o => o.Status == OrderStatus.Pending &&
-                        o.PaymentStatus == PaymentStatus.Pending &&
-                        o.CreatedAtUtc <= cutoffTime)
-            .ToListAsync(cancellationToken);
-
-        if (staleOrders.Count == 0)
+        for (var batchIndex = 0; batchIndex < maxBatches; batchIndex++)
         {
-            return;
-        }
+            var staleOrders = await dbContext.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.ProductVariant)
+                .Where(o => o.Status == OrderStatus.Pending &&
+                            o.PaymentStatus == PaymentStatus.Pending &&
+                            o.CreatedAtUtc <= cutoffTime)
+                .OrderBy(o => o.CreatedAtUtc)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
 
-        foreach (var order in staleOrders)
-        {
-            order.Status = OrderStatus.Cancelled;
-            order.PaymentStatus = PaymentStatus.Failed;
-            order.UpdatedAtUtc = DateTime.UtcNow;
-
-            foreach (var item in order.Items)
+            if (staleOrders.Count == 0)
             {
-                if (item.ProductVariant is not null)
-                {
-                    item.ProductVariant.StockQuantity += item.Quantity;
-                    item.ProductVariant.UpdatedAtUtc = DateTime.UtcNow;
-                }
-                else if (item.Product is not null)
-                {
-                    item.Product.StockQuantity += item.Quantity;
-                    item.Product.UpdatedAtUtc = DateTime.UtcNow;
-                }
+                break;
             }
 
-            logger.LogInformation("Zaman aşımına uğrayan sipariş otomatik iptal edildi: {OrderNumber}", order.OrderNumber);
+            foreach (var order in staleOrders)
+            {
+                order.CancelAndRestock(PaymentStatus.Failed);
+                logger.LogInformation("Zaman aşımına uğrayan sipariş otomatik iptal edildi: {OrderNumber}", order.OrderNumber);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            totalProcessed += staleOrders.Count;
+
+            if (staleOrders.Count < batchSize)
+            {
+                break;
+            }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var summaryMessage = $"{staleOrders.Count} adet bekleyen sipariş iptal edilerek rezerve stokları iade edildi.";
-        logger.LogInformation("{Count} adet bekleyen sipariş iptal edilerek stokları iade edildi.", staleOrders.Count);
-        await dbLogger.LogInformationAsync("Hangfire.OrderCleanupJob", summaryMessage, cancellationToken: cancellationToken);
+        if (totalProcessed > 0)
+        {
+            var summaryMessage = $"{totalProcessed} adet bekleyen sipariş iptal edilerek rezerve stokları iade edildi.";
+            logger.LogInformation("{Count} adet bekleyen sipariş iptal edilerek stokları iade edildi.", totalProcessed);
+            await dbLogger.LogInformationAsync("Hangfire.OrderCleanupJob", summaryMessage, cancellationToken: cancellationToken);
+        }
     }
 }

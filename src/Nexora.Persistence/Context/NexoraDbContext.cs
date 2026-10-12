@@ -97,7 +97,10 @@ public sealed class NexoraDbContext : DbContext, IApplicationDbContext
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAtUtc = DateTime.UtcNow;
+                if (entry.Entity.CreatedAtUtc == default)
+                {
+                    entry.Entity.CreatedAtUtc = DateTime.UtcNow;
+                }
             }
             else if (entry.State == EntityState.Modified)
             {

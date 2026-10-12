@@ -36,6 +36,12 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
         if (hasSubCategories)
             throw new ConflictException("Bu kategoriye bağlı alt kategoriler bulunmaktadır. Önce alt kategorileri silmelisiniz.");
 
+        var hasActiveProducts = await _context.Products
+            .AnyAsync(p => p.CategoryId == request.Id && !p.IsDeleted && p.IsActive, cancellationToken);
+
+        if (hasActiveProducts)
+            throw new ConflictException("Bu kategoriye bağlı aktif ürünler bulunmaktadır. Kategoriyi silmeden önce ürünleri başka bir kategoriye taşımalı veya pasife almalısınız.");
+
         category.IsDeleted = true;
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
