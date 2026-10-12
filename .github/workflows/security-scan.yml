@@ -42,7 +42,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: actions/setup-dotnet@v4
       with:
@@ -100,7 +100,7 @@ jobs:
       run:
         working-directory: src/${{ matrix.app }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: actions/setup-node@v4
       with:
@@ -128,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions/setup-node@v4
       with:
         node-version: 24
@@ -155,7 +155,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions/dependency-review-action@v4
       with:
         fail-on-severity: high
@@ -164,7 +164,7 @@ jobs:
     name: gitleaks
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - name: Gitleaks gizli anahtar taramasi
@@ -189,7 +189,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: .NET kurulumu
       if: matrix.language == 'csharp'
