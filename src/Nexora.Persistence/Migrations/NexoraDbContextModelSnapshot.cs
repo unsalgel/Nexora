@@ -22,6 +22,51 @@ namespace Nexora.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nexora.Domain.Entities.AuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Changes")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("TimestampUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TraceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimestampUtc");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("AuditEntries");
+                });
+
             modelBuilder.Entity("Nexora.Domain.Entities.Brand", b =>
                 {
                     b.Property<Guid>("Id")
@@ -369,6 +414,8 @@ namespace Nexora.Persistence.Migrations
                         .HasColumnName("user_email");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TimestampUtc");
 
                     b.ToTable("logs", (string)null);
                 });
@@ -1062,6 +1109,9 @@ namespace Nexora.Persistence.Migrations
                     b.Property<string>("PendingEmail")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("PendingEmailExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("SecurityStamp")
                         .IsConcurrencyToken()

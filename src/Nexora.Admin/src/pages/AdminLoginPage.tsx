@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
-import { apiClient } from '../lib/apiClient';
+import { login, logout } from '../lib/apiClient';
 import { ENV } from '../lib/env';
 import { AxiosError } from 'axios';
-import { setSessionTokens } from '../lib/session';
 import { decodeAdminJwt } from '../lib/jwt';
-import type { ApiResponse } from '../lib/apiClient';
 
 interface FailedLoginAttemptInfo {
   attemptedAtUtc: string;
@@ -34,17 +32,17 @@ export const AdminLoginPage: React.FC = () => {
     setErrorMsg('');
 
     try {
-      const response = await apiClient.post<ApiResponse<LoginResponseData>>('/auth/login', {
+      const response = await login<LoginResponseData>({
         email,
         password
       });
 
       if (response.data?.isSuccess && response.data.data) {
-        const { accessToken, refreshToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
+        const { accessToken, failedLoginAttempts, failedAttemptDetails } = response.data.data;
         const claims = decodeAdminJwt(accessToken);
 
         if (claims?.roles.includes('Admin')) {
-          setSessionTokens(accessToken, refreshToken);
+
 
           if (failedLoginAttempts && failedLoginAttempts > 0) {
             sessionStorage.setItem('pendingSecurityNotice', JSON.stringify({
@@ -55,6 +53,7 @@ export const AdminLoginPage: React.FC = () => {
 
           navigate('/');
         } else {
+          await logout();
           setErrorMsg('Bu panele yalnızca Admin yetkisine sahip yöneticiler erişebilir.');
         }
       } else {

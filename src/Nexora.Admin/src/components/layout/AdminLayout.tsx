@@ -1,3 +1,4 @@
+import { getAccessToken } from '../../lib/session';
 import { Dialog } from '../ui/Dialog';
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
@@ -52,7 +53,7 @@ export const AdminLayout: React.FC = () => {
     setSecurityNotice(null);
   };
 
-  const token = localStorage.getItem('adminAccessToken') || '';
+  const token = getAccessToken() || '';
   const claims = decodeAdminJwt(token);
 
   const handleLogout = () => {

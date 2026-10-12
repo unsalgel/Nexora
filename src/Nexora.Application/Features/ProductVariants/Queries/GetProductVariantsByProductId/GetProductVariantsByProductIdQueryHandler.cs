@@ -21,7 +21,7 @@ public sealed class GetProductVariantsByProductIdQueryHandler : IRequestHandler<
             .AsNoTracking()
             .Include(v => v.VariantAttributeValues)
                 .ThenInclude(vav => vav.ProductAttributeValue)
-            .Where(v => v.ProductId == request.ProductId && (request.IncludeInactive || v.IsActive) && !v.IsDeleted)
+            .Where(v => v.ProductId == request.ProductId && !v.Product.IsDeleted && (request.IncludeInactive || v.Product.IsActive) && (request.IncludeInactive || v.IsActive) && !v.IsDeleted)
             .Select(v => new ProductVariantDto(
                 v.Id,
                 v.ProductId,

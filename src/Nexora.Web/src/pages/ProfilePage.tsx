@@ -4,7 +4,7 @@ import { SafeImage } from '../components/common/SafeImage';
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pagination } from '../components/ui/Pagination';
-import { clearSession } from '../lib/session';
+import { clearSession, getAccessToken } from '../lib/session';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -145,7 +145,7 @@ export const ProfilePage: React.FC = () => {
   }, [searchParams, location.pathname]);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (token) {
       const claims = decodeJwt(token);
       if (claims) {
@@ -263,16 +263,16 @@ export const ProfilePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'addresses' && localStorage.getItem('accessToken')) {
+    if (activeTab === 'addresses' && getAccessToken()) {
       fetchAddresses();
-    } else if (activeTab === 'account' && localStorage.getItem('accessToken')) {
+    } else if (activeTab === 'account' && getAccessToken()) {
       fetchProfile();
     }
   }, [activeTab]);
 
   useEffect(() => {
     const handleOrderChange = () => {
-      if (localStorage.getItem('accessToken')) {
+      if (getAccessToken()) {
         void queryClient.invalidateQueries({ queryKey: ['my-orders'] });
       }
     };
@@ -907,6 +907,12 @@ export const ProfilePage: React.FC = () => {
                     catch { setProfileError('Kod yeniden gönderilemedi. Lütfen tekrar deneyin.'); }
                     finally { setIsVerifyingEmail(false); }
                   }} className="p-2 rounded-lg border">Kodu yeniden gönder</button>
+                  <button type="button" disabled={isVerifyingEmail} className="p-2 rounded-lg border" onClick={async () => {
+                    setIsVerifyingEmail(true);
+                    try { await apiClient.delete('/users/me/pending-email'); setUserProfile({ ...userProfile, pendingEmail: null }); setProfileSuccess('E-posta değişikliği iptal edildi.'); }
+                    catch { setProfileError('E-posta değişikliği iptal edilemedi.'); }
+                    finally { setIsVerifyingEmail(false); }
+                  }}>Değişiklikten vazgeç</button>
                   <button type="submit" disabled={isVerifyingEmail} className="p-2 rounded-lg bg-orange-500 text-white">E-postayı doğrula</button>
                 </form>
               )}

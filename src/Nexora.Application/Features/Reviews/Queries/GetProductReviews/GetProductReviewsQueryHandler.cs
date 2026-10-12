@@ -22,13 +22,14 @@ public sealed class GetProductReviewsQueryHandler : IRequestHandler<GetProductRe
             .Where(r => r.ProductId == request.ProductId)
             .OrderByDescending(r => r.CreatedAtUtc);
 
-        var page = Math.Max(request.Page, 1);
-        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+        var page = request.Page;
+        var pageSize = request.PageSize;
+        var offset = Pagination.Offset(page, pageSize);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .Skip((page - 1) * pageSize)
+            .Skip(offset)
             .Take(pageSize)
             .Select(r => new ReviewDto(
                 r.Id,

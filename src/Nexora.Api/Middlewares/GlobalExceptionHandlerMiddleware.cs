@@ -27,12 +27,19 @@ public sealed class GlobalExceptionHandlerMiddleware
         {
             await _next(context);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
+            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
             _logger.LogInformation("İstemci bağlantısı veya istek iptal edildi.");
         }
         catch (Exception ex)
         {
+            if (context.Response.HasStarted)
+            {
+                _logger.LogError(ex, "Yanıt başladıktan sonra istek tamamlanamadı.");
+                context.Abort();
+                return;
+            }
             var isBusinessOrClientException = ex is ValidationException || ex is DomainException || ex is DbUpdateConcurrencyException ||
                 ex is DbUpdateException { InnerException: PostgresException { SqlState: "23505" or "23514" } };
 
@@ -81,6 +88,11 @@ public sealed class GlobalExceptionHandlerMiddleware
 
         switch (exception)
         {
+            case OperationCanceledException:
+            case TimeoutException:
+                statusCode = StatusCodes.Status503ServiceUnavailable;
+                message = "İşlem zamanında tamamlanamadı. Lütfen tekrar deneyin.";
+                break;
             case ValidationException validationEx:
                 statusCode = StatusCodes.Status400BadRequest;
                 message = "Doğrulama hatası oluştu.";

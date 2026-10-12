@@ -19,3 +19,5 @@ export const isSameTokenSession = (originalToken: string, currentToken: string |
   const current = readTokenSession(currentToken);
   return !!original && !!current && original.userId === current.userId && original.sessionId === current.sessionId;
 };
+
+export const getTokenSessionId = (token: string) => readTokenSession(token)?.sessionId ?? null;

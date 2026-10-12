@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexora.Application.Common;
 
 namespace Nexora.Application.Features.Auth.Commands.Register;
 
@@ -22,7 +23,7 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Şifre alanı boş bırakılamaz.")
             .MinimumLength(8).WithMessage("Şifre en az 8 karakter olmalıdır.")
-            .MaximumLength(72).WithMessage("Şifre en fazla 72 karakter olabilir.")
+            .Must(PasswordPolicy.FitsBcrypt).WithMessage("Şifre UTF-8 olarak en fazla 72 byte olabilir. Uzun eski parolalar için şifre sıfırlamayı kullanın.")
             .Matches("[A-Z]").WithMessage("Şifre en az 1 büyük harf içermelidir.")
             .Matches("[a-z]").WithMessage("Şifre en az 1 küçük harf içermelidir.")
             .Matches("[0-9]").WithMessage("Şifre en az 1 rakam içermelidir.");

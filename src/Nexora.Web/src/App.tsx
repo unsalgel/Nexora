@@ -46,13 +46,13 @@ export const App: React.FC = () => {
 }), [sessionId]);
   return (
     <ErrorBoundary>
+      <Router>
       <QueryClientProvider key={sessionId} client={queryClient}>
       <ToastProvider>
         <FavoritesProvider>
           <CartProvider>
             <SettingsProvider>
               <NotificationProvider>
-                <Router>
                   <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white font-sans overflow-x-hidden">
                     <Navbar />
                     <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-6">
@@ -77,13 +77,13 @@ export const App: React.FC = () => {
                     <Footer />
                     <ChatWidget />
                   </div>
-                </Router>
               </NotificationProvider>
             </SettingsProvider>
           </CartProvider>
         </FavoritesProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </Router>
   </ErrorBoundary>
   );
 };
