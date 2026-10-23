@@ -100,6 +100,7 @@ public sealed class BackgroundJobTests : IDisposable
         {
             Id = Guid.NewGuid(),
             OrderNumber = "NX-TEST-001",
+            StockReserved = true,
             UserId = Guid.NewGuid(),
             ShippingAddress = "Test Adres",
             TotalAmount = 200,

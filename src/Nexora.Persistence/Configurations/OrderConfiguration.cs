@@ -32,6 +32,14 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.CouponCode).HasMaxLength(50);
         builder.Property(o => o.IdempotencyKey).HasMaxLength(128);
         builder.Property(o => o.RequestHash).HasMaxLength(64);
+        builder.Property(o => o.PaymentToken).HasMaxLength(128);
+        builder.HasIndex(o => o.PaymentToken).IsUnique().HasFilter("\"PaymentToken\" IS NOT NULL");
+        builder.Property(o => o.PaymentId).HasMaxLength(128);
+        builder.HasIndex(o => o.PaymentId).IsUnique().HasFilter("\"PaymentId\" IS NOT NULL");
+        builder.Property(o => o.PaymentPageUrl).HasMaxLength(2048);
+        builder.Property(o => o.PaidAmount).HasPrecision(18, 2);
+        builder.HasIndex(o => new { o.PaymentStatus, o.NextPaymentCheckAtUtc });
+        builder.HasOne<Coupon>().WithMany().HasForeignKey(o => o.ReservedCouponId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(o => o.UserId);
         builder.HasIndex(o => new { o.UserId, o.IdempotencyKey }).IsUnique()
             .HasFilter("\"IdempotencyKey\" IS NOT NULL");

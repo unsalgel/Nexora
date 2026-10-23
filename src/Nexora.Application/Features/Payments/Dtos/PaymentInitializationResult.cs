@@ -5,4 +5,5 @@ public sealed record PaymentInitializationResult(
     string? Token,
     string? CheckoutFormContent,
     string? PaymentPageUrl,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? OrderNumber = null);

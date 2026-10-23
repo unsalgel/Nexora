@@ -5,4 +5,7 @@ public sealed record PaymentVerificationResult(
     string? PaymentId,
     string? OrderNumber,
     decimal PaidAmount,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    bool IsDefinitiveFailure = false,
+    int? FraudStatus = null,
+    string? Currency = null);

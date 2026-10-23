@@ -161,7 +161,7 @@ public sealed class CommercePostgresTests
         await using var database = new PostgresTestDatabase(); await database.InitializeAsync();
         await using var seed = database.CreateContext(); var data = await CommerceRegressionTests.SeedCartAsync(seed);
         var order = new Order { UserId = data.User.Id, OrderNumber = "NX-RACE", ShippingAddress = "Adres", Status = OrderStatus.Processing,
-            PaymentStatus = PaymentStatus.Success, TotalAmount = 500, Items = [new OrderItem { ProductId = data.Product.Id, ProductName = "Ürün", UnitPrice = 100, Quantity = 5, TotalPrice = 500 }] };
+            PaymentStatus = PaymentStatus.Success, StockReserved = true, TotalAmount = 500, Items = [new OrderItem { ProductId = data.Product.Id, ProductName = "Ürün", UnitPrice = 100, Quantity = 5, TotalPrice = 500 }] };
         seed.Orders.Add(order); await seed.SaveChangesAsync();
         async Task<bool> Change(OrderStatus status)
         {

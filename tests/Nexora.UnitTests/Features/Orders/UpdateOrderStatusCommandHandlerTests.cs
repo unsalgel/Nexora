@@ -119,6 +119,7 @@ public sealed class UpdateOrderStatusCommandHandlerTests : IDisposable
         var order = new Order
         {
             OrderNumber = "NX-TEST-003",
+            StockReserved = true,
             UserId = user.Id,
             ShippingAddress = "Adres",
             TotalAmount = 4000,

@@ -1,4 +1,6 @@
 using Hangfire;
+using Microsoft.Extensions.Hosting;
+using Nexora.Infrastructure.Payments;
 using Microsoft.AspNetCore.DataProtection;
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Configuration;
@@ -39,7 +41,18 @@ public static class DependencyInjection
 
             var envBaseUrl = configuration["IYZICO_BASE_URL"] ?? Environment.GetEnvironmentVariable("IYZICO_BASE_URL");
             if (!string.IsNullOrWhiteSpace(envBaseUrl)) options.BaseUrl = envBaseUrl;
+            var callbackUrl = configuration["IYZICO_CALLBACK_URL"];
+            if (!string.IsNullOrWhiteSpace(callbackUrl)) options.CallbackUrl = callbackUrl;
         });
+        services.AddOptions<IyzicoSettings>()
+            .Validate<IHostEnvironment>((settings, environment) => IyzicoSettings.IsValidCallback(settings.CallbackUrl, environment.IsDevelopment()),
+                "IYZICO_CALLBACK_URL geçerli /api/v1/payments/callback adresi olmalıdır; üretimde genel HTTPS adresi kullanın.")
+            .Validate<IHostEnvironment>((settings, environment) => environment.IsDevelopment() ||
+                (!string.IsNullOrWhiteSpace(settings.ApiKey) && !string.IsNullOrWhiteSpace(settings.SecretKey)),
+                "Üretimde iyzico API anahtarları zorunludur.")
+            .Validate(settings => settings.BaseUrl is "https://api.iyzipay.com" or "https://sandbox-api.iyzipay.com",
+                "İyzico BaseUrl resmî HTTPS API adresi olmalıdır.")
+            .ValidateOnStart();
         services.AddDataProtection().SetApplicationName("Nexora").PersistKeysToFileSystem(new DirectoryInfo(
             configuration["DataProtection:KeysPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "keys")));
         services.AddScoped<SmtpEmailService>();
@@ -90,6 +103,7 @@ public static class DependencyInjection
         // Arka plan iş tanımları
         services.AddScoped<ICouponCleanupJob, CouponCleanupJob>();
         services.AddScoped<IOrderCleanupJob, OrderCleanupJob>();
+        services.AddScoped<PaymentReconciliationJob>();
         services.AddScoped<ICartCleanupJob, CartCleanupJob>();
         services.AddScoped<EmailOutboxDispatchJob>();
         services.AddScoped<FileCleanupJob>();

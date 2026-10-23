@@ -262,6 +262,9 @@ namespace Nexora.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<int>("ReservedUsageCount")
+                        .HasColumnType("integer");
+
                     b.Property<int>("TotalUsageLimit")
                         .HasColumnType("integer");
 
@@ -283,7 +286,7 @@ namespace Nexora.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Coupons_Discount", "\"DiscountValue\" > 0 AND \"MinimumOrderAmount\" >= 0 AND (\"MaximumDiscountAmount\" IS NULL OR \"MaximumDiscountAmount\" >= 0) AND (\"DiscountType\" = 'FixedAmount' OR (\"DiscountType\" = 'Percentage' AND \"DiscountValue\" <= 100))");
 
-                            t.HasCheckConstraint("CK_Coupons_Usage", "\"TotalUsageLimit\" > 0 AND \"CurrentUsageCount\" >= 0 AND \"CurrentUsageCount\" <= \"TotalUsageLimit\"");
+                            t.HasCheckConstraint("CK_Coupons_Usage", "\"TotalUsageLimit\" > 0 AND \"CurrentUsageCount\" >= 0 AND \"ReservedUsageCount\" >= 0 AND \"CurrentUsageCount\" + \"ReservedUsageCount\" <= \"TotalUsageLimit\"");
                         });
                 });
 
@@ -484,22 +487,50 @@ namespace Nexora.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<int?>("FraudStatus")
+                        .HasColumnType("integer");
+
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("NextPaymentCheckAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<decimal?>("PaidAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("PaymentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PaymentPageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<bool>("PaymentReviewNotified")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PaymentStatus")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PaymentToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("RequestHash")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ReservedCouponId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ShippingAddress")
                         .IsRequired()
@@ -513,6 +544,9 @@ namespace Nexora.Persistence.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("StockReserved")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal?>("Subtotal")
                         .HasPrecision(18, 2)
@@ -542,7 +576,19 @@ namespace Nexora.Persistence.Migrations
                     b.HasIndex("OrderNumber")
                         .IsUnique();
 
+                    b.HasIndex("PaymentId")
+                        .IsUnique()
+                        .HasFilter("\"PaymentId\" IS NOT NULL");
+
+                    b.HasIndex("PaymentToken")
+                        .IsUnique()
+                        .HasFilter("\"PaymentToken\" IS NOT NULL");
+
+                    b.HasIndex("ReservedCouponId");
+
                     b.HasIndex("UserId");
+
+                    b.HasIndex("PaymentStatus", "NextPaymentCheckAtUtc");
 
                     b.HasIndex("UserId", "IdempotencyKey")
                         .IsUnique()
@@ -576,6 +622,9 @@ namespace Nexora.Persistence.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("SourceCartItemId")
+                        .HasColumnType("uuid");
 
                     b.Property<decimal>("TotalPrice")
                         .HasPrecision(18, 2)
@@ -1309,6 +1358,11 @@ namespace Nexora.Persistence.Migrations
 
             modelBuilder.Entity("Nexora.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("Nexora.Domain.Entities.Coupon", null)
+                        .WithMany()
+                        .HasForeignKey("ReservedCouponId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Nexora.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")

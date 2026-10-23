@@ -191,6 +191,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             CouponCode = pricing.Quote.CouponCode,
             Status = OrderStatus.Paid,
             PaymentStatus = PaymentStatus.Success,
+            StockReserved = true,
             Items = orderItems
         };
 

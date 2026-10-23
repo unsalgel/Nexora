@@ -50,8 +50,10 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
             return Result<string>.Success($"Sipariş durumu zaten '{GetStatusTurkishText(request.NewStatus)}'.");
         }
 
-        var oldStatus = order.Status;
-        order.ChangeStatus(request.NewStatus);
+        if (request.NewStatus == OrderStatus.Cancelled)
+            order.CancelAndRestock();
+        else
+            order.ChangeStatus(request.NewStatus);
 
         if (!string.IsNullOrWhiteSpace(request.TrackingNumber))
         {
@@ -61,21 +63,6 @@ public sealed class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrde
         if (!string.IsNullOrWhiteSpace(request.Carrier))
         {
             order.Carrier = request.Carrier.Trim();
-        }
-
-        if (request.NewStatus == OrderStatus.Cancelled && oldStatus != OrderStatus.Cancelled)
-        {
-            foreach (var item in order.Items)
-            {
-                if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
-                {
-                    item.ProductVariant.StockQuantity += item.Quantity;
-                }
-                else if (item.Product is not null)
-                {
-                    item.Product.StockQuantity += item.Quantity;
-                }
-            }
         }
 
         var notificationMessage = $"{order.OrderNumber} numaralı siparişinizin durumu '{GetStatusTurkishText(request.NewStatus)}' olarak güncellendi.";
