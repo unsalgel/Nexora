@@ -30,6 +30,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DiscountAmount).HasPrecision(18, 2);
         builder.Property(o => o.ShippingFee).HasPrecision(18, 2);
         builder.Property(o => o.CouponCode).HasMaxLength(50);
+        builder.Property(o => o.IdempotencyKey).HasMaxLength(128);
+        builder.Property(o => o.RequestHash).HasMaxLength(64);
+        builder.HasIndex(o => o.UserId);
+        builder.HasIndex(o => new { o.UserId, o.IdempotencyKey }).IsUnique()
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL");
         builder.Property(o => o.Version).HasColumnName("xmin").HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
 

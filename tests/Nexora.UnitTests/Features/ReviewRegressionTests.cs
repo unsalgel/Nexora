@@ -270,24 +270,20 @@ public sealed class ReviewRegressionTests
     }
 
     [Fact]
-    public async Task CreateOrder_IdempotencyKey_ReturnsCachedResultForSameKey()
+    public async Task CreateOrder_IdempotencyKey_RejectsDifferentRequestFromDatabase()
     {
         using var db = TestDbContextFactory.Create();
-        var cacheMock = new Mock<ICacheService>();
         var userId = Guid.NewGuid();
-        var existingDto = new OrderDto(Guid.NewGuid(), "NX-EXISTING-001", userId, "Address", 100, OrderStatus.Pending.ToString(), PaymentStatus.Success.ToString(), DateTime.UtcNow, new List<OrderItemDto>());
-        var record = new OrderIdempotencyRecord(existingDto, "DUMMYHASH", DateTime.UtcNow);
-
-        cacheMock.Setup(c => c.GetAsync<OrderIdempotencyRecord>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(record);
+        db.Orders.Add(new Order { UserId = userId, OrderNumber = "NX-EXISTING-001", ShippingAddress = "Address",
+            IdempotencyKey = "idem-123", RequestHash = "DUMMYHASH" });
+        await db.SaveChangesAsync();
 
         var handler = new CreateOrderCommandHandler(
             db,
             Mock.Of<IPaymentService>(),
             Mock.Of<IEmailService>(),
             Mock.Of<IRealTimeNotificationService>(),
-            NullLogger<CreateOrderCommandHandler>.Instance,
-            cacheMock.Object);
+            NullLogger<CreateOrderCommandHandler>.Instance);
 
         var command = new CreateOrderCommand(userId, "Address", new PaymentRequestDto("1234567890123456", "Holder", "12", "2028", "123"), null, 100, "idem-123");
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(command, default));

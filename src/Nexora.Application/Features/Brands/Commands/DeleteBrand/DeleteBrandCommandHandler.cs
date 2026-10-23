@@ -1,3 +1,4 @@
+using Nexora.Application.Features.Products;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,7 @@ public sealed class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandComma
 
     public async Task<Result<string>> Handle(DeleteBrandCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync(CatalogRelations.LockKey, cancellationToken);
         var brand = await _context.Brands
             .FirstOrDefaultAsync(b => b.Id == request.Id && !b.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Silinecek marka bulunamadı.");
@@ -37,6 +39,7 @@ public sealed class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandComma
 
         brand.IsDeleted = true;
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         if (_notificationService is not null)
         {

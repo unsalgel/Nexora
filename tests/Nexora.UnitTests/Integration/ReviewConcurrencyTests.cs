@@ -41,7 +41,7 @@ public sealed class ReviewConcurrencyTests
             catch (ConflictException) { return false; }
         }
         var results = await Task.WhenAll(Register(), Register());
-        results.Count(x => x).Should().Be(1);
+        results.Should().OnlyContain(success => success);
         await using var check = database.CreateContext();
         (await check.Users.CountAsync()).Should().Be(1);
     }
