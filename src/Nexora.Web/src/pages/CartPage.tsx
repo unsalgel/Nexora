@@ -5,7 +5,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { CouponBox } from '../components/common/CouponBox';
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useSettings } from '../context/SettingsContext';
 import type { CouponValidationResultDto } from '../types/coupon';
@@ -197,11 +197,6 @@ export const CartPage: React.FC = () => {
               <span>{quoteQuery.isFetching ? 'Tutar hesaplanıyor...' : 'Sepeti Onayla ve Öde'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-
-            <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium pt-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Ödeme adımı simülasyondur</span>
-            </div>
           </div>
 
         </div>
