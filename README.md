@@ -26,10 +26,14 @@ Gereksinimler: .NET 8 runtime/SDK veya net8.0 hedefini destekleyen .NET 9 SDK, d
 PowerShell ile depo kökünde:
 
 ```powershell
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { New-Item -ItemType File .env }
 ```
 
-`.env` dosyasındaki `CHANGE_ME` değerlerini yerel geliştirme için değiştirin. JWT için en az 32 rastgele byte'tan üretilmiş anahtar kullanın. Gerçek dosya Git'e gönderilmez. `docker compose` `.env` dosyasını otomatik okur; **`dotnet run` otomatik okumaz**.
+Depo kökündeki yerel `.env` dosyasına `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `REDIS_PASSWORD`, `PGADMIN_EMAIL`, `PGADMIN_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarını `AD=değer` biçiminde yazın. JWT için en az 32 rastgele byte'tan üretilmiş anahtar kullanın. Ödeme için `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_BASE_URL` ve `IYZICO_CALLBACK_URL` alanları kullanılır; ayrıntılar [ödeme yapılandırmasında](docs/iyzico-payments.md) yer alır. Anahtarları frontend'e veya README'ye yazmayın.
+
+Gerçek `.env` ve `.env.*` dosyaları Git ve Docker build kapsamı dışında tutulur. `docker compose` `.env` dosyasını otomatik okur; **`dotnet run` otomatik okumaz**. Mevcut `.env` dosyasını yeniden oluşturmayın veya üzerine yazmayın.
+
+Redis'in yerel portu varsayılan olarak `6379`'dur. Port kullanılamıyorsa `.env` içine `REDIS_PORT=16379` gibi uygun bir port yazabilirsiniz; Compose ve yerel API başlatma betiği aynı değeri kullanır. Redis yine yalnız `127.0.0.1` üzerinde yayınlanır.
 
 ```powershell
 docker compose up -d
