@@ -62,7 +62,7 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../components/checkout/IyzicoPaymentModal': { IyzicoPaymentModal: () => null },
       '../features/checkout/checkoutService': { checkoutService: { fetchAddresses: async () => [], saveAddress: async () => null, initializePayment: async () => ({}), submitDirectOrder: async () => ({}) } },
       '../features/checkout/addressUtils': { formatFullShippingAddress: () => '', validateAddressFormData: () => ({ isValid: true }) },
-      '../features/checkout/checkoutSecurity': { sanitizeOrderNumber: () => null, sanitizePaymentErrorMessage: () => null, clearPaymentQueryParams: () => {} },
+      '../features/checkout/checkoutSecurity': { sanitizeOrderNumber: () => null, getTrustedPaymentUrl: () => null },
       '../components/checkout/OrderSummarySection': orderSummarySection,
       '../components/checkout/OrderSuccessView': { OrderSuccessView: () => null }
     });
