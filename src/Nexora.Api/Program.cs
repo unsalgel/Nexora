@@ -327,6 +327,7 @@ try
         var jobOptions = new RecurringJobOptions { TimeZone = turkeyTimeZone };
 
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.EmailOutboxDispatchJob>("email-outbox-dispatch", job => job.DispatchAsync(CancellationToken.None), Cron.Minutely, jobOptions);
+        recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.PaymentReconciliationJob>("payment-reconciliation", job => job.RunAsync(CancellationToken.None), Cron.Minutely, jobOptions);
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.FileCleanupJob>("file-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.LogRetentionJob>("log-retention", job => job.RunAsync(CancellationToken.None), Cron.Minutely, jobOptions);
         recurringJobManager.AddOrUpdate<Nexora.Infrastructure.BackgroundJobs.AuthCleanupJob>("auth-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily, jobOptions);

@@ -4,6 +4,15 @@ import { randomUUID } from 'node:crypto';
 // Yalnız docker-compose.test.yml ile açılan izole smoke veritabanında çalıştırılır.
 const baseUrl = process.env.NEXORA_SMOKE_URL ?? 'http://localhost:18085';
 assert(['localhost', '127.0.0.1'].includes(new URL(baseUrl).hostname), 'Smoke testi yalnız yerel izole API üzerinde çalıştırılabilir.');
+let ready = false;
+for (let attempt = 0; attempt < 30; attempt++) {
+  try {
+    const response = await fetch(`${baseUrl}/health/ready`, { signal: AbortSignal.timeout(3000) });
+    if (response.ok) { ready = true; break; }
+  } catch { /* Container yeniden başlatılırken bekle. */ }
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+assert(ready, 'API smoke testine hazır değil.');
 let token;
 const request = async (path, method = 'GET', body, expected = 200) => {
   const response = await fetch(`${baseUrl}/api/v1.0/${path}`, {
@@ -45,27 +54,12 @@ const checkout = {
   shippingAddress: 'İzole test adresi, İstanbul', expectedTotalAmount: quote.totalAmount,
   paymentInfo: { cardHolderName: 'Smoke Test', cardNumber: '4242424242424242', expirationMonth: '12', expirationYear: '2030', cvv: '123' },
 };
-await request('orders', 'POST', { ...checkout, expectedTotalAmount: quote.totalAmount + 0.01 }, 409);
-assert.equal((await request(`products/${productId}`)).stockQuantity, 5, 'Reddedilen teklif stoğu değiştirdi.');
-const [order, retry] = await Promise.all([request('orders', 'POST', checkout, 201), request('orders', 'POST', checkout, 201)]);
-assert.deepEqual(retry, order, 'Aynı anahtarlı eşzamanlı istek aynı siparişi döndürmeli.');
-assert.deepEqual(await request('orders', 'POST', checkout, 201), order, 'Boş sepetle tekrar aynı sipariş dönmeli.');
-await request('orders', 'POST', { ...checkout, shippingAddress: 'Başka adres' }, 409);
-assert.equal(order.totalAmount, quote.totalAmount);
-assert.equal(order.subtotal, quote.subtotal);
-assert.equal(order.shippingFee, quote.shippingFee);
-assert.equal(order.discountAmount, quote.discountAmount);
-assert.equal((await request('cart')).items.length, 0);
-assert.equal((await request(`products/${productId}`)).stockQuantity, 3);
-await request(`products/${productId}`, 'PUT', staleProduct, 409);
+await request('orders', 'POST', checkout, 405);
+assert.equal((await request(`products/${productId}`)).stockQuantity, 5, 'Kaldırılan endpoint stoğu değiştirdi.');
+assert.equal((await request('cart')).items[0].quantity, 2, 'Kaldırılan endpoint sepeti tüketti.');
 await request(`products/${productId}/status`, 'PATCH', { isActive: false });
-assert.equal((await request(`products/${productId}`)).stockQuantity, 3, 'Durum yaması eski stoğu geri yazdı.');
+await request(`products/${productId}`, 'PUT', staleProduct, 409);
 await request(`products/${productId}/status`, 'PATCH', { isActive: true });
-await request(`orders/${order.id}/status`, 'PUT', { newStatus: 999 }, 400);
-await request(`orders/${order.id}/status`, 'PUT', { newStatus: 3 });
-await request(`orders/${order.id}/status`, 'PUT', { newStatus: 4, trackingNumber: 'SMOKE123', carrier: 'Test Kargo' });
-await request(`orders/${order.id}/status`, 'PUT', { newStatus: 6 }, 409);
-assert.equal((await request(`products/${productId}`)).stockQuantity, 3, 'Reddedilen iptal stoğu değiştirdi.');
 const inventory = await request('dashboard/inventory');
 assert(inventory.totalInventoryValue >= 449.70);
 await request(`reviews/${randomUUID()}`, 'DELETE', undefined, 404);
@@ -82,4 +76,4 @@ for (let index = 0; index < 24; index++) {
   aliasStatuses.push(response.status);
 }
 assert.deepEqual(aliasStatuses.slice(-2), [429, 429], 'v1 ve v1.0 ortak auth hız sınırı kullanmıyor.');
-console.log('Commerce HTTP smoke başarılı: paralel sepet, sunucu teklifi, mock checkout, snapshot, xmin, durum geçişleri, logout ve v1/v1.0 ortak auth limiti.');
+console.log('Commerce HTTP smoke başarılı: paralel sepet, sunucu teklifi, kaldırılan kart endpointi, xmin, logout ve v1/v1.0 ortak auth limiti.');

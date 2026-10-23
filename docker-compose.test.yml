@@ -18,6 +18,10 @@ services:
       DemoSeedEnabled: "false"
       DataProtection__KeysPath: /app/data/keys
       Frontend__BaseUrl: http://localhost:5173
+      # Smoke-only placeholders: no real provider requests or charges are made.
+      IYZICO_API_KEY: isolated-test-key
+      IYZICO_SECRET_KEY: isolated-test-secret
+      IYZICO_CALLBACK_URL: https://payments.example.test/api/v1/payments/callback
     ports:
       - "127.0.0.1:18085:8080"
     depends_on:
