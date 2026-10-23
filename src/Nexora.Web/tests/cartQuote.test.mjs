@@ -26,7 +26,8 @@ const quote = {
 
 const orderSummarySection = load('../src/components/checkout/OrderSummarySection.tsx', {
   'lucide-react': {},
-  '../common/SafeImage': { SafeImage: 'img' }
+  '../common/SafeImage': { SafeImage: 'img' },
+  '../common/CouponBox': { CouponBox: () => null }
 });
 
 const textContent = node => {
@@ -51,6 +52,7 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../lib/session': { getAccessToken: () => null },
       '../components/common/SafeImage': { SafeImage: 'img' },
       '../components/common/EmptyState': { EmptyState: 'div' },
+      '../components/common/CouponBox': { CouponBox: () => null },
       '../data/turkeyLocations': { TURKEY_CITIES: [] },
       '../components/ui/SearchableSelect': { SearchableSelect: 'select' },
       '../lib/cardValidation': { getCardBrand: () => 'unknown' },
