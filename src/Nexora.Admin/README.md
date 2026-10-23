@@ -1,89 +1,83 @@
-# Nexora.Admin — İdari Yönetim Portalı
+# Nexora.Admin — Yönetim Paneli
 
-Nexora e-ticaret platformunun envanter, sipariş karşılama, satış analitiği, kupon yapılandırması, görsel yükleme ve katalog denetimini sağlayan merkezi yönetim portalıdır.
+Nexora'nın katalog, sipariş, kupon, kullanıcı ve site ayarlarını yönetmek için bu React panelini geliştirdim. Backend kurulumunu [ana README](../../README.md) içinde anlattım.
 
----
+## Kullandığım sürümler
 
-## Mimari ve Teknoloji Altyapısı
+Bu panelde kullandığım sürümleri `package-lock.json` kayıtlarına göre aşağıda listeledim.
 
-| Bileşen | Teknoloji / Kütüphane | Açıklama |
-|---|---|---|
-| Çekirdek | React 19+ | Fonksiyonel bileşen mimarisi |
-| Tip Sistemi | TypeScript | Strict Mode standartlarında tip güvenliği |
-| Paketleme | Vite | Hızlı yerel geliştirme ve optimize derleme |
-| Stil Mimarisi | Tailwind CSS v4 | Kurumsal veri odaklı arayüz tasarımı |
-| İkon Seti | Lucide React | Vektörel SVG ikon kütüphanesi |
-| Veri Yönetimi | TanStack React Query v5 | Sunucu önbelleklemesi ve akıcı sayfalama (`keepPreviousData`) |
-| İletişim & Güvenlik | Axios | Otomatik JWT Bearer yönetimi, 401 sessiz yenileme ve anlık token iptali |
+| Bileşen | Sürüm |
+|---|---|
+| React | 19.2.8 |
+| TypeScript | 6.0.3 |
+| Vite | 8.3.5 |
+| Tailwind CSS | 4.3.3 |
+| React Router | 7.18.2 |
+| TanStack React Query | 5.101.4 |
+| Axios | 1.20.0 |
+| SignalR istemcisi | 10.0.11 |
+| Oxlint | 1.78.0 |
 
----
+## Mevcut modüller
 
-## İdari Modüller ve Fonksiyonel Kapsam
+Yönetim işlemlerini şu ekranlarda topladım:
 
-### 1. Güvenlik ve Yetkilendirilmiş Erişim (Admin Auth)
-* Sadece `Admin` rolüne sahip kullanıcıların erişebildiği korumalı rota yapısı (`AdminRoute`).
-* **Güvenlik İhlali ve Kilitlenme Uyarısı:** Önceki başarısız oturum denemelerini tarih, saat ve IP bazında listeleyen güvenlik bilgilendirme penceresi.
-* **Anlık Oturum Kapatma:** Çıkış yapıldığında Access Token ve Refresh Token'ın eş zamanlı olarak kara listeye aktarılması.
-* Yerel Test Yönetici Hesabı (Seeder): `admin@nexora.com` / `Admin123*` *(Yalnızca yerel `Development` ortamında otomatik tohumlanır; canlı ortamda `ADMIN_SEED_ENABLED` ve `ADMIN_SEED_PASSWORD` ortam değişkenleriyle güvenli biçimde yapılandırılır)*
+| Rota | Kapsam |
+|---|---|
+| `/` | Satış, sipariş ve envanter özetleri; dönemsel grafikler |
+| `/products` | Ürün, fiyat, stok, varyant, özellik ve görsel yönetimi |
+| `/categories` | Kategori ağacı ve kategori işlemleri |
+| `/brands` | Marka işlemleri ve aktif/pasif durum yönetimi |
+| `/orders` | Sipariş arama, detay, durum ve kargo bilgileri |
+| `/coupons` | Sabit/yüzdelik indirim, limit ve geçerlilik kuralları |
+| `/reviews` | Ürün değerlendirmelerinin yönetimi |
+| `/users` | Kullanıcı, rol ve aktif/pasif hesap yönetimi |
+| `/settings` | Site ayarları |
 
-### 2. Satış ve Performans Analitiği (Dashboard)
-* **Temel Metrik Kartları:** Toplam Ciro, Ortalama Sepet Tutarı (AOV), Tamamlanan Sipariş Hacmi, Aktif Envanter Değeri (TL), Canlı Ürün Sayısı, Kategori ve Marka Dağılımı.
-* **Satış Trend Çizgisi:** Son 7, 14 veya 30 güne ait ciro ve sipariş adetlerini karşılaştıran dinamik grafik.
-* **Kategori Bazlı Gelir Dağılımı:** Kategorilerin toplam satış gelirindeki payını yüzde ve adet bazında gösteren ilerleme göstergeleri.
-* **Sipariş Durumu Oranları:** Beklemede, Hazırlanıyor, Kargoda, Teslim Edildi ve İptal durumlarının dağılımı.
-* **Kritik Stok Alarmları:** Envanter seviyesi 30 adedin altına gerileyen ürünlerin anlık izleme listesi.
+Panelde bildirimler, toast mesajları, yükleniyor/boş durumları, hata sınırı ve 404 ekranı bulunur. Ürün görselleri dosya yükleme veya URL ile tanımlanabilir. Yükleme API'si JPG, PNG ve WebP görsellerini doğrulayıp yeniden encode eder; dosya boyutu sınırı 5 MiB'dır.
 
-### 3. Sipariş Karşılama ve Yönetim (`/orders`)
-* Veritabanı düzeyinde optimize edilmiş SQL projeksiyonları ile sayfalama desteği.
-* Sipariş Kodu (`NX-ORD-...`), Müşteri Adı, E-posta ve Teslimat Adresine göre anlık çok kriterli arama.
-* Son 24 saat içerisinde iletilen siparişlerde belirginleşen yeni sipariş rozeti.
-* Sipariş durumunun tek işlemle güncellenmesi (Ödendi -> Hazırlanıyor -> Kargoda -> Teslim Edildi -> İptal).
+## Yetkilendirme ve oturum
 
-### 4. Ürün Kataloğu ve Dosya Yükleme Hattı (`/products`)
-* **Sürükle-Bırak Dosya Yükleme:** Yerel dosya seçimi veya sürükle-bırak desteği; JPG, PNG, WEBP format ve 5MB boyut denetimi.
-* **Çoklu Kaynak Desteği:** Hem sunucuya dosya yükleme hem de harici CDN URL'i tanımlayabilme olanağı.
-* **Varyant ve Stok Kontrolü:** Beden, renk ve numara varyantları için SKU, stok adedi ve fiyat tanımları.
-* **Yumuşak Durum (Soft State):** Ürünleri kalıcı olarak silmeksizin satıştan çekebilen aktif/pasif anahtarları (`ToggleSwitch`).
+Panel rotalarını `AdminRoute` ile koruyorum; yönetim API'lerinde ayrıca sunucu tarafında `Admin` rolü kontrol ediliyor. Access token'ı bellekte tutuyor, tarayıcı oturumunu HttpOnly cookie ile yeniliyorum. Çıkış ve hesap yetkisi değişikliklerini sunucudaki oturum iptaliyle birlikte ele aldım. Sistemde yönetici kalmamasını önlemek için son aktif yöneticinin rolünün kaldırılmasını veya hesabının pasifleştirilmesini engelledim.
 
-### 5. Kupon ve Promosyon Tanımlama (`/coupons`)
-* Yüzdelik (%) veya Sabit Tutar (TL) indirim kuponları oluşturma.
-* Minimum alışveriş tutarı, kullanım limiti kotası ve son geçerlilik tarihi kuralları.
-* Kupon kullanım oranını gösteren canlı kota çubuğu.
+İlk yönetici hesabını backend'deki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarıyla yapılandırıyorum. Gerçek hesap bilgilerini README veya frontend yapılandırmasında paylaşmıyorum. İyzico anahtarlarını da yalnız backend tarafında tutuyorum.
 
-### 6. Kullanıcı & Rol Yönetimi ve Son Yönetici Koruması (`/users`)
-* **Kullanıcı Listeleme ve Arama:** Müşteri ve yöneticilerin anlık filtrelenmesi ve sayfalanması.
-* **Rol Yönetimi (RBAC):** Kullanıcılara `Admin` veya `Customer` rolleri atama; yetki yükseltme koruması.
-* **Son Yönetici Koruması (Last Admin Invariant):** Sistemdeki tek aktif yöneticinin Admin rolünün kaldırılması veya hesabının pasife alınması sistem tarafından engellenir; sistemin sahipsiz kalması önlenir.
-* **Anlık Oturum Düşürme:** Bir kullanıcı pasife alındığında, tüm aktif oturum ve refresh token'ları anında iptal edilir.
+## Sipariş ve ödeme davranışı
 
-### 7. Gerçek Zamanlı İdari Bildirimler (SignalR Admin Group)
-* **İdari Veri İzolasyonu:** Canlı sipariş tutarları ve müşteri detayları (`ReceiveNewOrder`) ile kritik stok alarmları (`LowStockAlert`) WebSocket üzerinde yalnızca `Admins` grubuna yayınlanır; müşteri soketlerine sızdırılmaz.
-* Panel açıldığında yetkilendirilmiş yöneticiler otomatik olarak `Admins` grubuna bağlanır.
+İyzico akışında sipariş numaraları için `NX-YYYYMMDD-XXXXXXXX` biçimini kullanıyorum; son bölüm sekiz hexadecimal karakterden oluşuyor. Siparişin lojistik durumunu ödeme durumundan ayrı tutuyorum.
 
-### 8. Kategori ve Marka Mimarisi
-* Kategori ve marka ağacı oluşturma, düzenleme ve sıralama.
-* Kritik silme adımları için doğrulama modalları (`ConfirmModal`).
+Ödeme ve fraud onayı tamamlanmadan online sipariş hazırlanıyor, kargoda veya teslim edildi durumuna geçirilemez. Normal ilerleme `Pending → Paid → Processing → Shipped → Delivered` şeklindedir. Kargolanmış sipariş önceki duruma döndürülemez; iptal bütün durumlardan kullanılabilen bir geçiş değildir.
 
-### 9. Hata Toleransı ve Bildirim Mimarisi (Error Handling & Toast)
-* **Admin Error Boundary:** Panel modüllerinde oluşabilecek beklenmeyen React çalışma zamanı çökmelerini engelleyen kurumsal kurtarma ekranı (`AdminErrorBoundary`).
-* **Merkezi Bildirim Sağlayıcısı (AdminToastProvider):** Sayfa bazında kod tekrarı oluşturmaksızın bildirimleri yöneten merkezi `useAdminToast` kancası.
-* **Akıcı Yükleme İskeletleri (TableSkeleton):** Veri çekilirken düzen kaymasını (layout shift) engelleyen hafif satır iskeletleri.
-* **404 Sayfa Bulunamadı (`AdminNotFoundPage`):** Geçersiz admin rotaları için yönlendirici kontrol paneli sayfası.
+Online siparişin iptali ödeme başarısızlığı veya doğrulanmış iade durumu gerektirir. Otomatik iyzico iade API'si mevcut değildir. Belirsiz ödeme sonuçları backend'deki uzlaştırma işiyle takip edilir. Ayrıntılar [ödeme belgesinde](../../docs/iyzico-payments.md) bulunur.
 
----
+## Çalıştırma
 
-## Geliştirme, Güvenlik ve Derleme
+Paneli bu klasörde aşağıdaki komutlarla çalıştırıyorum:
 
 ```bash
-# Bağımlılıkların kurulumu
-npm install
-
-# Güvenlik ve zafiyet denetimi (0 açık kuralı)
-npm audit --audit-level=high
-
-# Geliştirme sunucusunun çalıştırılması (Port: 5174)
+npm ci
 npm run dev
-
-# Tip denetimi ve üretim paketlemesi
-npm run build
 ```
+
+Yönetim panelinin yapılandırılmış geliştirme portu `5174`'tür. Backend varsayılanı `http://localhost:5285`, API kökü `/api/v1`'dir. Uygulamaya ait yerel `.env.local` dosyasında adresler değiştirilebilir:
+
+```dotenv
+VITE_BACKEND_URL=http://localhost:5285
+VITE_API_URL=http://localhost:5285/api/v1
+VITE_WEB_URL=http://localhost:5173
+```
+
+`VITE_WEB_URL` müşteri vitrininin adresidir. `VITE_` değerleri tarayıcı paketine girer; parola, JWT imzalama anahtarı veya iyzico anahtarı içermez. Üretim paketinde backend adresi belirtilmemişse panelin kendi origin'i kullanılır. Vite üretim derlemesi yapılandırılan API ve backend origin'leriyle CSP meta etiketi oluşturur.
+
+## Kontroller
+
+Test, lint, derleme ve bağımlılık denetimi için şu komutları kullanıyorum:
+
+```bash
+npm test
+npm run lint
+npm run build
+npm audit --audit-level=high
+```
+
+`npm test` Node tabanlı regresyon testlerini, `lint` Oxlint'i, `build` TypeScript kontrolü ile Vite derlemesini çalıştırır. Derleme çıktısı `dist/` klasörüne yazılır; `npm run preview` yerel önizleme sağlar. GitHub Actions bu paneli müşteri vitriniyle ayrı işler olarak kontrol eder.
