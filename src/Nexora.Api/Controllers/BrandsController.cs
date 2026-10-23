@@ -55,6 +55,15 @@ public sealed class BrandsController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<string>>> UpdateStatus(Guid id,
+        Nexora.Application.Features.Brands.Commands.UpdateBrandStatus.UpdateBrandStatusCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Sender.Send(command with { Id = id }, cancellationToken));
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteBrand(

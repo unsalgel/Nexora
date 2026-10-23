@@ -41,12 +41,16 @@ assert.equal(quote.items[0].unitPrice, 149.90);
 assert.equal(quote.items[0].totalPrice, 299.80);
 assert.equal(quote.totalAmount, Math.round((quote.subtotal + quote.shippingFee - quote.discountAmount) * 100) / 100);
 const checkout = {
+  idempotencyKey: randomUUID(),
   shippingAddress: 'İzole test adresi, İstanbul', expectedTotalAmount: quote.totalAmount,
   paymentInfo: { cardHolderName: 'Smoke Test', cardNumber: '4242424242424242', expirationMonth: '12', expirationYear: '2030', cvv: '123' },
 };
 await request('orders', 'POST', { ...checkout, expectedTotalAmount: quote.totalAmount + 0.01 }, 409);
 assert.equal((await request(`products/${productId}`)).stockQuantity, 5, 'Reddedilen teklif stoğu değiştirdi.');
-const order = await request('orders', 'POST', checkout, 201);
+const [order, retry] = await Promise.all([request('orders', 'POST', checkout, 201), request('orders', 'POST', checkout, 201)]);
+assert.deepEqual(retry, order, 'Aynı anahtarlı eşzamanlı istek aynı siparişi döndürmeli.');
+assert.deepEqual(await request('orders', 'POST', checkout, 201), order, 'Boş sepetle tekrar aynı sipariş dönmeli.');
+await request('orders', 'POST', { ...checkout, shippingAddress: 'Başka adres' }, 409);
 assert.equal(order.totalAmount, quote.totalAmount);
 assert.equal(order.subtotal, quote.subtotal);
 assert.equal(order.shippingFee, quote.shippingFee);

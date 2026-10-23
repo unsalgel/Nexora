@@ -25,23 +25,14 @@ public sealed class UpdateProductCommandHandler : IRequestHandler<UpdateProductC
         if (request.Version == 0 || request.Version != product.Version)
             throw new ConflictException("Ürün bilgileri değişti. Sayfayı yenileyip tekrar deneyiniz.");
 
+        await transaction.AcquireLockAsync(CatalogRelations.LockKey, cancellationToken);
         var skuExists = await _context.Products
             .AnyAsync(p => p.SKU == request.SKU && p.Id != request.Id, cancellationToken);
 
         if (skuExists)
             throw new ConflictException("Bu SKU koduna sahip başka bir ürün zaten mevcut.");
 
-        var categoryExists = await _context.Categories
-            .AnyAsync(c => c.Id == request.CategoryId && !c.IsDeleted, cancellationToken);
-
-        if (!categoryExists)
-            throw new NotFoundException("Seçilen kategori bulunamadı.");
-
-        var brandExists = await _context.Brands
-            .AnyAsync(b => b.Id == request.BrandId && !b.IsDeleted, cancellationToken);
-
-        if (!brandExists)
-            throw new NotFoundException("Seçilen marka bulunamadı.");
+        await CatalogRelations.EnsureExistAsync(_context, request.CategoryId, request.BrandId, cancellationToken);
 
         product.Name = request.Name;
         product.SKU = request.SKU;
@@ -52,7 +43,20 @@ public sealed class UpdateProductCommandHandler : IRequestHandler<UpdateProductC
         product.BrandId = request.BrandId;
         product.IsActive = request.IsActive;
 
-        if (!string.IsNullOrWhiteSpace(request.MainImageUrl))
+        if (request.RemoveMainImage)
+        {
+            if (!string.IsNullOrWhiteSpace(request.MainImageUrl))
+                throw new BusinessValidationException("Görsel kaldırma ve değiştirme aynı istekte yapılamaz.");
+            var images = await _context.ProductImages.Where(i => i.ProductId == product.Id)
+                .OrderByDescending(i => i.IsMain).ThenBy(i => i.DisplayOrder).ThenBy(i => i.Id)
+                .ToListAsync(cancellationToken);
+            if (images.Count > 0)
+            {
+                _context.ProductImages.Remove(images[0]);
+                for (var i = 1; i < images.Count; i++) images[i].IsMain = i == 1;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(request.MainImageUrl))
         {
             var existingImages = await _context.ProductImages
                 .Where(pi => pi.ProductId == product.Id)

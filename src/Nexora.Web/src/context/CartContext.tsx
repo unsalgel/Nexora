@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 import { AxiosError } from 'axios';
@@ -41,6 +41,7 @@ export const CartProvider: React.FC<{
 }> = ({ children }) => {
   const token = useAccessToken();
   const queryClient = useQueryClient();
+  const mutationInFlight = useRef(false);
   const [pending, setPending] = useState(0);
   const { warning, success, error } = useToast();
   const cartQuery = useQuery({
@@ -63,6 +64,8 @@ export const CartProvider: React.FC<{
       warning('Sepetinizi düzenlemek için lütfen giriş yapın.');
       return false;
     }
+    if (mutationInFlight.current) return false;
+    mutationInFlight.current = true;
     setPending(value => value + 1);
     try {
       const res = await request();
@@ -78,6 +81,7 @@ export const CartProvider: React.FC<{
       return false;
     }
     finally {
+      mutationInFlight.current = false;
       setPending(value => Math.max(0, value - 1));
     }
   };

@@ -1,4 +1,4 @@
-using System.Globalization;
+using Nexora.Application.Features.Settings;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Cart.Dtos;
@@ -22,13 +22,8 @@ public static class CartPricing
                 ?? throw new ConflictException("Kupon bulunamadı.");
             discount = coupon.CalculateDiscount(subtotal, DateTime.UtcNow);
         }
-        var settings = await context.Settings.AsNoTracking()
-            .Where(s => s.Key == "FreeShippingThreshold" || s.Key == "ShippingCost")
-            .ToDictionaryAsync(s => s.Key, s => s.Value, cancellationToken);
-        var threshold = decimal.TryParse(settings.GetValueOrDefault("FreeShippingThreshold"), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedThreshold) ? parsedThreshold : 500m;
-        var shippingCost = decimal.TryParse(settings.GetValueOrDefault("ShippingCost"), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedCost) ? parsedCost : 29.90m;
-        if (threshold < 0 || shippingCost < 0) throw new ConflictException("Kargo ayarları geçersizdir.");
-        var shipping = subtotal == 0 || subtotal >= threshold ? 0 : Math.Round(shippingCost, 2, MidpointRounding.AwayFromZero);
+        var policy = await ShippingPolicy.LoadAsync(context, cancellationToken);
+        var shipping = policy.CalculateFee(subtotal);
         var total = Math.Round(subtotal + shipping - discount, 2, MidpointRounding.AwayFromZero);
         return (new CartQuoteDto(subtotal, shipping, discount, total, coupon?.Code), coupon);
     }

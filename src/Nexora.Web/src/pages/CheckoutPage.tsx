@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createOrderAttempt } from '../features/checkout/orderAttempt';
 import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { AlertCircle } from 'lucide-react';
@@ -20,6 +21,7 @@ import { OrderSuccessView } from '../components/checkout/OrderSuccessView';
 import { CouponBox } from '../components/common/CouponBox';
 
 export const CheckoutPage: React.FC = () => {
+  const orderAttempt = useRef(createOrderAttempt());
   const { cart, refreshCart, isMutating } = useCart();
   const { settings } = useSettings();
   const [step, setStep] = useState<1 | 2>(1);
@@ -177,8 +179,15 @@ export const CheckoutPage: React.FC = () => {
 
     try {
       const fullShippingAddress = `${address.fullName} - Tel: ${address.phone} - Adres: ${address.fullAddress} ${address.district}/${address.city}`;
+      const idempotencyKey = orderAttempt.current(JSON.stringify({
+        shippingAddress: fullShippingAddress.trim(),
+        couponCode: appliedCoupon?.couponCode || null,
+        expectedTotalAmount: quoteQuery.data.totalAmount,
+        items: cart?.items.map(item => [item.id, item.quantity]).sort()
+      }));
 
       const response = await apiClient.post<ApiResponse<OrderDto>>('/orders', {
+        idempotencyKey,
         shippingAddress: fullShippingAddress,
         expectedTotalAmount: quoteQuery.data.totalAmount,
         couponCode: appliedCoupon?.couponCode || null,

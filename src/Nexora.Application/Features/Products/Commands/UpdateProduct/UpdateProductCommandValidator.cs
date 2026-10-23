@@ -6,6 +6,8 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
 {
     public UpdateProductCommandValidator()
     {
+        RuleFor(x => x.MainImageUrl).Empty().When(x => x.RemoveMainImage)
+            .WithMessage("Görsel kaldırma ve değiştirme aynı istekte yapılamaz.");
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Ürün kimliği boş bırakılamaz.");
 
