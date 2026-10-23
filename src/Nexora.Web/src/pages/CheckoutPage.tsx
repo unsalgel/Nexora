@@ -350,6 +350,15 @@ export const CheckoutPage: React.FC = () => {
             discountAmount={discountAmount}
             payableTotal={payableTotal}
             couponCode={appliedCoupon?.couponCode}
+            appliedCoupon={appliedCoupon}
+            onCouponApplied={(coupon) => {
+              setAppliedCoupon(coupon);
+              sessionStorage.setItem('appliedCoupon', JSON.stringify(coupon));
+            }}
+            onCouponRemoved={() => {
+              setAppliedCoupon(null);
+              sessionStorage.removeItem('appliedCoupon');
+            }}
           />
         </div>
       </div>
