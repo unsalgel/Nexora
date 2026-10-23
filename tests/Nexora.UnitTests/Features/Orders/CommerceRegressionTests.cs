@@ -1,3 +1,4 @@
+using Nexora.Application.Features.Payments.Dtos;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -5,7 +6,7 @@ using Moq;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Cart.Queries.GetCartQuote;
 using Nexora.Application.Features.Coupons.Commands.CreateCoupon;
-using Nexora.Application.Features.Orders.Commands.CreateOrder;
+using Nexora.Application.Features.Payments.Commands.InitializePayment;
 using Nexora.Application.Features.Orders.Commands.UpdateOrderStatus;
 using Nexora.Application.Features.Orders.Dtos;
 using Nexora.Application.Features.Products.Commands.UpdateProduct;
@@ -52,15 +53,15 @@ public sealed class CommerceRegressionTests
         return (user, product, cart);
     }
 
-    public static CreateOrderCommandHandler CreateHandler(NexoraDbContext context, Mock<IPaymentService>? payment = null)
+    public static InitializePaymentCommandHandler CreateHandler(NexoraDbContext context, Mock<IPaymentGateway>? payment = null)
     {
-        payment ??= new Mock<IPaymentService>();
-        payment.Setup(x => x.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        return new CreateOrderCommandHandler(context, payment.Object, Mock.Of<IEmailService>(), Mock.Of<IRealTimeNotificationService>(), NullLogger<CreateOrderCommandHandler>.Instance);
+        payment ??= new Mock<IPaymentGateway>();
+        payment.Setup(x => x.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(new PaymentInitializationResult(true, "test-token", null, "https://sandbox-cpp.iyzipay.com/test", null));
+        return new InitializePaymentCommandHandler(context, payment.Object);
     }
 
-    public static CreateOrderCommand OrderCommand(Guid userId, string? coupon = null, decimal? expected = null) =>
-        new(userId, "Test teslimat adresi", new PaymentRequestDto("4111111111111111", "Test Kullanıcı", "12", "2030", "123"), coupon, expected);
+    public static InitializePaymentCommand OrderCommand(Guid userId, string? coupon = null, decimal? expected = null) =>
+        new("Test teslimat adresi", CouponCode: coupon, ExpectedTotalAmount: expected, IdempotencyKey: Guid.NewGuid().ToString()) { UserId = userId };
 
     [Fact]
     public async Task Checkout_DuplicateRowsAggregateStockBeforePayment()
@@ -69,10 +70,10 @@ public sealed class CommerceRegressionTests
         var data = await SeedCartAsync(context, 1);
         context.CartItems.Add(new CartItem { CartId = data.Cart.Id, ProductId = data.Product.Id, Quantity = 1 });
         await context.SaveChangesAsync();
-        var payment = new Mock<IPaymentService>();
+        var payment = new Mock<IPaymentGateway>();
         var handler = CreateHandler(context, payment);
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(OrderCommand(data.User.Id), default));
-        payment.Verify(x => x.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
+        payment.Verify(x => x.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         data.Product.StockQuantity.Should().Be(1);
         (await context.Orders.CountAsync()).Should().Be(0);
     }
@@ -113,7 +114,8 @@ public sealed class CommerceRegressionTests
         quote.Data!.TotalAmount.Should().Be(129.90m);
         await Assert.ThrowsAsync<ConflictException>(() => CreateHandler(context).Handle(OrderCommand(data.User.Id, expected: 100), default));
         var order = await CreateHandler(context).Handle(OrderCommand(data.User.Id, expected: 129.90m), default);
-        order.Data!.Subtotal.Should().Be(100); order.Data.ShippingFee.Should().Be(29.90m); order.Data.DiscountAmount.Should().Be(0);
+        var stored = await context.Orders.SingleAsync();
+        stored.Subtotal.Should().Be(100); stored.ShippingFee.Should().Be(29.90m); stored.DiscountAmount.Should().Be(0);
         data.Product.StockQuantity.Should().Be(4);
     }
 

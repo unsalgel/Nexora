@@ -11,12 +11,9 @@ import { useSettings } from '../context/SettingsContext';
 import { extractApiErrorMessage } from '../lib/apiClient';
 import type { CouponValidationResultDto } from '../types/coupon';
 import type { AddressDto } from '../types/address';
-import type { PaymentMethod } from '../types/payment';
-import { validateLuhn, getCardBrand } from '../lib/cardValidation';
 import { ShippingAddressSection } from '../components/checkout/ShippingAddressSection';
 import { PaymentMethodSection } from '../components/checkout/PaymentMethodSection';
 import { OrderSummarySection } from '../components/checkout/OrderSummarySection';
-import { OrderSuccessView } from '../components/checkout/OrderSuccessView';
 import { CouponBox } from '../components/common/CouponBox';
 import { checkoutService } from '../features/checkout/checkoutService';
 import { formatFullShippingAddress, validateAddressFormData, type AddressFormData } from '../features/checkout/addressUtils';
@@ -29,11 +26,8 @@ export const CheckoutPage: React.FC = () => {
   const { cart, refreshCart, isMutating } = useCart();
   const { settings } = useSettings();
   const [step, setStep] = useState<1 | 2>(1);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('iyzico');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
-  const [isFlipped, setIsFlipped] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
   const quoteQuery = useCartQuote(appliedCoupon?.couponCode);
 
@@ -51,13 +45,6 @@ export const CheckoutPage: React.FC = () => {
     fullAddress: '',
   });
 
-  const [card, setCard] = useState({
-    number: '',
-    holder: '',
-    expiry: '',
-    cvv: '',
-  });
-
   useEffect(() => {
     try {
       const savedCoupon = sessionStorage.getItem('appliedCoupon');
@@ -67,13 +54,6 @@ export const CheckoutPage: React.FC = () => {
     } catch {
       // Ignore coupon parsing errors
     }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      // PCI-DSS: scrub in-memory card credentials on unmount
-      setCard({ number: '', holder: '', expiry: '', cvv: '' });
-    };
   }, []);
 
   useEffect(() => {
@@ -109,34 +89,6 @@ export const CheckoutPage: React.FC = () => {
     setAddress((prev) => ({ ...prev, phone: raw }));
   };
 
-  const handleCardNumberChange = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 16);
-    const formatted = digits.match(/.{1,4}/g)?.join(' ') || '';
-    setCard((prev) => ({ ...prev, number: formatted }));
-  };
-
-  const handleCardExpiryChange = (val: string) => {
-    let clean = val.replace(/\D/g, '').slice(0, 4);
-    if (clean.length >= 2) {
-      clean = `${clean.slice(0, 2)}/${clean.slice(2)}`;
-    }
-    setCard((prev) => ({ ...prev, expiry: clean }));
-  };
-
-  const handleCardCvvChange = (val: string) => {
-    const clean = val.replace(/\D/g, '').slice(0, 4);
-    setCard((prev) => ({ ...prev, cvv: clean }));
-  };
-
-  const handlePaymentMethodChange = (method: PaymentMethod) => {
-    setPaymentMethod(method);
-    if (method === 'iyzico') {
-      // PCI-DSS: wipe card info when switching away from direct entry
-      setCard({ number: '', holder: '', expiry: '', cvv: '' });
-      setIsFlipped(false);
-    }
-  };
-
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validation = validateAddressFormData(address);
@@ -162,82 +114,27 @@ export const CheckoutPage: React.FC = () => {
 
       const paymentUrl = getTrustedPaymentUrl(data.paymentPageUrl);
       if (!paymentUrl) throw new Error('Güvenli ödeme adresi alınamadı.');
+      if ((isNewAddressFormOpen || savedAddresses.length === 0) && shouldSaveAddress) {
+        try {
+          await checkoutService.saveAddress({
+            title: addressTitle.trim() || 'Evim',
+            fullName: address.fullName.trim(),
+            phoneNumber: address.phone.trim(),
+            city: address.city,
+            district: address.district,
+            detailedAddress: address.fullAddress.trim(),
+            postalCode: '',
+            isDefault: savedAddresses.length === 0,
+          });
+        } catch {
+          // Address save non-critical failure
+        }
+      }
+
       window.location.assign(paymentUrl);
     } catch (err: unknown) {
       setErrorMessage(extractApiErrorMessage(err, 'İyzico ödeme oturumu başlatılamadı.'));
     }
-  };
-
-  const handleDirectPayment = async (fullShippingAddress: string) => {
-    const cleanCardNumber = card.number.replace(/\s/g, '');
-    if (!validateLuhn(cleanCardNumber)) {
-      setErrorMessage('Geçersiz kart numarası. Lütfen kontrol ediniz.');
-      return;
-    }
-
-    const [month, year] = card.expiry.split('/');
-    if (!month || !year || month.length !== 2 || year.length !== 2) {
-      setErrorMessage('Lütfen geçerli bir son kullanma tarihi giriniz (AA/YY).');
-      return;
-    }
-
-    const m = parseInt(month, 10);
-    if (m < 1 || m > 12) {
-      setErrorMessage('Son kullanma ayı 01 ile 12 arasında olmalıdır.');
-      return;
-    }
-
-    const fullYear = `20${year}`;
-    if (card.cvv.length < 3) {
-      setErrorMessage('Lütfen 3 haneli güvenlik kodunu (CVV) giriniz.');
-      return;
-    }
-
-    const idempotencyKey = orderAttempt.current(
-      JSON.stringify({
-        shippingAddress: fullShippingAddress,
-        couponCode: appliedCoupon?.couponCode || null,
-        expectedTotalAmount: quoteQuery.data?.totalAmount,
-        items: cart?.items.map((item) => [item.id, item.quantity]).sort(),
-      })
-    );
-
-    const orderData = await checkoutService.submitDirectOrder({
-      idempotencyKey,
-      shippingAddress: fullShippingAddress,
-      expectedTotalAmount: quoteQuery.data?.totalAmount,
-      couponCode: appliedCoupon?.couponCode || null,
-      paymentInfo: {
-        cardHolderName: card.holder.trim(),
-        cardNumber: cleanCardNumber,
-        expirationMonth: month.trim(),
-        expirationYear: fullYear,
-        cvv: card.cvv.trim(),
-      },
-    });
-
-    setCreatedOrderNumber(orderData.orderNumber || 'NXR-2026-TEMP');
-    sessionStorage.removeItem('appliedCoupon');
-    setCard({ number: '', holder: '', expiry: '', cvv: '' });
-
-    if ((isNewAddressFormOpen || savedAddresses.length === 0) && shouldSaveAddress) {
-      try {
-        await checkoutService.saveAddress({
-          title: addressTitle.trim() || 'Evim',
-          fullName: address.fullName.trim(),
-          phoneNumber: address.phone.trim(),
-          city: address.city,
-          district: address.district,
-          detailedAddress: address.fullAddress.trim(),
-          postalCode: '',
-          isDefault: savedAddresses.length === 0,
-        });
-      } catch {
-        // Address save non-critical failure
-      }
-    }
-
-    await refreshCart();
   };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
@@ -258,11 +155,7 @@ export const CheckoutPage: React.FC = () => {
     const fullShippingAddress = formatFullShippingAddress(address);
 
     try {
-      if (paymentMethod === 'iyzico') {
-        await handleIyzicoPayment(fullShippingAddress);
-      } else {
-        await handleDirectPayment(fullShippingAddress);
-      }
+      await handleIyzicoPayment(fullShippingAddress);
     } catch (err: unknown) {
       const error = err as AxiosError;
       if (error.response?.status === 409) {
@@ -274,7 +167,6 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const cardBrand = getCardBrand(card.number);
   const cartItems = useMemo(
     () => getQuotedCartItems(cart?.items || [], quoteQuery.data),
     [cart?.items, quoteQuery.data]
@@ -284,10 +176,6 @@ export const CheckoutPage: React.FC = () => {
   const shippingFee = quoteQuery.data?.shippingFee ?? (isFreeShipping ? 0 : settings.shippingCost);
   const discountAmount = quoteQuery.data?.discountAmount ?? 0;
   const payableTotal = quoteQuery.data?.totalAmount ?? 0;
-
-  if (createdOrderNumber) {
-    return <OrderSuccessView orderNumber={createdOrderNumber} />;
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
@@ -363,16 +251,6 @@ export const CheckoutPage: React.FC = () => {
 
           {step === 2 && (
             <PaymentMethodSection
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={handlePaymentMethodChange}
-              card={card}
-              onCardHolderChange={(val) => setCard((prev) => ({ ...prev, holder: val }))}
-              onCardNumberChange={handleCardNumberChange}
-              onCardExpiryChange={handleCardExpiryChange}
-              onCardCvvChange={handleCardCvvChange}
-              isFlipped={isFlipped}
-              setIsFlipped={setIsFlipped}
-              cardBrand={cardBrand}
               payableTotal={payableTotal}
               isLoading={isLoading}
               isMutating={isMutating}

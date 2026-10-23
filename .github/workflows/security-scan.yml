@@ -136,11 +136,11 @@ jobs:
       run: docker compose -p nexora-review-tests -f docker-compose.test.yml --profile smoke up -d --build --wait --wait-timeout 120
     - name: Gercek HTTP ve native codec smoke
       run: node scripts/smoke-api.mjs
-    - name: Production sahte odeme engeli
-      run: node scripts/smoke-commerce.mjs --assert-payment-disabled
-    - name: Simule checkout icin izole gelistirme ortami
+    - name: Production eski kart endpointi kaldirildi
+      run: node scripts/smoke-commerce.mjs
+    - name: Izole gelistirme ortami
       run: docker compose -p nexora-review-tests -f docker-compose.test.yml -f docker-compose.browser-test.yml --profile smoke up -d --force-recreate --wait --wait-timeout 120 api
-    - name: Gercek HTTP checkout, snapshot ve durum gecisleri
+    - name: Development eski kart endpointi ve sepet regresyonlari
       run: node scripts/smoke-commerce.mjs
     - name: Izole tarayici cookie ve katalog regresyonlari
       run: |

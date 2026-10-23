@@ -39,10 +39,12 @@ Dağıtım sırasında eski API/worker sürümleri durdurulmalıdır: eski callb
 
 Yaşı dolduğu için bir online ödeme kendiliğinden başarısız sayılmaz. Sonuç belirsizken rezervasyon tutulur; sağlayıcı incelemesi tamamlanana kadar serbest bırakılmaz. `RequiresAttention` kayıtları operasyon ekibince iyzico panelindeki tahsilat/iade kaydıyla karşılaştırılmalıdır. Doğrulanmış tahsilat, iade edilmiş gibi işaretlenmemelidir.
 
-Online siparişin kullanıcı/admin iptali, ödeme sonucu kesinleşmeden veya tahsilat iade edilmeden engellenir. Bu değişiklik otomatik iade API'si eklemez. Önceden mevcut `FakePaymentService` yalnız `Development` ortamında çalışır; diğer ortamlarda isteği reddeder. Üretim Web derlemesinde doğrudan test kartı seçeneği ve formu gösterilmez. Container smoke önce Production ortamında sahte ödemenin reddedildiğini kontrol eder, ardından izole Development ortamında simüle checkout regresyonlarını çalıştırır.
+Online siparişin kullanıcı/admin iptali, ödeme sonucu kesinleşmeden veya tahsilat iade edilmeden engellenir. Bu değişiklik otomatik iade API'si eklemez. Eski doğrudan kart test akışı tamamen kaldırıldı: servis, servis sözleşmesi, kart DTO’su, sipariş oluşturma komutu ve `POST /orders` endpoint’i artık yoktur. Web kart bilgisi toplamaz; tüm ortamlarda yalnız iyzico ödeme sayfasını kullanır. Container smoke Production ve Development ortamlarında eski endpoint’in 405 döndüğünü doğrular.
 
 ## Doğrulama
 
-291 backend testi, PostgreSQL/Redis entegrasyonları dahil geçti. Yeni testler gerçek HTTP form callback/303/auth sözleşmesini; stok ve kupon yarışlarını; paralel callback tekrarını; migration veri aktarımını; fraud, tutar ve geçici hata davranışlarını; kayıp callback'in iş tarafından tamamlanmasını kapsar. Web tarafında 30 test ve üretim derlemesi geçti. Production Alpine konteynerinde HTTP/native codec smoke ve sahte ödeme reddi, izole Development konteynerinde checkout regresyonları doğrulandı.
+Son kaldırma değişikliğiyle 280 backend testi (0 atlanan) ve 30 Web testi geçti. Backend/Web derlemeleri ve Production/Development HTTP smoke kontrolleri başarılıdır.
 
-Gerçek sandbox tahsilatı yapılmadı. Canlıya geçişten önce sandbox anahtarları ve erişilebilir HTTPS callback ile ödeme, dönüş, banka reddi ve fraud incelemesi uçtan uca denenmelidir.
+Backend testleri PostgreSQL/Redis üzerinde stok, kupon, ödeme tekrarı ve migration davranışlarını doğrular. Eski doğrudan kart testleri kaldırılmış; ortak ticaret regresyonları iyzico ödeme başlatma akışına taşınmıştır. Web testleri ve container smoke, eski ödeme yolunun hiçbir ortamda bulunmadığını kontrol eder.
+
+Gerçek iyzico sandbox tahsilatı bu doğrulama kapsamında çalıştırılmadı.

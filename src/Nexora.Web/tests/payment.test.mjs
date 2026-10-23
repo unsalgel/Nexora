@@ -14,14 +14,15 @@ const load = (path, mocks = {}, development = false) => {
 };
 const security = load('../src/features/checkout/checkoutSecurity.ts');
 
-test('Production checkout hides simulated card entry even if direct state is selected', () => {
+test('Checkout offers hosted payment without collecting card details in any environment', () => {
   const text = node => node == null || typeof node === 'boolean' ? '' :
     Array.isArray(node) ? node.map(text).join('') : typeof node === 'object' ? text(node.props?.children) : String(node);
   for (const development of [true, false]) {
     const { PaymentMethodSection } = load('../src/components/checkout/PaymentMethodSection.tsx', { 'lucide-react': {} }, development);
-    const displayed = text(PaymentMethodSection({ paymentMethod: 'direct', card: {}, payableTotal: 100 }));
-    assert.equal(displayed.includes('Doğrudan Kart Girişi'), development);
-    assert.equal(displayed.includes('Kart Numarası'), development);
+    const displayed = text(PaymentMethodSection({ payableTotal: 100 }));
+    assert.equal(displayed.includes('Doğrudan Kart Girişi'), false);
+    assert.equal(displayed.includes('Kart Numarası'), false);
+    assert.equal(displayed.includes('iyzico'), true);
   }
 });
 

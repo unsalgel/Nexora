@@ -60,7 +60,6 @@ public static class DependencyInjection
 
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IPaymentService, FakePaymentService>();
         services.AddScoped<IPaymentGateway, Nexora.Infrastructure.Payments.Adapters.IyzicoPaymentAdapter>();
 
         // Native config binding korunur; açık environment override bağlantıdaki varsayılandan önceliklidir.

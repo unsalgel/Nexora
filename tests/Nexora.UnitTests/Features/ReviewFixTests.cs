@@ -1,3 +1,4 @@
+using Nexora.Application.Features.Payments.Dtos;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,21 +22,21 @@ namespace Nexora.UnitTests.Features;
 public sealed class ReviewFixTests
 {
     [Fact]
-    public async Task OrderRetry_UsesPersistedOrder_AfterCartIsEmpty_WithoutPayingAgain()
+    public async Task PaymentRetry_UsesPersistedSession_WithoutReservingAgain()
     {
         using var db = TestDbContextFactory.Create();
         var data = await CommerceRegressionTests.SeedCartAsync(db);
-        var payment = new Mock<IPaymentService>();
+        var payment = new Mock<IPaymentGateway>();
         var handler = CommerceRegressionTests.CreateHandler(db, payment);
         var command = CommerceRegressionTests.OrderCommand(data.User.Id, expected: 129.90m) with { IdempotencyKey = "retry-1" };
         var first = (await handler.Handle(command, default)).Data!;
         db.ChangeTracker.Clear();
         var retry = (await CommerceRegressionTests.CreateHandler(db, payment).Handle(command, default)).Data!;
         retry.Should().BeEquivalentTo(first);
-        (await db.CartItems.CountAsync()).Should().Be(0);
+        (await db.CartItems.CountAsync()).Should().Be(1);
         (await db.Products.SingleAsync()).StockQuantity.Should().Be(4);
         (await db.Orders.CountAsync()).Should().Be(1);
-        payment.Verify(p => p.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()), Times.Once);
+        payment.Verify(p => p.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(command with { ShippingAddress = "Different address" }, default));
     }
 

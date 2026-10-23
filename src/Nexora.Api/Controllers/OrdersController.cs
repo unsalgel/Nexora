@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexora.Application.Common;
-using Nexora.Application.Features.Orders.Commands.CreateOrder;
 using Nexora.Application.Features.Orders.Commands.UpdateOrderStatus;
 using Nexora.Application.Features.Orders.Dtos;
 using Nexora.Application.Features.Orders.Queries.GetAllOrders;
@@ -15,21 +14,6 @@ namespace Nexora.Api.Controllers;
 [Authorize]
 public sealed class OrdersController : ApiControllerBase
 {
-    [HttpPost]
-    public async Task<ActionResult<Result<OrderDto>>> CreateOrder(
-        CreateOrderCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        var idempotencyHeader = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
-        var safeCommand = command with
-        {
-            UserId = GetCurrentUserId(),
-            IdempotencyKey = string.IsNullOrWhiteSpace(command.IdempotencyKey) ? idempotencyHeader : command.IdempotencyKey
-        };
-        var result = await Sender.Send(safeCommand, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
-
     [HttpGet]
     public async Task<ActionResult<Result<PagedResult<OrderDto>>>> GetUserOrders(
         int page = 1,

@@ -74,6 +74,8 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
 
         var orderItems = new List<OrderItem>();
         decimal rawTotal = 0;
+        var requestedQuantities = cart.Items.GroupBy(i => (i.ProductId, i.ProductVariantId))
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
         foreach (var item in cart.Items)
         {
@@ -86,7 +88,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
                 throw new ConflictException("Sepette satışa uygun olmayan ürün varyantı var.");
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
-                if (item.ProductVariant.StockQuantity < quantity)
+                if (item.ProductVariant.StockQuantity < requestedQuantities[(item.ProductId, item.ProductVariantId)])
                     throw new ConflictException($"'{item.Product.Name} ({item.ProductVariant.SKU})' için yetersiz stok! Mevcut: {item.ProductVariant.StockQuantity}");
 
                 var itemTotal = item.ProductVariant.Price * quantity;
@@ -106,7 +108,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
             }
             else
             {
-                if (item.Product.StockQuantity < quantity)
+                if (item.Product.StockQuantity < requestedQuantities[(item.ProductId, item.ProductVariantId)])
                     throw new ConflictException($"'{item.Product.Name}' için yetersiz stok! Mevcut: {item.Product.StockQuantity}");
 
                 var itemTotal = item.Product.Price * quantity;
