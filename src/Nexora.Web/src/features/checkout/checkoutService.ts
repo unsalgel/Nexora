@@ -1,6 +1,5 @@
 import { apiClient, type ApiResponse } from '../../lib/apiClient';
 import type { AddressDto } from '../../types/address';
-import type { OrderDto } from '../../types/order';
 import type { PaymentInitializationResultDto, PaymentStatusDto } from '../../types/payment';
 
 export interface InitializeIyzicoPaymentParams {
@@ -8,20 +7,6 @@ export interface InitializeIyzicoPaymentParams {
   shippingAddress: string;
   expectedTotalAmount?: number;
   couponCode?: string | null;
-}
-
-export interface DirectOrderParams {
-  idempotencyKey: string;
-  shippingAddress: string;
-  expectedTotalAmount?: number;
-  couponCode?: string | null;
-  paymentInfo: {
-    cardHolderName: string;
-    cardNumber: string;
-    expirationMonth: string;
-    expirationYear: string;
-    cvv: string;
-  };
 }
 
 export interface SaveAddressParams {
@@ -79,12 +64,4 @@ export const checkoutService = {
     return res.data.data;
   },
 
-  async submitDirectOrder(params: DirectOrderParams): Promise<OrderDto> {
-    const res = await apiClient.post<ApiResponse<OrderDto>>('/orders', params);
-    if (res.data?.isSuccess && res.data.data) {
-      return res.data.data;
-    }
-
-    throw new Error(res.data?.message || 'Ödeme ve sipariş işlemi başarısız.');
-  },
 };

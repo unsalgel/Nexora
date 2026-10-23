@@ -50,6 +50,8 @@ public sealed class PaymentHttpContractTests
             var json = await client.PostAsJsonAsync("/api/v1/payments/callback", new { token = "provider-token" });
             json.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
             (await client.GetAsync("/api/v1/payments/status/NX-20261023-1234ABCD")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await client.PostAsJsonAsync("/api/v1/orders", new { paymentInfo = new { cardNumber = "4242424242424242" } }))
+                .StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
         }
         finally { await app.StopAsync(); }
     }

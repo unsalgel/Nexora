@@ -1,3 +1,4 @@
+using Nexora.Application.Features.Payments.Dtos;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,7 +7,7 @@ using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Addresses.Commands.CreateAddress;
 using Nexora.Application.Features.Cart.Commands.AddItemToCart;
 using Nexora.Application.Features.Dashboard.Queries.GetInventorySummary;
-using Nexora.Application.Features.Orders.Commands.CreateOrder;
+using Nexora.Application.Features.Payments.Commands.InitializePayment;
 using Nexora.Application.Features.Orders.Commands.UpdateOrderStatus;
 using Nexora.Application.Features.Orders.Dtos;
 using Nexora.Application.Features.Products.Commands.UpdateProduct;
@@ -72,16 +73,16 @@ public sealed class CommercePostgresTests
         await using var database = new PostgresTestDatabase(); await database.InitializeAsync();
         await using var seed = database.CreateContext();
         var data = await CommerceRegressionTests.SeedCartAsync(seed, 10);
-        var payment = new Mock<IPaymentService>();
+        var payment = new Mock<IPaymentGateway>();
         var command = CommerceRegressionTests.OrderCommand(data.User.Id, expected: 129.90m) with { IdempotencyKey = "parallel-key" };
-        async Task<OrderDto> Checkout()
+        async Task<PaymentInitializationResult> Checkout()
         {
             await using var context = database.CreateContext();
             return (await CommerceRegressionTests.CreateHandler(context, payment).Handle(command, default)).Data!;
         }
         var results = await Task.WhenAll(Checkout(), Checkout());
         results[0].Should().BeEquivalentTo(results[1]);
-        payment.Verify(p => p.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()), Times.Once);
+        payment.Verify(p => p.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         await using var check = database.CreateContext();
         (await check.Orders.CountAsync()).Should().Be(1);
         (await check.Products.SingleAsync()).StockQuantity.Should().Be(9);
@@ -118,15 +119,11 @@ public sealed class CommercePostgresTests
         var otherUser = new User { FirstName = "Diğer", LastName = "Kullanıcı", Email = "other@example.test", PasswordHash = "test", IsActive = true };
         seed.Carts.Add(new Cart { User = otherUser, Items = [new CartItem { ProductId = data.Product.Id, Quantity = 2 }] });
         await seed.SaveChangesAsync();
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var entered = 0;
         async Task<bool> Checkout(Guid userId)
         {
             await using var context = database.CreateContext();
-            var payment = new Mock<IPaymentService>();
+            var payment = new Mock<IPaymentGateway>();
             var handler = CommerceRegressionTests.CreateHandler(context, payment);
-            payment.Setup(x => x.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()))
-                .Returns(async () => { if (Interlocked.Increment(ref entered) == 2) release.SetResult(); await release.Task.WaitAsync(TimeSpan.FromSeconds(20)); return true; });
             try { return (await handler.Handle(CommerceRegressionTests.OrderCommand(userId, expected: 229.90m), default)).IsSuccess; }
             catch (ConflictException) { return false; }
         }

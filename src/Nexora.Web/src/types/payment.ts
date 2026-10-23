@@ -1,5 +1,3 @@
-export type PaymentMethod = 'iyzico' | 'direct';
-
 export interface PaymentInitializationResultDto {
   orderNumber?: string;
   isSuccess: boolean;
