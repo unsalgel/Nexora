@@ -1,10 +1,8 @@
 # Nexora.Admin — Yönetim Paneli
 
-Nexora'nın yönetim paneli; katalog, sipariş, kupon, kullanıcı ve site ayarlarını yönetmek için kullanılır. Başlamadan önce [ana README](../../README.md) üzerinden backend kurulumunu tamamlayın.
+Bu panelden Nexora'nın ürünleri, siparişleri, kuponları, kullanıcıları ve site ayarları yönetilir. Çalıştırmadan önce [ana README](../../README.md) içindeki backend kurulumunu tamamlayın.
 
 ## Teknolojiler ve sürümler
-
-Sürümler `package-lock.json` kayıtlarına dayanır.
 
 | Bileşen | Sürüm |
 |---|---|
@@ -34,21 +32,19 @@ Yönetim ekranları:
 | `/users` | Kullanıcı, rol ve aktif/pasif hesap yönetimi |
 | `/settings` | Site ayarları |
 
-Panelde bildirimler, toast mesajları, yükleniyor/boş durumları, hata sınırı ve 404 ekranı bulunur. Ürün görselleri dosya yükleme veya URL ile tanımlanabilir. Yükleme API'si JPG, PNG ve WebP görsellerini doğrulayıp yeniden encode eder; dosya boyutu sınırı 5 MiB'dır.
+Ürün görselleri dosya yüklenerek veya görsel adresi girilerek eklenebilir. Dosya yüklerken JPG, PNG veya WebP biçimini kullanın. Dosya boyutu en fazla 5 MiB olabilir.
 
-## Yetkilendirme ve oturum
+## Yönetici hesabı
 
-Panele giriş için `Admin` rolüne sahip bir hesap gerekir. Panel rotalarında ve yönetim API'lerinde yetki kontrolü uygulanır. Access token bellekte tutulur; oturum HttpOnly cookie ile yenilenir. Çıkış ve yetki değişikliklerinde sunucu oturumu iptal edilir. Son aktif yöneticinin rolü kaldırılamaz veya hesabı pasifleştirilemez.
+Panele giriş için yönetici yetkisi olan bir hesap gerekir. İlk hesabın e-posta adresi ve parolası, backend'in `.env` dosyasındaki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarında belirlenir.
 
-İlk yönetici hesabı için backend'deki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarını yapılandırın. Gerçek hesap bilgilerini README veya frontend yapılandırmasında paylaşmayın. İyzico anahtarları yalnız backend tarafında saklanmalıdır.
+Kullanıcı ekranından roller ve hesapların aktiflik durumu değiştirilebilir. Sistemdeki son aktif yönetici pasifleştirilemez veya yönetici rolü kaldırılamaz.
 
-## Sipariş ve ödeme davranışı
+## Siparişler
 
-Sipariş numaraları `NX-YYYYMMDD-XXXXXXXX` biçimindedir; son bölüm sekiz hexadecimal karakterden oluşur. Siparişin lojistik durumu ve ödeme durumu ayrı takip edilir.
+Sipariş ekranında sipariş detayları, ödeme durumu ve kargo bilgileri görüntülenir. Ödeme iyzico tarafından onaylanmadan sipariş hazırlama ve kargolama aşamalarına geçirilemez. Kargoya verilen sipariş önceki durumuna döndürülemez.
 
-Ödeme ve fraud onayı tamamlanmadan online sipariş hazırlanıyor, kargoda veya teslim edildi durumuna geçirilemez. Normal ilerleme `Pending → Paid → Processing → Shipped → Delivered` şeklindedir. Kargolanmış sipariş önceki duruma döndürülemez; iptal bütün durumlardan kullanılabilen bir geçiş değildir.
-
-Online siparişin iptali ödeme başarısızlığı veya doğrulanmış iade durumu gerektirir. Otomatik iyzico iade API'si mevcut değildir. Belirsiz ödeme sonuçları backend'deki uzlaştırma işiyle takip edilir. Ayrıntılar [ödeme belgesinde](../../docs/iyzico-payments.md) bulunur.
+Ödemesi alınan bir siparişin iptali için iadenin doğrulanmış olması gerekir. Panelden otomatik iyzico iadesi yapılamaz. Ayrıntılar [ödeme belgesinde](../../docs/iyzico-payments.md) bulunur.
 
 ## Çalıştırma
 
@@ -67,17 +63,16 @@ VITE_API_URL=http://localhost:5285/api/v1
 VITE_WEB_URL=http://localhost:5173
 ```
 
-`VITE_WEB_URL` müşteri vitrininin adresidir. `VITE_` değerleri tarayıcı paketine girer; parola, JWT imzalama anahtarı veya iyzico anahtarı içermez. Üretim paketinde backend adresi belirtilmemişse panelin kendi origin'i kullanılır. Vite üretim derlemesi yapılandırılan API ve backend origin'leriyle CSP meta etiketi oluşturur.
+`VITE_WEB_URL` müşteri vitrininin adresidir. `VITE_` değerleri tarayıcı paketine girer; parola, JWT imzalama anahtarı veya iyzico anahtarı içermez.
 
-## Kontroller
+## Test ve derleme
 
-Test, lint, derleme ve bağımlılık denetimi için:
+Testleri çalıştırmak için `npm test`, kod kontrolü için `npm run lint` kullanılır.
+
+Uygulamayı derlemek için:
 
 ```bash
-npm test
-npm run lint
 npm run build
-npm audit --audit-level=high
 ```
 
-`npm test` Node tabanlı regresyon testlerini, `lint` Oxlint'i, `build` TypeScript kontrolü ile Vite derlemesini çalıştırır. Derleme çıktısı `dist/` klasörüne yazılır; `npm run preview` yerel önizleme sağlar. GitHub Actions bu paneli müşteri vitriniyle ayrı işler olarak kontrol eder.
+Hazırlanan dosyalar `dist/` klasörüne yazılır. Sonucu bilgisayarınızda görmek için `npm run preview` çalıştırabilirsiniz.

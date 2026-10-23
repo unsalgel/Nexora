@@ -1,10 +1,8 @@
 # Nexora
 
-Nexora, geliştirdiğim MIT lisanslı bir e-ticaret hobi projesi. ASP.NET Core API, müşteri vitrini ve yönetim panelinden oluşur. Ödemeler iyzico Checkout Form üzerinden alınır. Bu rehber yerel kurulumu, yapılandırmayı ve uygulamaların kullanımını açıklar.
+Nexora, geliştirdiğim bir e-ticaret hobi projesi. Müşteriler için alışveriş sitesi, mağaza yönetimi için ayrı bir panel ve ASP.NET Core ile hazırlanmış bir API içeriyor. Ödemelerde iyzico kullanıyorum.
 
 ## Teknolojiler ve sürümler
-
-Sürümler backend proje dosyaları ve frontend `package-lock.json` kayıtlarına dayanır.
 
 | Bileşen | Mevcut sürüm |
 |---|---|
@@ -22,24 +20,15 @@ Sürümler backend proje dosyaları ve frontend `package-lock.json` kayıtların
 
 Uygulama belgeleri: [müşteri vitrini](src/Nexora.Web/README.md), [yönetim paneli](src/Nexora.Admin/README.md).
 
-## Mimari ve kapsam
+## Projede neler var?
 
-Proje katmanları:
+Alışveriş sitesinde ürünleri inceleyebilir, sepete ekleyebilir, kupon kullanabilir ve sipariş verebilirsiniz. Hesap bölümünde adresler, favoriler ve geçmiş siparişler yer alır.
 
-- `Nexora.Domain`: entity'ler ve iş kuralı tipleri.
-- `Nexora.Application`: MediatR CQRS, FluentValidation, DTO ve altyapı portları.
-- `Nexora.Persistence`: PostgreSQL/EF Core, migration, indeks ve transaction kilitleri.
-- `Nexora.Infrastructure`: auth/cache, SMTP outbox, iyzico adaptörü, arka plan işleri ve dosya depolama.
-- `Nexora.Api`: HTTP/SignalR, middleware ve DI composition root.
-- `Nexora.Web` / `Nexora.Admin`: React, TypeScript, Vite ve TanStack Query.
-
-Müşteri vitrini katalog, varyant, sepet, kupon, ödeme, değerlendirme, adres ve hesap işlemlerini içerir. Yönetim panelinden ürünler, siparişler, kullanıcılar, roller ve site ayarları yönetilir. Sohbet asistanı herkese açık katalog bilgilerini kullanır; özel hesap verilerine erişmez.
-
-Görsel yüklemelerinde JPG, PNG ve WebP desteklenir. Girdi ve çıktı için 5 MiB, boyut için 4096 piksel ve toplam 16 milyon piksel sınırı vardır; animasyon kabul edilmez.
+Yönetim panelinden ürün, stok, sipariş, kupon ve kullanıcı işlemleri yapılır.
 
 ## Yerel kurulum
 
-Gereksinimler: .NET 8 SDK veya `net8.0` hedefini destekleyen bir SDK, Node.js (CI: 24), npm ve altyapı için Docker Desktop. Paketler depodaki NuGet yapılandırması ve npm kilit dosyalarına göre yüklenir.
+Projeyi bilgisayarınızda çalıştırmak için .NET 8 SDK, Node.js, npm ve Docker Desktop gerekir. Projenin otomatik kontrollerinde Node.js 24 kullanılır.
 
 Yerel kurulum için depo kökünde `.env` dosyası oluşturun. Mevcut dosyanız varsa içindeki değerleri düzenleyin:
 
@@ -59,15 +48,15 @@ dotnet restore Nexora.sln
 ./scripts/Start-LocalApi.ps1
 ```
 
-Başlatma betiği `.env` değerlerini yalnız kendi process ortamına aktarır, DB connection stringini güvenli biçimde oluşturur ve API'yi Development olarak çalıştırır. Alternatif olarak `dotnet user-secrets` veya process ortamında `ConnectionStrings__DefaultConnection`, `ConnectionStrings__Redis`, `REDIS_PASSWORD`, `JWT_SECRET_KEY`, `EmailSettings__Host`, `EmailSettings__UserName` gibi gerçek seçenek adlarını tanımlayın. Betik connection string veya secret değerleri yazdırmaz.
+`Start-LocalApi.ps1`, `.env` dosyasındaki ayarları okuyarak API'yi geliştirme ortamında başlatır.
 
-Development'ta migration ve demo katalog seed'i çalışır. Production'da demo seed ve otomatik migration varsayılan olarak kapalıdır; `DemoSeedEnabled` ve `Database__AutoMigrate` yalnız açık tercihle kullanılır. Admin seed Development'ta veya `ADMIN_SEED_ENABLED=true` ile çalışır; parolayı ortamdan belirleyin. Development container alternatifi:
+Geliştirme ortamında veritabanı tabloları ve örnek ürünler otomatik oluşturulur. İlk yönetici hesabı `.env` dosyasındaki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` değerleriyle hazırlanır. API'yi Docker içinde çalıştırmak için şu komut da kullanılabilir:
 
 ```powershell
 docker compose --profile app up --build -d
 ```
 
-API: `http://localhost:5285`; Swagger: `/swagger`; canlılık: `/health/live`; hazır olma: `/health/ready`. PostgreSQL `127.0.0.1:5432`, Redis `127.0.0.1:6379`, pgAdmin `127.0.0.1:5050`. Compose uygulama profili uploads, log ve DataProtection key volume'larını korur. Bu Compose örneği Development içindir.
+API adresi `http://localhost:5285`, API dokümantasyonu `http://localhost:5285/swagger`, pgAdmin adresi ise `http://localhost:5050`'dir. PostgreSQL `5432`, Redis ise `.env` içinde değiştirilmediyse `6379` portunu kullanır. Bu Docker kurulumu yerel geliştirme içindir.
 
 Müşteri vitrinini ve yönetim panelini depo kökünden açılan ayrı terminallerde başlatın:
 
@@ -83,30 +72,34 @@ npm ci
 npm run dev
 ```
 
-Vitrin portu 5173, admin portu 5174'tür. API varsayılan portu 5285'tir. Adresleri değiştirmek için ilgili frontend'in `.env.local` dosyasına `VITE_API_URL=http://localhost:5285/api/v1` ve `VITE_BACKEND_URL=http://localhost:5285` yazın. Vite secret saklama yeri değildir; `VITE_` değerleri tarayıcıya gider.
+Vitrin portu 5173, admin portu 5174'tür. API varsayılan portu 5285'tir. Adresleri değiştirmek için ilgili frontend'in `.env.local` dosyasına `VITE_API_URL=http://localhost:5285/api/v1` ve `VITE_BACKEND_URL=http://localhost:5285` yazın. `VITE_` ile başlayan ayarlar tarayıcıda görülebilir; bu alanlara parola veya API anahtarı yazmayın.
 
-SMTP host/user boşken Development'ta gönderim simüle edilir; kod/token/body loglanmaz. Gerçek gönderim için `.env` içindeki `EmailSettings__...` alanları kullanılır. `Frontend__BaseUrl` e-posta bağlantıları ve iyzico dönüş sayfasının adresini belirler.
+E-posta göndermek için `.env` dosyasındaki `EmailSettings__...` ayarlarını doldurun. SMTP sunucusu ve kullanıcı adı boşsa geliştirme ortamında gerçek e-posta gönderilmez. `Frontend__BaseUrl`, e-postalardaki bağlantılar ve ödeme sonrası dönüş için alışveriş sitesinin adresini belirtir.
 
-## Ödeme akışı
+## Ödeme
 
-- Kullanıcı `/api/v1/payments/initialize` üzerinden ödeme oturumu başlatır. Tutar sunucuda hesaplanır; stok ve kupon hakkı işlem içinde ayrılır.
-- Kart bilgileri iyzico'nun barındırdığı HTTPS sayfasında girilir.
-- iyzico form POST isteğini `/api/v1/payments/callback` adresine gönderir. API sonucu sağlayıcıdan sorgular; sipariş eşleşmesi, tutar, para birimi ve fraud onayı kontrol edilir.
-- Callback, vitrindeki `/payment-result` sayfasına 303 ile yönlendirir. Ekran yalnız giriş yapmış kullanıcıya ait ödeme durumunu API'den okur; URL parametresi ödeme kanıtı değildir.
-- Tekrarlanan callback stok veya kuponu ikinci kez tüketmez. Hangfire işi sonuçlanmamış ödemeleri yeniden sorgular; belirsiz işlemlerin rezervasyonu korunur.
+Ödeme ekranında teslimat adresi seçilir ve iyzico'nun ödeme sayfasına geçilir. Kart bilgileri bu sayfada girilir. İşlemden sonra kullanıcı tekrar alışveriş sitesine döner ve ödeme sonucunu görür.
 
-Sandbox ve canlı API adresleri backend yapılandırmasıyla seçilir. Development dışında eksik anahtarlar ve geçersiz callback ayarı başlangıç doğrulamasında reddedilir. Otomatik iade API'si mevcut değildir. Gerçek iyzico sandbox tahsilatı mevcut doğrulama kapsamında çalıştırılmamıştır. Yapılandırma ve durumların açıklaması [ödeme belgesinde](docs/iyzico-payments.md) bulunur.
+İyzico ayarları backend tarafındaki `.env` dosyasına yazılır. Kurulum ayrıntıları [ödeme belgesinde](docs/iyzico-payments.md) bulunur. Panelden otomatik iade işlemi yapılamaz.
 
-## Doğrulama
+## Testleri çalıştırma
+
+Backend testlerini proje klasöründe çalıştırabilirsiniz:
 
 ```powershell
-dotnet test Nexora.sln -c Release --collect:"XPlat Code Coverage"
+dotnet test Nexora.sln
 ```
 
-Frontend başına `npm test`, `npm run lint`, `npm run build` ve `npm audit --audit-level=high` komutları bulunur. CI bunları, backend testlerini, PostgreSQL/Redis entegrasyon kontrollerini, container HTTP smoke kontrollerini, NuGet audit, Gitleaks, dependency review ve CodeQL'i çalıştırır. Güncel sonuçlar GitHub Actions koşusunda ve test artifact'lerinde görülebilir.
+Alışveriş sitesi veya yönetim panelinin klasöründe:
 
-Test sonuçları ve kapsam oranları TRX/coverage çıktılarında bulunur. PostgreSQL/Redis entegrasyon testleri için `NEXORA_TEST_POSTGRES` ve `NEXORA_TEST_REDIS` değerlerini geliştirme verilerinden ayrı test altyapısına yönlendirin.
+```bash
+npm test
+```
 
-## Güvenlik ve lisans
+Veritabanı ve Redis kullanan entegrasyon testleri ayrıca test ortamı ayarları gerektirir.
 
-Gerçek anahtarları ve parolaları yerel `.env`, .NET User Secrets veya sunucunun ortam değişkenlerinde saklayın; depoda paylaşmayın. Güvenlik bildirimleri için [SECURITY.md](SECURITY.md) dosyasını kullanın. Projeyi [MIT lisansıyla](LICENSE) paylaşıyorum.
+## Anahtarlar ve parolalar
+
+Yerel ayarlar `.env` dosyasında tutulur. Bu dosya GitHub'a gönderilmez. API anahtarlarını ve parolaları kodun veya README dosyalarının içine yazmayın.
+
+Lisans bilgisi [LICENSE](LICENSE) dosyasında yer alır.
