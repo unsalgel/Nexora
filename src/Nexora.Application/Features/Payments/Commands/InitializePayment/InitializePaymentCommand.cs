@@ -8,7 +8,9 @@ public sealed record InitializePaymentCommand(
     string ShippingAddress,
     string? BillingAddress = null,
     string? CouponCode = null,
-    decimal? ExpectedTotalAmount = null) : IRequest<Result<PaymentInitializationResult>>
+    decimal? ExpectedTotalAmount = null,
+    string? IdempotencyKey = null) : IRequest<Result<PaymentInitializationResult>>
 {
     public Guid UserId { get; init; }
+    public string? IpAddress { get; init; }
 }

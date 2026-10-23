@@ -1,218 +1,289 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Payments.Commands.CompletePayment;
 using Nexora.Application.Features.Payments.Commands.InitializePayment;
 using Nexora.Application.Features.Payments.Dtos;
+using Nexora.Application.Features.Payments.Queries.GetPaymentStatus;
 using Nexora.Domain.Entities;
 using Nexora.Domain.Enums;
 using Nexora.Domain.Exceptions;
+using Nexora.Infrastructure.BackgroundJobs;
 using Nexora.Persistence.Context;
 using Nexora.UnitTests.Common;
-using DomainCart = Nexora.Domain.Entities.Cart;
+using Nexora.UnitTests.Features.Orders;
+using ShoppingCart = Nexora.Domain.Entities.Cart;
 
 namespace Nexora.UnitTests.Features.Payments;
 
 public sealed class PaymentCommandHandlerTests : IDisposable
 {
-    private readonly NexoraDbContext _context;
-    private readonly Mock<IPaymentGateway> _paymentGatewayMock;
-    private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly NexoraDbContext db = TestDbContextFactory.Create();
+    private readonly Mock<IPaymentGateway> gateway = CreateGateway();
+    private readonly Mock<IEmailService> email = new();
 
-    public PaymentCommandHandlerTests()
+    public static Mock<IPaymentGateway> CreateGateway()
     {
-        _context = TestDbContextFactory.Create();
-        _paymentGatewayMock = new Mock<IPaymentGateway>();
-        _emailServiceMock = new Mock<IEmailService>();
+        var gateway = new Mock<IPaymentGateway>();
+        gateway.Setup(g => g.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new(true, Guid.NewGuid().ToString(), null, "https://sandbox-cpp.iyzipay.com/checkout", null));
+        return gateway;
     }
 
-    public void Dispose()
+    private async Task<(Order Order, Product Product, ShoppingCart Cart)> Initialize(string? coupon = null)
     {
-        TestDbContextFactory.Destroy(_context);
-    }
-
-    [Fact]
-    public async Task InitializePayment_WhenCartEmpty_ThrowsValidationException()
-    {
-        var user = new User { FirstName = "Ali", LastName = "Yilmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
-        _context.Users.Add(user);
-        var cart = new DomainCart { UserId = user.Id };
-        _context.Carts.Add(cart);
-        await _context.SaveChangesAsync();
-
-        var handler = new InitializePaymentCommandHandler(_context, _paymentGatewayMock.Object);
-        var command = new InitializePaymentCommand("Kadikoy, Istanbul") { UserId = user.Id };
-
-        var act = async () => await handler.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<BusinessValidationException>()
-            .WithMessage("Sepetinizde ürün bulunmamaktadır.");
-    }
-
-    [Fact]
-    public async Task InitializePayment_WhenGatewaySucceeds_CreatesPendingOrderAndReturnsToken()
-    {
-        var user = new User { FirstName = "Ali", LastName = "Yilmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
-        _context.Users.Add(user);
-
-        var category = new Category { Name = "Elektronik" };
-        _context.Categories.Add(category);
-
-        var product = new Product { Name = "Kulaklik", SKU = "KLK-01", Price = 500, StockQuantity = 10, CategoryId = category.Id, Category = category };
-        _context.Products.Add(product);
-
-        var cart = new DomainCart { UserId = user.Id };
-        cart.Items.Add(new CartItem { CartId = cart.Id, ProductId = product.Id, Product = product, Quantity = 2 });
-        _context.Carts.Add(cart);
-        await _context.SaveChangesAsync();
-
-        _paymentGatewayMock
-            .Setup(g => g.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentInitializationResult(true, "mock-token-123", "<script>mock</script>", null, null));
-
-        var handler = new InitializePaymentCommandHandler(_context, _paymentGatewayMock.Object);
-        var command = new InitializePaymentCommand("Kadikoy, Istanbul") { UserId = user.Id };
-
-        var result = await handler.Handle(command, CancellationToken.None);
-
+        var data = await CommerceRegressionTests.SeedCartAsync(db);
+        var result = await new InitializePaymentCommandHandler(db, gateway.Object).Handle(
+            new("Adres", CouponCode: coupon, IdempotencyKey: Guid.NewGuid().ToString()) { UserId = data.User.Id }, default);
         result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Token.Should().Be("mock-token-123");
+        return (db.Orders.Single(o => o.PaymentToken == result.Data!.Token), data.Product, data.Cart);
+    }
 
-        var createdOrder = _context.Orders.FirstOrDefault(o => o.UserId == user.Id);
-        createdOrder.Should().NotBeNull();
-        createdOrder!.Status.Should().Be(OrderStatus.Pending);
-        createdOrder.PaymentStatus.Should().Be(PaymentStatus.Pending);
-        createdOrder.IdempotencyKey.Should().Be("mock-token-123");
+    private Task<Nexora.Application.Common.Result<PaymentVerificationResult>> Complete(Order order,
+        decimal? amount = null, int? fraud = 1, bool success = true, bool definitive = false, string? basket = null)
+    {
+        gateway.Setup(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PaymentVerificationResult(success, "pay-" + order.Id, basket ?? order.OrderNumber, amount ?? order.TotalAmount,
+                success ? null : "Geçici hata", definitive, fraud, "TRY"));
+        return new CompletePaymentCommandHandler(db, gateway.Object, email.Object).Handle(new(order.PaymentToken!), default);
     }
 
     [Fact]
-    public async Task CompletePayment_WhenTokenInvalid_ReturnsFailure()
+    public async Task Initialize_ReservesStockAndCoupon_WithoutConsumingUsage()
     {
-        var handler = new CompletePaymentCommandHandler(_context, _paymentGatewayMock.Object, _emailServiceMock.Object);
-        var command = new CompletePaymentCommand("   ");
-
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Message.Should().Contain("geçersiz");
-    }
-
-    [Fact]
-    public async Task CompletePayment_WhenGatewayFails_CancelsOrderAndSetsPaymentFailed()
-    {
-        var user = new User { FirstName = "Ali", LastName = "Yilmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
-        _context.Users.Add(user);
-
-        var order = new Order
-        {
-            OrderNumber = "NX-TEST-001",
-            UserId = user.Id,
-            ShippingAddress = "Istanbul",
-            TotalAmount = 1000,
-            Status = OrderStatus.Pending,
-            PaymentStatus = PaymentStatus.Pending,
-            IdempotencyKey = "failed-token-999"
-        };
-        _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
-
-        _paymentGatewayMock
-            .Setup(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentVerificationResult(false, null, "NX-TEST-001", 0, "Bakiye yetersiz."));
-
-        var handler = new CompletePaymentCommandHandler(_context, _paymentGatewayMock.Object, _emailServiceMock.Object);
-        var command = new CompletePaymentCommand("failed-token-999");
-
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        order.Status.Should().Be(OrderStatus.Cancelled);
-        order.PaymentStatus.Should().Be(PaymentStatus.Failed);
-    }
-
-    [Fact]
-    public async Task CompletePayment_WhenGatewaySucceeds_UpdatesOrderToPaidDecreasesStockAndClearsCart()
-    {
-        var user = new User { FirstName = "Ali", LastName = "Yilmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
-        _context.Users.Add(user);
-
-        var product = new Product { Name = "Telefon", SKU = "TLF-01", Price = 1000, StockQuantity = 5 };
-        _context.Products.Add(product);
-
-        var cart = new DomainCart { UserId = user.Id };
-        cart.Items.Add(new CartItem { CartId = cart.Id, ProductId = product.Id, Product = product, Quantity = 1 });
-        _context.Carts.Add(cart);
-
-        var order = new Order
-        {
-            OrderNumber = "NX-TEST-002",
-            UserId = user.Id,
-            ShippingAddress = "Istanbul",
-            TotalAmount = 1000,
-            Status = OrderStatus.Pending,
-            PaymentStatus = PaymentStatus.Pending,
-            IdempotencyKey = "success-token-888"
-        };
-        order.Items.Add(new OrderItem
-        {
-            OrderId = order.Id,
-            ProductId = product.Id,
-            ProductName = product.Name,
-            UnitPrice = 1000,
-            Quantity = 1,
-            TotalPrice = 1000
-        });
-        _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
-
-        _paymentGatewayMock
-            .Setup(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentVerificationResult(true, "pay-id-123", "NX-TEST-002", 1000, null));
-
-        var handler = new CompletePaymentCommandHandler(_context, _paymentGatewayMock.Object, _emailServiceMock.Object);
-        var command = new CompletePaymentCommand("success-token-888");
-
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        order.Status.Should().Be(OrderStatus.Paid);
-        order.PaymentStatus.Should().Be(PaymentStatus.Success);
+        var coupon = new Coupon { Code = "ONCE", DiscountType = DiscountType.Percentage, DiscountValue = 10,
+            TotalUsageLimit = 1, ExpirationDateUtc = DateTime.UtcNow.AddDays(1) };
+        db.Coupons.Add(coupon); await db.SaveChangesAsync();
+        var (order, product, cart) = await Initialize(coupon.Code);
         product.StockQuantity.Should().Be(4);
-        cart.Items.Should().BeEmpty();
+        order.StockReserved.Should().BeTrue();
+        order.PaymentStatus.Should().Be(PaymentStatus.Pending);
+        order.Items.Single().SourceCartItemId.Should().Be(cart.Items.Single().Id);
+        coupon.ReservedUsageCount.Should().Be(1);
+        coupon.CurrentUsageCount.Should().Be(0);
+        var nextUser = await CommerceRegressionTests.SeedCartAsync(db);
+        var act = () => new InitializePaymentCommandHandler(db, gateway.Object).Handle(
+            new("Adres", CouponCode: coupon.Code) { UserId = nextUser.User.Id }, default);
+        await act.Should().ThrowAsync<ConflictException>();
     }
 
     [Fact]
-    public async Task CompletePayment_WhenAmountMismatches_RejectsAndMarksFailed()
+    public async Task Initialize_SameKey_ReturnsExistingSessionWithoutReservingAgain()
     {
-        var user = new User { FirstName = "Ali", LastName = "Yilmaz", Email = "ali@nexora.com", PasswordHash = "hash" };
-        _context.Users.Add(user);
+        var data = await CommerceRegressionTests.SeedCartAsync(db);
+        var command = new InitializePaymentCommand("Adres", IdempotencyKey: "same") { UserId = data.User.Id };
+        var handler = new InitializePaymentCommandHandler(db, gateway.Object);
+        var first = await handler.Handle(command, default);
+        var second = await handler.Handle(command, default);
+        second.Data.Should().BeEquivalentTo(first.Data);
+        data.Product.StockQuantity.Should().Be(4);
+        db.Orders.Count().Should().Be(1);
+        gateway.Verify(g => g.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        var changed = () => handler.Handle(command with { ShippingAddress = "Different" }, default);
+        await changed.Should().ThrowAsync<ConflictException>();
+    }
 
-        var order = new Order
-        {
-            OrderNumber = "NX-TEST-003",
-            UserId = user.Id,
-            ShippingAddress = "Istanbul",
-            TotalAmount = 1500,
-            Status = OrderStatus.Pending,
-            PaymentStatus = PaymentStatus.Pending,
-            IdempotencyKey = "tamper-token-777"
-        };
-        _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task Initialize_RejectsUnavailableProducts(bool active, bool deleted)
+    {
+        var data = await CommerceRegressionTests.SeedCartAsync(db);
+        data.Product.IsActive = active; data.Product.IsDeleted = deleted; await db.SaveChangesAsync();
+        var act = () => new InitializePaymentCommandHandler(db, gateway.Object).Handle(new("Adres") { UserId = data.User.Id }, default);
+        await act.Should().ThrowAsync<ConflictException>();
+        gateway.Verify(g => g.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
-        _paymentGatewayMock
-            .Setup(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentVerificationResult(true, "pay-id-tamper", "NX-TEST-003", 100, null));
+    [Fact]
+    public async Task Initialize_RejectsUnavailableVariant()
+    {
+        var data = await CommerceRegressionTests.SeedCartAsync(db);
+        var variant = new ProductVariant { Product = data.Product, SKU = "variant", Price = 100, StockQuantity = 10, IsActive = false };
+        db.ProductVariants.Add(variant); await db.SaveChangesAsync();
+        data.Cart.Items.Single().ProductVariantId = variant.Id; await db.SaveChangesAsync();
+        var act = () => new InitializePaymentCommandHandler(db, gateway.Object).Handle(new("Adres") { UserId = data.User.Id }, default);
+        await act.Should().ThrowAsync<ConflictException>();
+    }
 
-        var handler = new CompletePaymentCommandHandler(_context, _paymentGatewayMock.Object, _emailServiceMock.Object);
-        var command = new CompletePaymentCommand("tamper-token-777");
+    [Fact]
+    public async Task Initialize_EmptyCart_RejectsBeforeGateway()
+    {
+        var data = await CommerceRegressionTests.SeedCartAsync(db);
+        db.CartItems.RemoveRange(data.Cart.Items); await db.SaveChangesAsync();
+        var act = () => new InitializePaymentCommandHandler(db, gateway.Object).Handle(new("Adres") { UserId = data.User.Id }, default);
+        await act.Should().ThrowAsync<BusinessValidationException>();
+    }
 
-        var result = await handler.Handle(command, CancellationToken.None);
+    [Theory]
+    [InlineData(OrderStatus.Paid)]
+    [InlineData(OrderStatus.Processing)]
+    [InlineData(OrderStatus.Shipped)]
+    [InlineData(OrderStatus.Delivered)]
+    public async Task Complete_ReplayIsIndependentOfFulfilmentStatus(OrderStatus status)
+    {
+        var (order, product, _) = await Initialize();
+        (await Complete(order)).IsSuccess.Should().BeTrue();
+        order.Status = status; await db.SaveChangesAsync();
+        (await Complete(order, success: false)).IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(4);
+        order.Status.Should().Be(status);
+        db.Notifications.Count(n => n.Type == NotificationType.OrderCreated).Should().Be(1);
+        gateway.Verify(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        email.Verify(e => e.SendOrderConfirmationEmailAsync(It.IsAny<Nexora.Application.Features.Orders.Dtos.OrderDto>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 
-        result.IsSuccess.Should().BeFalse();
-        result.Message.Should().Contain("uyuşmuyor");
+    [Fact]
+    public async Task Complete_TransientFailureRetainsReservation_ThenCanRecover()
+    {
+        var (order, product, _) = await Initialize();
+        (await Complete(order, success: false)).IsSuccess.Should().BeFalse();
+        order.Status.Should().Be(OrderStatus.Pending);
+        order.PaymentStatus.Should().Be(PaymentStatus.Unknown);
+        order.NextPaymentCheckAtUtc.Should().NotBeNull();
+        product.StockQuantity.Should().Be(4);
+        (await Complete(order)).IsSuccess.Should().BeTrue();
+        product.StockQuantity.Should().Be(4);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(null)]
+    public async Task Complete_FraudReviewCannotBeFulfilled(int? fraud)
+    {
+        var (order, product, _) = await Initialize();
+        (await Complete(order, fraud: fraud)).IsSuccess.Should().BeFalse();
+        order.Status.Should().Be(OrderStatus.Pending);
+        product.StockQuantity.Should().Be(4);
+        Action advance = () => order.ChangeStatus(OrderStatus.Paid);
+        advance.Should().Throw<ConflictException>();
+        (await Complete(order)).IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public async Task Complete_InvalidAmountRequiresAttentionWithoutDiscardingReservation(decimal amount)
+    {
+        var (order, product, _) = await Initialize();
+        (await Complete(order, amount: amount)).IsSuccess.Should().BeFalse();
+        order.PaymentStatus.Should().Be(PaymentStatus.RequiresAttention);
+        order.Status.Should().Be(OrderStatus.Pending);
+        product.StockQuantity.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Complete_DefiniteFailureRestoresStockAndCouponExactlyOnce()
+    {
+        var coupon = new Coupon { Code = "ONCE", DiscountType = DiscountType.Percentage, DiscountValue = 10,
+            TotalUsageLimit = 1, ExpirationDateUtc = DateTime.UtcNow.AddDays(1) };
+        db.Coupons.Add(coupon); await db.SaveChangesAsync();
+        var (order, product, _) = await Initialize(coupon.Code);
+        await Complete(order, success: false, definitive: true);
+        await Complete(order, success: false, definitive: true);
         order.Status.Should().Be(OrderStatus.Cancelled);
         order.PaymentStatus.Should().Be(PaymentStatus.Failed);
+        product.StockQuantity.Should().Be(5);
+        coupon.ReservedUsageCount.Should().Be(0);
+        coupon.CurrentUsageCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Complete_SuccessConsumesCouponReservation()
+    {
+        var coupon = new Coupon { Code = "ONCE", DiscountType = DiscountType.Percentage, DiscountValue = 10,
+            TotalUsageLimit = 1, ExpirationDateUtc = DateTime.UtcNow.AddDays(1) };
+        db.Coupons.Add(coupon); await db.SaveChangesAsync();
+        var (order, _, _) = await Initialize(coupon.Code);
+        await Complete(order);
+        coupon.ReservedUsageCount.Should().Be(0);
+        coupon.CurrentUsageCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Complete_PreservesQuantityAddedDuringCheckout()
+    {
+        var (order, _, cart) = await Initialize();
+        cart.Items.Single().Quantity += 3; await db.SaveChangesAsync();
+        await Complete(order);
+        cart.Items.Single().Quantity.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Complete_DoesNotRemoveRecreatedCartRow()
+    {
+        var (order, product, cart) = await Initialize();
+        db.CartItems.RemoveRange(cart.Items); await db.SaveChangesAsync();
+        cart.Items.Add(new CartItem { CartId = cart.Id, ProductId = product.Id, Quantity = 2 });
+        await db.SaveChangesAsync();
+        await Complete(order);
+        cart.Items.Single().Quantity.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Complete_DoesNotReopenCancelledOrUnreservedLegacyOrder()
+    {
+        var (order, product, _) = await Initialize();
+        order.Status = OrderStatus.Cancelled; order.StockReserved = false; await db.SaveChangesAsync();
+        await Complete(order);
+        order.Status.Should().Be(OrderStatus.Cancelled);
+        order.PaymentStatus.Should().Be(PaymentStatus.RequiresAttention);
+        product.StockQuantity.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task UnknownToken_DoesNotQueryGatewayOrFallBackToBasket()
+    {
+        var handler = new CompletePaymentCommandHandler(db, gateway.Object, email.Object);
+        (await handler.Handle(new("unknown-token"), default)).IsSuccess.Should().BeFalse();
+        gateway.Verify(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BasketMismatchCannotCancelAnotherOrder()
+    {
+        var (order, product, _) = await Initialize();
+        await Complete(order, success: false, definitive: true, basket: "different-order");
+        order.Status.Should().Be(OrderStatus.Pending);
+        product.StockQuantity.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Cleanup_DoesNotReleaseUncertainOnlinePayment()
+    {
+        var (order, product, _) = await Initialize();
+        order.CreatedAtUtc = DateTime.UtcNow.AddDays(-2); await db.SaveChangesAsync();
+        var job = new OrderCleanupJob(db, NullLogger<OrderCleanupJob>.Instance, Mock.Of<IDbLogger>());
+        await job.CancelStalePendingOrdersAsync();
+        order.Status.Should().Be(OrderStatus.Pending);
+        product.StockQuantity.Should().Be(4);
+        Action cancel = () => order.CancelAndRestock();
+        cancel.Should().Throw<ConflictException>();
+    }
+
+    [Fact]
+    public void Cancel_UnreservedOrderDoesNotCreateStock()
+    {
+        var product = new Product { StockQuantity = 5 };
+        var order = new Order { Items = [new OrderItem { Product = product, Quantity = 2 }] };
+        order.CancelAndRestock(); order.CancelAndRestock();
+        product.StockQuantity.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Status_CannotReadAnotherUsersPayment()
+    {
+        var (order, _, _) = await Initialize();
+        var handler = new GetPaymentStatusQueryHandler(db);
+        var act = () => handler.Handle(new(Guid.NewGuid(), order.OrderNumber), default);
+        await act.Should().ThrowAsync<NotFoundException>();
+        (await handler.Handle(new(order.UserId, order.OrderNumber), default)).Data!.PaymentStatus.Should().Be("Pending");
+    }
+
+    public void Dispose() => TestDbContextFactory.Destroy(db);
 }

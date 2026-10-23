@@ -1,12 +1,17 @@
+using Microsoft.Extensions.Hosting;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Features.Orders.Dtos;
+using Nexora.Domain.Exceptions;
 
 namespace Nexora.Infrastructure.Services;
 
-public sealed class FakePaymentService : IPaymentService
+public sealed class FakePaymentService(IHostEnvironment environment) : IPaymentService
 {
     public Task<bool> ProcessPaymentAsync(decimal amount, PaymentRequestDto paymentInfo, CancellationToken cancellationToken = default)
     {
+        if (!environment.IsDevelopment())
+            throw new ConflictException("Doğrudan kart test ödemesi bu ortamda kapalıdır. İyzico güvenli ödeme yöntemini kullanınız.");
+
         if (amount <= 0)
             return Task.FromResult(false);
 

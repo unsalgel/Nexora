@@ -58,6 +58,7 @@ public sealed class IyzicoPaymentAdapter : IPaymentGateway
                 Currency = Currency.TRY.ToString(),
                 BasketId = request.OrderNumber,
                 PaymentGroup = PaymentGroup.PRODUCT.ToString(),
+                EnabledInstallments = new List<int> { 1 },
                 CallbackUrl = string.IsNullOrWhiteSpace(request.CallbackUrl) ? _settings.CallbackUrl : request.CallbackUrl,
                 Buyer = new Buyer
                 {
@@ -99,7 +100,8 @@ public sealed class IyzicoPaymentAdapter : IPaymentGateway
                 }).ToList()
             };
 
-            var checkoutFormInitialize = await Task.Run(() => CheckoutFormInitialize.Create(iyziRequest, _options), cancellationToken);
+            var checkoutFormInitialize = await CheckoutFormInitialize.Create(iyziRequest, _options)
+                .WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
 
             if (checkoutFormInitialize.Status != "success")
             {
@@ -114,16 +116,18 @@ public sealed class IyzicoPaymentAdapter : IPaymentGateway
                     ErrorMessage: checkoutFormInitialize.ErrorMessage ?? "Ödeme başlatılamadı.");
             }
 
-            _logger.LogInformation("İyzico ödeme oturumu başarıyla açıldı. Sipariş: {OrderNumber}, Token: {Token}",
-                request.OrderNumber, checkoutFormInitialize.Token);
+            if (!IyzicoSettings.IsTrustedPaymentPage(checkoutFormInitialize.PaymentPageUrl))
+                return new(false, null, null, null, "Ödeme sağlayıcısı güvenilir bir ödeme adresi döndürmedi.");
+            _logger.LogInformation("İyzico ödeme oturumu başarıyla açıldı. Sipariş: {OrderNumber}", request.OrderNumber);
 
             return new PaymentInitializationResult(
                 IsSuccess: true,
                 Token: checkoutFormInitialize.Token,
-                CheckoutFormContent: checkoutFormInitialize.CheckoutFormContent,
+                CheckoutFormContent: null,
                 PaymentPageUrl: checkoutFormInitialize.PaymentPageUrl,
                 ErrorMessage: null);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "İyzico ödeme oturumu başlatılırken beklenmeyen hata oluştu. Sipariş: {OrderNumber}",
@@ -148,7 +152,7 @@ public sealed class IyzicoPaymentAdapter : IPaymentGateway
                 return new PaymentVerificationResult(false, null, null, 0, "Doğrulama belirteci (Token) eksik.");
             }
 
-            _logger.LogInformation("İyzico ödeme sonucu sorgulanıyor. Token: {Token}", request.Token);
+            _logger.LogInformation("İyzico ödeme sonucu sorgulanıyor.");
 
             var retrieveRequest = new RetrieveCheckoutFormRequest
             {
@@ -156,42 +160,28 @@ public sealed class IyzicoPaymentAdapter : IPaymentGateway
                 Token = request.Token
             };
 
-            var checkoutForm = await Task.Run(() => CheckoutForm.Retrieve(retrieveRequest, _options), cancellationToken);
-
-            if (checkoutForm.Status != "success" || checkoutForm.PaymentStatus != "SUCCESS")
-            {
-                _logger.LogWarning("İyzico ödeme doğrulaması başarısız. Token: {Token}, Durum: {PaymentStatus}, Hata: {ErrorMessage}",
-                    request.Token, checkoutForm.PaymentStatus, checkoutForm.ErrorMessage);
-
-                return new PaymentVerificationResult(
-                    IsSuccess: false,
-                    PaymentId: checkoutForm.PaymentId,
-                    OrderNumber: checkoutForm.BasketId,
-                    PaidAmount: 0,
-                    ErrorMessage: checkoutForm.ErrorMessage ?? "Ödeme banka tarafından onaylanmadı.");
-            }
-
-            decimal paidPrice = 0;
-            if (!string.IsNullOrWhiteSpace(checkoutForm.PaidPrice))
-            {
-                decimal.TryParse(checkoutForm.PaidPrice, NumberStyles.Any, CultureInfo.InvariantCulture, out paidPrice);
-            }
-
-            _logger.LogInformation("İyzico ödemesi başarıyla doğrulandı. Sipariş: {BasketId}, Ödeme ID: {PaymentId}, Tutar: {PaidPrice}",
-                checkoutForm.BasketId, checkoutForm.PaymentId, paidPrice);
-
-            return new PaymentVerificationResult(
-                IsSuccess: true,
-                PaymentId: checkoutForm.PaymentId,
-                OrderNumber: checkoutForm.BasketId,
-                PaidAmount: paidPrice,
-                ErrorMessage: null);
+            var checkoutForm = await CheckoutForm.Retrieve(retrieveRequest, _options)
+                .WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            return MapVerification(checkoutForm);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "İyzico ödeme doğrulaması sırasında beklenmeyen hata oluştu. Token: {Token}", request.Token);
+            _logger.LogError(ex, "İyzico ödeme doğrulaması sırasında beklenmeyen hata oluştu.");
             return new PaymentVerificationResult(false, null, null, 0, "Ödeme doğrulanırken sistemsel bir hata oluştu.");
         }
+    }
+
+    public static PaymentVerificationResult MapVerification(CheckoutForm form)
+    {
+        if (form.PaymentStatus == "FAILURE")
+            return new(false, form.PaymentId, form.BasketId, 0, "Ödeme banka tarafından onaylanmadı.", IsDefinitiveFailure: true);
+        if (form.Status != "success" || form.PaymentStatus != "SUCCESS")
+            return new(false, form.PaymentId, form.BasketId, 0, "Ödeme sonucu henüz kesinleşmedi.");
+        if (!decimal.TryParse(form.PaidPrice, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var paidPrice) || paidPrice <= 0)
+            return new(false, form.PaymentId, form.BasketId, 0, "Ödeme tutarı doğrulanamadı.");
+        return new(true, form.PaymentId, form.BasketId, paidPrice, null,
+            FraudStatus: form.FraudStatus, Currency: form.Currency);
     }
 
     private static string SanitizeField(string? value, string fallback)

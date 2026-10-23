@@ -4,6 +4,15 @@ import { randomUUID } from 'node:crypto';
 // Yalnız docker-compose.test.yml ile açılan izole smoke veritabanında çalıştırılır.
 const baseUrl = process.env.NEXORA_SMOKE_URL ?? 'http://localhost:18085';
 assert(['localhost', '127.0.0.1'].includes(new URL(baseUrl).hostname), 'Smoke testi yalnız yerel izole API üzerinde çalıştırılabilir.');
+let ready = false;
+for (let attempt = 0; attempt < 30; attempt++) {
+  try {
+    const response = await fetch(`${baseUrl}/health/ready`, { signal: AbortSignal.timeout(3000) });
+    if (response.ok) { ready = true; break; }
+  } catch { /* Container yeniden başlatılırken bekle. */ }
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+assert(ready, 'API smoke testine hazır değil.');
 let token;
 const request = async (path, method = 'GET', body, expected = 200) => {
   const response = await fetch(`${baseUrl}/api/v1.0/${path}`, {
@@ -45,6 +54,13 @@ const checkout = {
   shippingAddress: 'İzole test adresi, İstanbul', expectedTotalAmount: quote.totalAmount,
   paymentInfo: { cardHolderName: 'Smoke Test', cardNumber: '4242424242424242', expirationMonth: '12', expirationYear: '2030', cvv: '123' },
 };
+if (process.argv.includes('--assert-payment-disabled')) {
+  await request('orders', 'POST', checkout, 409);
+  assert.equal((await request(`products/${productId}`)).stockQuantity, 5, 'Engellenen test ödemesi stoğu değiştirdi.');
+  assert.equal((await request('cart')).items[0].quantity, 2, 'Engellenen test ödemesi sepeti tüketti.');
+  console.log('Production sahte ödeme engeli başarılı: gerçek tahsilat olmadan sipariş onaylanmadı.');
+  process.exit(0);
+}
 await request('orders', 'POST', { ...checkout, expectedTotalAmount: quote.totalAmount + 0.01 }, 409);
 assert.equal((await request(`products/${productId}`)).stockQuantity, 5, 'Reddedilen teklif stoğu değiştirdi.');
 const [order, retry] = await Promise.all([request('orders', 'POST', checkout, 201), request('orders', 'POST', checkout, 201)]);

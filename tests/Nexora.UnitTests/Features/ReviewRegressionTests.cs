@@ -226,6 +226,7 @@ public sealed class ReviewRegressionTests
             UserId = Guid.NewGuid(),
             ShippingAddress = "Test Address",
             TotalAmount = 300,
+            StockReserved = true,
             Status = OrderStatus.Pending,
             PaymentStatus = PaymentStatus.Pending,
             Items = new List<OrderItem>
@@ -301,6 +302,7 @@ public sealed class ReviewRegressionTests
             {
                 Id = Guid.NewGuid(),
                 OrderNumber = $"NX-STALE-{i}",
+                StockReserved = true,
                 UserId = Guid.NewGuid(),
                 ShippingAddress = "Addr",
                 TotalAmount = 20,

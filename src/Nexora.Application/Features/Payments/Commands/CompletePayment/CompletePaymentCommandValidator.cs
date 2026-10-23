@@ -7,6 +7,6 @@ public sealed class CompletePaymentCommandValidator : AbstractValidator<Complete
     public CompletePaymentCommandValidator()
     {
         RuleFor(x => x.Token)
-            .NotEmpty().WithMessage("Ödeme belirteci (token) boş bırakılamaz.");
+            .NotEmpty().WithMessage("Ödeme belirteci (token) boş bırakılamaz.").MaximumLength(128);
     }
 }

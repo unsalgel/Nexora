@@ -49,7 +49,7 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../context/CartContext': { useCart: () => ({ cart: { items, grandTotal: 111 }, isMutating: false }) },
       '../context/SettingsContext': { useSettings: () => ({ settings: { freeShippingThreshold: 500, shippingCost: 29.9 } }) },
       '../context/ToastContext': { useToast: () => ({ showToast: () => {} }) },
-      '../lib/apiClient': {},
+      '../lib/apiClient': { extractApiErrorMessage: () => 'Hata' },
       '../lib/session': { getAccessToken: () => null },
       '../components/common/SafeImage': { SafeImage: 'img' },
       '../components/common/EmptyState': { EmptyState: 'div' },
@@ -59,6 +59,10 @@ for (const page of ['CartPage', 'CheckoutPage']) {
       '../lib/cardValidation': { getCardBrand: () => 'unknown' },
       '../components/checkout/ShippingAddressSection': { ShippingAddressSection: () => null },
       '../components/checkout/PaymentMethodSection': { PaymentMethodSection: () => null },
+      '../components/checkout/IyzicoPaymentModal': { IyzicoPaymentModal: () => null },
+      '../features/checkout/checkoutService': { checkoutService: { fetchAddresses: async () => [], saveAddress: async () => null, initializePayment: async () => ({}), submitDirectOrder: async () => ({}) } },
+      '../features/checkout/addressUtils': { formatFullShippingAddress: () => '', validateAddressFormData: () => ({ isValid: true }) },
+      '../features/checkout/checkoutSecurity': { sanitizeOrderNumber: () => null, sanitizePaymentErrorMessage: () => null, clearPaymentQueryParams: () => {} },
       '../components/checkout/OrderSummarySection': orderSummarySection,
       '../components/checkout/OrderSuccessView': { OrderSuccessView: () => null }
     });

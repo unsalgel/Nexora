@@ -115,6 +115,22 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
+export function extractApiErrorMessage(err: unknown, fallbackMessage = 'İşlem sırasında bir hata oluştu.'): string {
+  if (!err) return fallbackMessage;
+  const error = err as AxiosError<{ message?: string; errors?: string[] }>;
+  const apiErrors = error.response?.data?.errors;
+  if (Array.isArray(apiErrors) && apiErrors.length > 0 && typeof apiErrors[0] === 'string') {
+    return apiErrors[0];
+  }
+  if (error.response?.data?.message && typeof error.response.data.message === 'string') {
+    return error.response.data.message;
+  }
+  if (error.message && typeof error.message === 'string') {
+    return error.message;
+  }
+  return fallbackMessage;
+}
+
 export interface PagedResponse<T> {
   items: T[];
   page: number;

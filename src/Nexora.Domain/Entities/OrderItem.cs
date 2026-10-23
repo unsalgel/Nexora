@@ -8,6 +8,7 @@ public sealed class OrderItem : BaseEntity
     public Guid? ProductId { get; set; }
     public Product? Product { get; set; }
     public string ProductName { get; set; } = default!;
+    public Guid? SourceCartItemId { get; set; }
 
     public Guid? ProductVariantId { get; set; }
     public ProductVariant? ProductVariant { get; set; }

@@ -19,6 +19,15 @@ public sealed class Order : BaseEntity
     public uint Version { get; set; }
     public string? IdempotencyKey { get; set; }
     public string? RequestHash { get; set; }
+    public string? PaymentToken { get; set; }
+    public string? PaymentId { get; set; }
+    public string? PaymentPageUrl { get; set; }
+    public decimal? PaidAmount { get; set; }
+    public int? FraudStatus { get; set; }
+    public DateTime? NextPaymentCheckAtUtc { get; set; }
+    public bool PaymentReviewNotified { get; set; }
+    public bool StockReserved { get; set; }
+    public Guid? ReservedCouponId { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
@@ -34,6 +43,12 @@ public sealed class Order : BaseEntity
         if (!Enum.IsDefined(nextStatus))
             throw new BusinessValidationException("Geçersiz sipariş durumu.");
         if (Status == nextStatus) return;
+        if (PaymentToken is not null && nextStatus is OrderStatus.Paid or OrderStatus.Processing or OrderStatus.Shipped or OrderStatus.Delivered
+            && PaymentStatus != PaymentStatus.Success)
+            throw new ConflictException("Ödeme ve risk kontrolü tamamlanmadan sipariş ilerletilemez.");
+        if (PaymentToken is not null && nextStatus == OrderStatus.Cancelled
+            && PaymentStatus is not (PaymentStatus.Failed or PaymentStatus.Refunded))
+            throw new ConflictException("Ödeme sonucu kesinleşmeden veya tahsilat iade edilmeden sipariş iptal edilemez.");
         if (Status == OrderStatus.Cancelled)
             throw new ConflictException("İptal edilmiş bir siparişin durumu değiştirilemez.");
         if (Status == OrderStatus.Shipped && nextStatus is OrderStatus.Pending or OrderStatus.Paid or OrderStatus.Processing)
@@ -53,10 +68,12 @@ public sealed class Order : BaseEntity
 
     public void CancelAndRestock(PaymentStatus failureStatus = PaymentStatus.Failed)
     {
+        if (Status == OrderStatus.Cancelled) return;
         ChangeStatus(OrderStatus.Cancelled);
         PaymentStatus = failureStatus;
         UpdatedAtUtc = DateTime.UtcNow;
 
+        if (!StockReserved) return;
         foreach (var item in Items)
         {
             if (item.ProductVariant is not null)
@@ -70,5 +87,6 @@ public sealed class Order : BaseEntity
                 item.Product.UpdatedAtUtc = DateTime.UtcNow;
             }
         }
+        StockReserved = false;
     }
 }

@@ -27,7 +27,7 @@ public sealed class OrderCleanupJob(
                     .ThenInclude(i => i.Product)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
-                .Where(o => o.Status == OrderStatus.Pending &&
+                .Where(o => o.PaymentToken == null && o.Status == OrderStatus.Pending &&
                             o.PaymentStatus == PaymentStatus.Pending &&
                             o.CreatedAtUtc <= cutoffTime)
                 .OrderBy(o => o.CreatedAtUtc)

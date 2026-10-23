@@ -1,4 +1,7 @@
 using MediatR;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Common;
@@ -23,9 +26,40 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
 
     public async Task<Result<PaymentInitializationResult>> Handle(InitializePaymentCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
+        var requestHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            request.ShippingAddress, request.BillingAddress, request.CouponCode, request.ExpectedTotalAmount
+        }))));
+        var idempotencyKey = request.IdempotencyKey?.Trim();
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            var previous = await _context.Orders.AsNoTracking().FirstOrDefaultAsync(
+                o => o.UserId == request.UserId && o.IdempotencyKey == idempotencyKey, cancellationToken);
+            if (previous is not null)
+            {
+                if (previous.RequestHash != requestHash || previous.PaymentToken is null)
+                    throw new ConflictException("Aynı ödeme anahtarı farklı bir istek için kullanılamaz.");
+                if (previous.PaymentStatus != PaymentStatus.Pending)
+                    throw new ConflictException("Bu ödeme oturumunun sonucu siparişlerim ekranından kontrol edilmelidir.");
+                return Result<PaymentInitializationResult>.Success(new(true, previous.PaymentToken, null,
+                    previous.PaymentPageUrl, null, previous.OrderNumber));
+            }
+        }
+
+        // Lock shared inventory before reading it; the URL is exposed only after the reservation commits.
+        var productIds = await _context.CartItems.AsNoTracking().Where(i => i.Cart.UserId == request.UserId)
+            .Select(i => i.ProductId).Distinct().ToListAsync(cancellationToken);
+        foreach (var productId in productIds.Order())
+            await transaction.AcquireLockAsync($"inventory:{productId}", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+            await transaction.AcquireLockAsync($"coupon:{request.CouponCode.Trim().ToUpperInvariant()}", cancellationToken);
+
         var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
         if (user is null)
             throw new NotFoundException("Kullanıcı bulunamadı.");
+        if (!user.IsActive)
+            throw new UnauthorizedException("Hesabınız dondurulmuştur.");
 
         var cart = await _context.Carts
             .Include(c => c.Items)
@@ -44,6 +78,12 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
         foreach (var item in cart.Items)
         {
             var quantity = item.Quantity;
+            if (quantity <= 0 || item.Product.Price <= 0 || !item.Product.IsActive || item.Product.IsDeleted)
+                throw new ConflictException("Sepette satışa uygun olmayan ürün var.");
+            if (item.ProductVariantId.HasValue && (item.ProductVariant is null ||
+                item.ProductVariant.ProductId != item.ProductId || item.ProductVariant.Price <= 0 ||
+                !item.ProductVariant.IsActive || item.ProductVariant.IsDeleted))
+                throw new ConflictException("Sepette satışa uygun olmayan ürün varyantı var.");
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
                 if (item.ProductVariant.StockQuantity < quantity)
@@ -54,6 +94,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
 
                 orderItems.Add(new OrderItem
                 {
+                    SourceCartItemId = item.Id,
                     ProductId = item.ProductId,
                     ProductName = item.Product.Name,
                     ProductVariantId = item.ProductVariantId,
@@ -73,6 +114,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
 
                 orderItems.Add(new OrderItem
                 {
+                    SourceCartItemId = item.Id,
                     ProductId = item.ProductId,
                     ProductName = item.Product.Name,
                     UnitPrice = item.Product.Price,
@@ -84,6 +126,8 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
 
         var pricing = await CartPricing.CalculateAsync(_context, rawTotal, request.CouponCode, cancellationToken);
         var grandTotal = pricing.Quote.TotalAmount;
+        if (grandTotal <= 0)
+            throw new BusinessValidationException("Ödenecek tutar sıfırdan büyük olmalıdır.");
 
         if (request.ExpectedTotalAmount.HasValue && request.ExpectedTotalAmount.Value != grandTotal)
             throw new ConflictException("Sepet toplamı değişti. Güncel tutarı kontrol edip tekrar onaylayınız.");
@@ -134,7 +178,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
             City: "Istanbul",
             Country: "Turkey",
             ZipCode: "34000",
-            IpAddress: "127.0.0.1");
+            IpAddress: request.IpAddress ?? "127.0.0.1");
 
         var address = new PaymentAddressDto(
             ContactName: $"{user.FirstName} {user.LastName}",
@@ -162,6 +206,15 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
         var initResult = await _paymentGateway.InitializePaymentAsync(initRequest, cancellationToken);
         if (!initResult.IsSuccess)
             return Result<PaymentInitializationResult>.Failure(initResult.ErrorMessage ?? "Ödeme başlatılamadı.");
+        if (string.IsNullOrWhiteSpace(initResult.Token) || initResult.Token.Length > 128 || string.IsNullOrWhiteSpace(initResult.PaymentPageUrl))
+            return Result<PaymentInitializationResult>.Failure("Ödeme sağlayıcısı geçerli bir oturum döndürmedi.");
+
+        foreach (var item in cart.Items)
+        {
+            if (item.ProductVariantId.HasValue) item.ProductVariant!.StockQuantity -= item.Quantity;
+            else item.Product.StockQuantity -= item.Quantity;
+        }
+        if (pricing.Coupon is not null) pricing.Coupon.ReservedUsageCount++;
 
         var pendingOrder = new Order
         {
@@ -175,13 +228,20 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
             CouponCode = pricing.Quote.CouponCode,
             Status = OrderStatus.Pending,
             PaymentStatus = PaymentStatus.Pending,
-            IdempotencyKey = initResult.Token,
+            IdempotencyKey = idempotencyKey,
+            RequestHash = requestHash,
+            PaymentToken = initResult.Token,
+            PaymentPageUrl = initResult.PaymentPageUrl,
+            NextPaymentCheckAtUtc = DateTime.UtcNow.AddMinutes(2),
+            StockReserved = true,
+            ReservedCouponId = pricing.Coupon?.Id,
             Items = orderItems
         };
 
         _context.Orders.Add(pendingOrder);
         await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        return Result<PaymentInitializationResult>.Success(initResult, "Ödeme oturumu başarıyla oluşturuldu.");
+        return Result<PaymentInitializationResult>.Success(initResult with { CheckoutFormContent = null, OrderNumber = orderNumber }, "Ödeme oturumu başarıyla oluşturuldu.");
     }
 }
