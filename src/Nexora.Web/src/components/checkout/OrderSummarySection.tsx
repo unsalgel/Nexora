@@ -1,9 +1,7 @@
 import React from 'react';
 import { Tag } from 'lucide-react';
 import { SafeImage } from '../common/SafeImage';
-import { CouponBox } from '../common/CouponBox';
 import type { CartItem } from '../../context/CartContext';
-import type { CouponValidationResultDto } from '../../types/coupon';
 
 interface OrderSummarySectionProps {
   cartItems: CartItem[];
@@ -12,9 +10,6 @@ interface OrderSummarySectionProps {
   discountAmount: number;
   payableTotal: number;
   couponCode?: string | null;
-  appliedCoupon?: CouponValidationResultDto | null;
-  onCouponApplied?: (coupon: CouponValidationResultDto) => void;
-  onCouponRemoved?: () => void;
 }
 
 export const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
@@ -24,9 +19,6 @@ export const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
   discountAmount,
   payableTotal,
   couponCode,
-  appliedCoupon,
-  onCouponApplied,
-  onCouponRemoved,
 }) => {
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 space-y-5 shadow-xs">
@@ -56,18 +48,6 @@ export const OrderSummarySection: React.FC<OrderSummarySectionProps> = ({
           </div>
         ))}
       </div>
-
-      {onCouponApplied && onCouponRemoved && (
-        <div className="pt-3 border-t border-slate-100">
-          <CouponBox
-            appliedCoupon={appliedCoupon || null}
-            cartSubtotal={subtotal}
-            discountAmount={discountAmount}
-            onCouponApplied={onCouponApplied}
-            onCouponRemoved={onCouponRemoved}
-          />
-        </div>
-      )}
 
       <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
         <div className="flex justify-between text-slate-500 font-medium">
