@@ -19,46 +19,38 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     private readonly IEmailService _emailService;
     private readonly IRealTimeNotificationService _notificationService;
     private readonly ILogger<CreateOrderCommandHandler> _logger;
-    private readonly ICacheService? _cacheService;
 
     public CreateOrderCommandHandler(
         IApplicationDbContext context,
         IPaymentService paymentService,
         IEmailService emailService,
         IRealTimeNotificationService notificationService,
-        ILogger<CreateOrderCommandHandler> logger,
-        ICacheService? cacheService = null)
+        ILogger<CreateOrderCommandHandler> logger)
     {
         _context = context;
         _paymentService = paymentService;
         _emailService = emailService;
         _notificationService = notificationService;
         _logger = logger;
-        _cacheService = cacheService;
     }
 
     public async Task<Result<OrderDto>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         string? idempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();
-        string? cacheKey = idempotencyKey is not null ? $"idempotency:order:{request.UserId}:{idempotencyKey}" : null;
-
-        if (cacheKey is not null && _cacheService is not null)
+        var requestHash = ComputePayloadHash(request);
+        await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
+        if (idempotencyKey is not null)
         {
-            var cached = await _cacheService.GetAsync<OrderIdempotencyRecord>(cacheKey, cancellationToken);
-            if (cached is not null)
+            var existing = await _context.Orders.AsNoTracking().Include(o => o.Items)
+                .SingleOrDefaultAsync(o => o.UserId == request.UserId && o.IdempotencyKey == idempotencyKey, cancellationToken);
+            if (existing is not null)
             {
-                var currentHash = ComputePayloadHash(request);
-                if (cached.PayloadHash != currentHash)
-                {
+                if (existing.RequestHash != requestHash)
                     throw new ConflictException("Aynı idempotency anahtarı ile farklı parametreli bir sipariş isteği gönderilemez.");
-                }
-
-                _logger.LogInformation("Mükerrer sipariş isteği tespit edildi, önbellekteki sipariş döndürülüyor: {OrderNumber}", cached.OrderResult.OrderNumber);
-                return Result<OrderDto>.Success(cached.OrderResult, "Siparişiniz başarıyla oluşturuldu.");
+                return Result<OrderDto>.Success(existing.ToDto(), "Siparişiniz başarıyla oluşturuldu.");
             }
         }
 
-        await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
         var cart = await _context.Carts
             .Include(c => c.User)
             .Include(c => c.Items)
@@ -182,8 +174,13 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             throw new ConflictException("Ödeme işlemi başarısız oldu. Kart bilgilerinizi veya bakiyenizi kontrol ediniz.");
         }
 
+        // Match stored timestamp precision so the initial response and a replay agree.
+        var createdAtUtc = DateTime.UtcNow;
         var order = new DomainEntities.Order
         {
+            IdempotencyKey = idempotencyKey,
+            RequestHash = idempotencyKey is null ? null : requestHash,
+            CreatedAtUtc = createdAtUtc.AddTicks(-(createdAtUtc.Ticks % TimeSpan.TicksPerMicrosecond)),
             OrderNumber = orderNumber,
             UserId = request.UserId,
             ShippingAddress = request.ShippingAddress,
@@ -243,25 +240,7 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
 
         _context.Notifications.Add(notification);
 
-        var dto = new OrderDto(
-            order.Id,
-            order.OrderNumber,
-            order.UserId,
-            order.ShippingAddress,
-            order.TotalAmount,
-            order.Status.ToString(),
-            order.PaymentStatus.ToString(),
-            DateTime.UtcNow,
-            order.Items.Select(i => new OrderItemDto(
-                i.Id,
-                i.ProductId,
-                i.ProductName,
-                i.ProductVariantId,
-                i.VariantSKU,
-                i.UnitPrice,
-                i.Quantity,
-                i.TotalPrice)).ToList(),
-            Subtotal: order.Subtotal, DiscountAmount: order.DiscountAmount, ShippingFee: order.ShippingFee, CouponCode: order.CouponCode);
+        var dto = order.ToDto();
 
         var user = cart.User;
         if (user != null && !string.IsNullOrWhiteSpace(user.Email))
@@ -329,21 +308,19 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
             _logger.LogWarning(ex, "Sipariş gerçek zamanlı bildirimleri iletilirken hata oluştu. OrderId: {OrderId}", order.Id);
         }
 
-        if (cacheKey is not null && _cacheService is not null)
-        {
-            var record = new OrderIdempotencyRecord(dto, ComputePayloadHash(request), DateTime.UtcNow);
-            await _cacheService.SetAsync(cacheKey, record, TimeSpan.FromHours(24), cancellationToken);
-        }
-
         return Result<OrderDto>.Success(dto, "Siparişiniz başarıyla oluşturuldu.");
     }
 
     private static string ComputePayloadHash(CreateOrderCommand request)
     {
-        var cardLast4 = request.PaymentInfo?.CardNumber is { Length: >= 4 } num ? num[^4..] : string.Empty;
-        var raw = $"{request.UserId:N}:{request.ShippingAddress.Trim()}:{request.CouponCode?.Trim().ToUpperInvariant()}:{request.ExpectedTotalAmount}:{cardLast4}";
-        using var sha = System.Security.Cryptography.SHA256.Create();
-        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw));
-        return Convert.ToHexString(bytes);
+        // Canonical JSON avoids delimiter/culture ambiguity. Never persist card data or CVV.
+        var raw = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            request.UserId,
+            ShippingAddress = request.ShippingAddress.Trim(),
+            CouponCode = request.CouponCode?.Trim().ToUpperInvariant(),
+            request.ExpectedTotalAmount
+        });
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
     }
 }

@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })));
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(m => ({ default: m.ProductsPage })));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
@@ -69,6 +70,7 @@ export const App: React.FC = () => {
                           <Route path="/orders" element={<ProfilePage />} />
                           <Route path="/addresses" element={<ProfilePage />} />
                           <Route path="/login" element={<LoginPage />} />
+                          <Route path="/verify-email" element={<VerifyEmailPage />} />
                           <Route path="/register" element={<RegisterPage />} />
                           <Route path="*" element={<NotFoundPage />} />
                         </Routes>

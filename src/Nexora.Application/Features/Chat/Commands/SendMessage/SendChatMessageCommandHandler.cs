@@ -1,3 +1,5 @@
+using Nexora.Application.Features.Settings;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using MediatR;
@@ -41,7 +43,8 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
         var keywords = ExtractKeywords(request.Message);
         var relevantProducts = await GetRelevantProductsAsync(keywords, cancellationToken);
 
-        var systemPrompt = BuildSystemPrompt(relevantProducts);
+        var shipping = await ShippingPolicy.LoadAsync(_dbContext, cancellationToken);
+        var systemPrompt = BuildSystemPrompt(relevantProducts, shipping);
         var userPrompt = BuildUserPrompt(request.Message, request.History);
 
         var aiReply = await _aiChatService.GenerateResponseAsync(systemPrompt, userPrompt, cancellationToken);
@@ -137,15 +140,15 @@ public sealed class SendChatMessageCommandHandler : IRequestHandler<SendChatMess
             p.Images.OrderByDescending(i => i.IsMain).Select(i => i.ImageUrl).FirstOrDefault() ?? ""));
     }
 
-    private static string BuildSystemPrompt(List<ProductInfo> products)
+    private static string BuildSystemPrompt(List<ProductInfo> products, ShippingPolicy shipping)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Sen Nexora E-Ticaret platformunun uzman ve samimi müşteri destek yapay zeka asistanısın.");
         sb.AppendLine("GÖREVİN: Müşterilere mağaza politikaları (kargo, iade, değişim), ürünler ve fiyatlar hakkında yardımcı olmak.");
         sb.AppendLine();
         sb.AppendLine("MAĞAZA BİLGİLERİ VE POLİTİKALARI:");
-        sb.AppendLine("- Kargo & Teslimat: 500 TL ve üzeri tüm siparişlerde kargo tamamen ücretsizdir! Siparişler en geç 1-2 iş günü içerisinde kargoya verilir ve Aras / Yurtiçi / MNG Kargo güvencesiyle 2-3 iş gününde adrese teslim edilir.");
-        sb.AppendLine("- İade ve Değişim: Müşteri memnuniyeti garantimizle teslimattan itibaren 14 gün içerisinde hiçbir gerekçe göstermeksizin ücretsiz ve kolay iade/değişim hakkı bulunur. Profil sayfasındaki Siparişlerim alanından tek tıkla talep oluşturulabilir.");
+        sb.AppendLine($"- Kargo: {shipping.FreeShippingThreshold.ToString(CultureInfo.InvariantCulture)} TL ve üzeri ürün ara toplamında ücretsizdir; altında kargo ücreti {shipping.ShippingCost.ToString(CultureInfo.InvariantCulture)} TL'dir. Teslimat süresi ve taşıyıcı konusunda doğrulanmış bilgi yoktur; garanti verme.");
+        sb.AppendLine("- İptal: Yalnız bekleyen veya ödenmiş siparişler Siparişlerim alanından iptal edilebilir. Teslimat sonrası iade/değişim talep ekranı bulunmuyor; böyle bir özellik veya süre taahhüt etme.");
         sb.AppendLine();
         sb.AppendLine("KURALLAR:");
         sb.AppendLine("1. Kesinlikle uydurma ürün veya fiyat bilgisi verme. Yalnızca aşağıda verilen gerçek mağaza verilerine dayan.");

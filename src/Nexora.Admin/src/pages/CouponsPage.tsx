@@ -22,6 +22,24 @@ import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { useAdminToast } from '../context/AdminToastContext';
 
+const createCouponForm = (): {
+    code: string;
+    discountType: 'Percentage' | 'FixedAmount';
+    discountValue: number;
+    minimumOrderAmount: number;
+    maximumDiscountAmount: number | '';
+    totalUsageLimit: number;
+    expirationDate: string;
+  } => ({
+    code: '',
+    discountType: 'Percentage',
+    discountValue: 10,
+    minimumOrderAmount: 200,
+    maximumDiscountAmount: 100,
+    totalUsageLimit: 100,
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
+
 export const CouponsPage: React.FC = () => {
   const [coupons, setCoupons] = useState<CouponDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -39,23 +57,20 @@ export const CouponsPage: React.FC = () => {
   const [couponToDelete, setCouponToDelete] = useState<{ id: string; code: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
-  const [formData, setFormData] = useState<{
-    code: string;
-    discountType: 'Percentage' | 'FixedAmount';
-    discountValue: number;
-    minimumOrderAmount: number;
-    maximumDiscountAmount: number | '';
-    totalUsageLimit: number;
-    expirationDate: string;
-  }>({
-    code: '',
-    discountType: 'Percentage',
-    discountValue: 10,
-    minimumOrderAmount: 200,
-    maximumDiscountAmount: 100,
-    totalUsageLimit: 100,
-    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  });
+  const [formData, setFormData] = useState(createCouponForm);
+
+  const openCreateModal = () => {
+    setEditingCoupon(null);
+    setFormData(createCouponForm());
+    setErrorMessage(null);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    if (isSubmitting) return;
+    setIsModalOpen(false);
+    setEditingCoupon(null);
+    setErrorMessage(null);
+  };
 
   const fetchCoupons = async () => {
     try {
@@ -89,54 +104,27 @@ export const CouponsPage: React.FC = () => {
       setIsSubmitting(true);
       const expirationDateUtc = new Date(`${formData.expirationDate}T23:59:59Z`).toISOString();
 
-      if (editingCoupon) {
-        const updatePayload = {
-          id: editingCoupon.id,
-          code: formData.code.trim().toUpperCase(),
-          discountType: formData.discountType === 'Percentage' ? 1 : 2,
-          discountValue: Number(formData.discountValue),
-          minimumOrderAmount: Number(formData.minimumOrderAmount),
-          maximumDiscountAmount: formData.maximumDiscountAmount !== '' ? Number(formData.maximumDiscountAmount) : null,
-          totalUsageLimit: Number(formData.totalUsageLimit),
-          expirationDateUtc,
-          isActive: editingCoupon.isActive
-        };
-
-        const response = await apiClient.put<ApiResponse<CouponDto>>(`/coupons/${editingCoupon.id}`, updatePayload);
-
-        if (response.data?.isSuccess && response.data.data) {
-          setCoupons(prev => prev.map(c => c.id === editingCoupon.id ? response.data.data : c));
-          showToast('success', `'${formData.code}' kuponu başarıyla güncellendi.`);
-          setIsModalOpen(false);
-          setEditingCoupon(null);
-        }
-      } else {
-        const payload: CreateCouponDto = {
-          code: formData.code.trim().toUpperCase(),
-          discountType: formData.discountType === 'Percentage' ? 1 : 2,
-          discountValue: Number(formData.discountValue),
-          minimumOrderAmount: Number(formData.minimumOrderAmount),
-          maximumDiscountAmount: formData.maximumDiscountAmount !== '' ? Number(formData.maximumDiscountAmount) : null,
-          totalUsageLimit: Number(formData.totalUsageLimit),
-          expirationDateUtc
-        };
-
-        const response = await apiClient.post<ApiResponse<CouponDto>>('/coupons', payload);
-
-        if (response.data?.isSuccess && response.data.data) {
-          setCoupons(prev => [response.data.data, ...prev]);
-          showToast('success', 'Kupon başarıyla oluşturuldu.');
-          setIsModalOpen(false);
-          setFormData({
-            code: '',
-            discountType: 'Percentage',
-            discountValue: 10,
-            minimumOrderAmount: 200,
-            maximumDiscountAmount: 100,
-            totalUsageLimit: 100,
-            expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          });
-        }
+      const payload: CreateCouponDto = {
+        code: formData.code.trim().toUpperCase(),
+        discountType: formData.discountType === 'Percentage' ? 1 : 2,
+        discountValue: Number(formData.discountValue),
+        minimumOrderAmount: Number(formData.minimumOrderAmount),
+        maximumDiscountAmount: formData.discountType === 'Percentage' && formData.maximumDiscountAmount !== ''
+          ? Number(formData.maximumDiscountAmount) : null,
+        totalUsageLimit: Number(formData.totalUsageLimit),
+        expirationDateUtc
+      };
+      const response = editingCoupon
+        ? await apiClient.put<ApiResponse<CouponDto>>(`/coupons/${editingCoupon.id}`, { ...payload, isActive: editingCoupon.isActive })
+        : await apiClient.post<ApiResponse<CouponDto>>('/coupons', payload);
+      if (response.data?.isSuccess && response.data.data) {
+        setCoupons(prev => editingCoupon
+          ? prev.map(c => c.id === editingCoupon.id ? response.data.data : c)
+          : [response.data.data, ...prev]);
+        showToast('success', editingCoupon ? 'Kupon güncellendi.' : 'Kupon oluşturuldu.');
+        setIsModalOpen(false);
+        setEditingCoupon(null);
+        setFormData(createCouponForm());
       }
     } catch (err: unknown) {
       const axiosError = err as AxiosError<ApiResponse<unknown>>;
@@ -210,14 +198,12 @@ export const CouponsPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => {
-            setErrorMessage(null);
-            setIsModalOpen(true);
-          }}
+          onClick={openCreateModal}
+          disabled={isSubmitting}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 transition-transform active:scale-95 cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>{editingCoupon ? 'Kuponu Düzenle' : 'Yeni Kupon Oluştur'}</span>
+          <span>Yeni Kupon Oluştur</span>
         </button>
       </div>
 
@@ -425,7 +411,7 @@ export const CouponsPage: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button aria-label="Kuponu Düzenle"
+                          <button aria-label="Kuponu Düzenle" disabled={isSubmitting}
                             onClick={() => {
                               setEditingCoupon(coupon);
                               setFormData({
@@ -466,16 +452,16 @@ export const CouponsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <Dialog label="Kupon düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <Dialog label="Kupon düzenle" onClose={closeModal} className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Ticket className="w-5 h-5 text-orange-500" />
-                <span>Yeni Kupon Oluştur</span>
+                <span>{editingCoupon ? 'Kuponu Düzenle' : 'Yeni Kupon Oluştur'}</span>
               </h3>
               <button aria-label="Kapat"
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -501,7 +487,7 @@ export const CouponsPage: React.FC = () => {
                   <label htmlFor="couponspage-field-2" className="text-xs font-bold text-slate-700 block mb-1">İndirim Türü *</label>
                   <select id="couponspage-field-2"
                     value={formData.discountType}
-                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'Percentage' | 'FixedAmount' })}
+                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'Percentage' | 'FixedAmount', maximumDiscountAmount: '' })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white"
                   >
                     <option value="Percentage">Yüzdelik İndirim (%)</option>
@@ -582,7 +568,7 @@ export const CouponsPage: React.FC = () => {
               <div className="pt-3 flex justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 >
                   İptal

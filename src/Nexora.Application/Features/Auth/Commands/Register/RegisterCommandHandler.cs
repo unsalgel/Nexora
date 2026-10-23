@@ -10,6 +10,7 @@ namespace Nexora.Application.Features.Auth.Commands.Register;
 
 public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<string>>
 {
+    public const string GenericResponse = "Eğer kayıt işlemi uygunsa doğrulama kodu gönderilmiştir. Kodunuz varsa doğrulamaya devam edebilir, hesabınız zaten doğrulanmışsa giriş yapabilirsiniz.";
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
@@ -38,7 +39,7 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
             .AnyAsync(u => u.Email == normalizedEmail || (u.PendingEmail == normalizedEmail && u.PendingEmailExpiresAtUtc > now), cancellationToken);
 
         if (existingUser)
-            throw new ConflictException("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı bulunmaktadır.");
+            return Result<string>.Success(GenericResponse);
 
         var customerRole = await _context.Roles
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken)
@@ -76,6 +77,6 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return Result<string>.Success("Kayıt başarıyla tamamlandı. Lütfen e-posta adresinize gönderilen 6 haneli doğrulama kodunu onaylayınız.");
+        return Result<string>.Success(GenericResponse);
     }
 }

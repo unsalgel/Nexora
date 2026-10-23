@@ -96,7 +96,7 @@ export const CartPage: React.FC = () => {
 
 
                   <div className="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
-                    <button aria-label="Miktarı azalt"
+                    <button aria-label="Miktarı azalt" disabled={isMutating || item.quantity <= 1}
                       type="button" 
                       onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity - 1); }}
                       className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm cursor-pointer"
@@ -104,7 +104,7 @@ export const CartPage: React.FC = () => {
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="w-8 text-center font-bold text-xs text-slate-900 tabular-nums">{item.quantity}</span>
-                    <button aria-label="Miktarı artır"
+                    <button aria-label="Miktarı artır" disabled={isMutating}
                       type="button" 
                       onClick={(e) => { e.preventDefault(); updateQuantity(item.id, item.quantity + 1); }}
                       className="w-7 h-7 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 font-bold transition-colors shadow-none hover:shadow-sm cursor-pointer"
@@ -122,7 +122,7 @@ export const CartPage: React.FC = () => {
                   </span>
                 </div>
 
-                <button aria-label="Ürünü Sil"
+                <button aria-label="Ürünü Sil" disabled={isMutating}
                   type="button" 
                   onClick={(e) => { e.preventDefault(); removeFromCart(item.id); }}
                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"

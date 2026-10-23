@@ -1,3 +1,4 @@
+import { safeChatLink } from '../safeChatLink';
 import { SafeImage } from '../../../components/common/SafeImage';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -89,10 +90,12 @@ const QUICK_SUGGESTIONS = [
     const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
     if (linkMatch) {
       const [, linkText, linkUrl] = linkMatch;
+      const destination = safeChatLink(linkUrl);
+      if (!destination) return linkText;
       return (
         <Link
           key={index}
-          to={linkUrl}
+          to={destination}
           onClick={() => options.onCloseChat?.()}
           className="inline-flex items-center gap-1 my-1 px-2.5 py-1 bg-orange-50 hover:bg-orange-100 text-orange-600 font-semibold text-xs rounded-lg border border-orange-200 transition-colors shadow-xs"
         >
