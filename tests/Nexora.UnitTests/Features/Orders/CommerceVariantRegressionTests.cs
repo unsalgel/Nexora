@@ -52,14 +52,18 @@ public sealed class CommerceVariantRegressionTests
         context.ProductVariants.Add(variant); await context.SaveChangesAsync();
         // Mevcut politika: varyantı olan ürün parent SKU ile de satılabilir; stokları bağımsızdır.
         var parentOrder = await CommerceRegressionTests.CreateHandler(context).Handle(CommerceRegressionTests.OrderCommand(data.User.Id), default);
-        parentOrder.Data!.Items.Single().ProductVariantId.Should().BeNull();
-        parentOrder.Data.Items.Single().UnitPrice.Should().Be(100);
+        var parentSnapshot = await context.Orders.Include(o => o.Items).SingleAsync(o => o.OrderNumber == parentOrder.Data!.OrderNumber);
+        parentSnapshot.Items.Single().ProductVariantId.Should().BeNull();
+        parentSnapshot.Items.Single().UnitPrice.Should().Be(100);
         data.Product.StockQuantity.Should().Be(4); variant.StockQuantity.Should().Be(7);
         context.ChangeTracker.Clear();
+        context.CartItems.RemoveRange(await context.CartItems.ToListAsync());
+        await context.SaveChangesAsync();
         await new AddItemToCartCommandHandler(context).Handle(new(data.User.Id, data.Product.Id, variant.Id, 2), default);
         var variantOrder = await CommerceRegressionTests.CreateHandler(context).Handle(CommerceRegressionTests.OrderCommand(data.User.Id), default);
-        variantOrder.Data!.Items.Single().ProductVariantId.Should().Be(variant.Id);
-        variantOrder.Data.Items.Single().UnitPrice.Should().Be(50);
+        var variantSnapshot = await context.Orders.Include(o => o.Items).SingleAsync(o => o.OrderNumber == variantOrder.Data!.OrderNumber);
+        variantSnapshot.Items.Single().ProductVariantId.Should().Be(variant.Id);
+        variantSnapshot.Items.Single().UnitPrice.Should().Be(50);
         (await context.Products.SingleAsync()).StockQuantity.Should().Be(4);
         (await context.ProductVariants.SingleAsync()).StockQuantity.Should().Be(5);
     }

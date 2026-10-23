@@ -22,7 +22,7 @@ using Nexora.Infrastructure.Authentication;
 using Nexora.Infrastructure.BackgroundJobs;
 using Nexora.Persistence.Context;
 using Nexora.UnitTests.Common;
-using Nexora.Application.Features.Orders.Commands.CreateOrder;
+using Nexora.Application.Features.Payments.Commands.InitializePayment;
 using Nexora.Application.Features.Orders.Dtos;
 using Nexora.Application.Features.Categories.Commands.DeleteCategory;
 using Nexora.Application.Features.Brands.Commands.DeleteBrand;
@@ -226,6 +226,7 @@ public sealed class ReviewRegressionTests
             UserId = Guid.NewGuid(),
             ShippingAddress = "Test Address",
             TotalAmount = 300,
+            StockReserved = true,
             Status = OrderStatus.Pending,
             PaymentStatus = PaymentStatus.Pending,
             Items = new List<OrderItem>
@@ -278,14 +279,9 @@ public sealed class ReviewRegressionTests
             IdempotencyKey = "idem-123", RequestHash = "DUMMYHASH" });
         await db.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(
-            db,
-            Mock.Of<IPaymentService>(),
-            Mock.Of<IEmailService>(),
-            Mock.Of<IRealTimeNotificationService>(),
-            NullLogger<CreateOrderCommandHandler>.Instance);
+        var handler = new InitializePaymentCommandHandler(db, Mock.Of<IPaymentGateway>());
 
-        var command = new CreateOrderCommand(userId, "Address", new PaymentRequestDto("1234567890123456", "Holder", "12", "2028", "123"), null, 100, "idem-123");
+        var command = new InitializePaymentCommand("Address", ExpectedTotalAmount: 100, IdempotencyKey: "idem-123") { UserId = userId };
         await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(command, default));
     }
 
@@ -301,6 +297,7 @@ public sealed class ReviewRegressionTests
             {
                 Id = Guid.NewGuid(),
                 OrderNumber = $"NX-STALE-{i}",
+                StockReserved = true,
                 UserId = Guid.NewGuid(),
                 ShippingAddress = "Addr",
                 TotalAmount = 20,

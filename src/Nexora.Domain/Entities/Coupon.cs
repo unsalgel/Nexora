@@ -12,6 +12,7 @@ public sealed class Coupon : BaseEntity
     public decimal? MaximumDiscountAmount { get; set; } // Maksimum İndirim Tutarı
     public int TotalUsageLimit { get; set; } = 100; // Toplam Kullanım Limiti
     public int CurrentUsageCount { get; set; } = 0; // Mevcut Kullanım Sayısı
+    public int ReservedUsageCount { get; set; }
     public DateTime ExpirationDateUtc { get; set; } // Geçerlilik Sonu
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; } = false;
@@ -19,7 +20,7 @@ public sealed class Coupon : BaseEntity
     public decimal CalculateDiscount(decimal subtotal, DateTime utcNow)
     {
         if (subtotal < 0 || !IsActive || IsDeleted || ExpirationDateUtc <= utcNow ||
-            TotalUsageLimit <= 0 || CurrentUsageCount >= TotalUsageLimit)
+            TotalUsageLimit <= 0 || CurrentUsageCount + ReservedUsageCount >= TotalUsageLimit)
             throw new ConflictException("Kupon geçersiz, süresi dolmuş veya kullanım limiti dolmuştur.");
         if (!Enum.IsDefined(DiscountType) || DiscountValue <= 0 ||
             (DiscountType == DiscountType.Percentage && DiscountValue > 100) ||

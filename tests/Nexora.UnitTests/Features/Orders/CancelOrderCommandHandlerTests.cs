@@ -100,6 +100,7 @@ public sealed class CancelOrderCommandHandlerTests : IDisposable
         var order = new Order
         {
             OrderNumber = "NX-TEST-103",
+            StockReserved = true,
             UserId = user.Id,
             ShippingAddress = "Adres",
             TotalAmount = 2000,

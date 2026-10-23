@@ -22,6 +22,7 @@ const ProductsPage = lazy(() => import('./pages/ProductsPage').then(m => ({ defa
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ default: m.CheckoutPage })));
+const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
@@ -65,6 +66,7 @@ export const App: React.FC = () => {
                           <Route path="/products/:id" element={<ProductDetailPage />} />
                           <Route path="/cart" element={<CartPage />} />
                           <Route path="/checkout" element={<CheckoutPage />} />
+                          <Route path="/payment-result" element={<PaymentResultPage />} />
                           <Route path="/profile" element={<ProfilePage />} />
                           <Route path="/favorites" element={<ProfilePage />} />
                           <Route path="/orders" element={<ProfilePage />} />
