@@ -1,10 +1,10 @@
 # Nexora.Admin — Yönetim Paneli
 
-Nexora'nın katalog, sipariş, kupon, kullanıcı ve site ayarlarını yönetmek için bu React panelini geliştirdim. Backend kurulumunu [ana README](../../README.md) içinde anlattım.
+Nexora'nın yönetim paneli; katalog, sipariş, kupon, kullanıcı ve site ayarlarını yönetmek için kullanılır. Başlamadan önce [ana README](../../README.md) üzerinden backend kurulumunu tamamlayın.
 
-## Kullandığım sürümler
+## Teknolojiler ve sürümler
 
-Bu panelde kullandığım sürümleri `package-lock.json` kayıtlarına göre aşağıda listeledim.
+Sürümler `package-lock.json` kayıtlarına dayanır.
 
 | Bileşen | Sürüm |
 |---|---|
@@ -20,7 +20,7 @@ Bu panelde kullandığım sürümleri `package-lock.json` kayıtlarına göre a�
 
 ## Mevcut modüller
 
-Yönetim işlemlerini şu ekranlarda topladım:
+Yönetim ekranları:
 
 | Rota | Kapsam |
 |---|---|
@@ -38,13 +38,13 @@ Panelde bildirimler, toast mesajları, yükleniyor/boş durumları, hata sınır
 
 ## Yetkilendirme ve oturum
 
-Panel rotalarını `AdminRoute` ile koruyorum; yönetim API'lerinde ayrıca sunucu tarafında `Admin` rolü kontrol ediliyor. Access token'ı bellekte tutuyor, tarayıcı oturumunu HttpOnly cookie ile yeniliyorum. Çıkış ve hesap yetkisi değişikliklerini sunucudaki oturum iptaliyle birlikte ele aldım. Sistemde yönetici kalmamasını önlemek için son aktif yöneticinin rolünün kaldırılmasını veya hesabının pasifleştirilmesini engelledim.
+Panele giriş için `Admin` rolüne sahip bir hesap gerekir. Panel rotalarında ve yönetim API'lerinde yetki kontrolü uygulanır. Access token bellekte tutulur; oturum HttpOnly cookie ile yenilenir. Çıkış ve yetki değişikliklerinde sunucu oturumu iptal edilir. Son aktif yöneticinin rolü kaldırılamaz veya hesabı pasifleştirilemez.
 
-İlk yönetici hesabını backend'deki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarıyla yapılandırıyorum. Gerçek hesap bilgilerini README veya frontend yapılandırmasında paylaşmıyorum. İyzico anahtarlarını da yalnız backend tarafında tutuyorum.
+İlk yönetici hesabı için backend'deki `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarını yapılandırın. Gerçek hesap bilgilerini README veya frontend yapılandırmasında paylaşmayın. İyzico anahtarları yalnız backend tarafında saklanmalıdır.
 
 ## Sipariş ve ödeme davranışı
 
-İyzico akışında sipariş numaraları için `NX-YYYYMMDD-XXXXXXXX` biçimini kullanıyorum; son bölüm sekiz hexadecimal karakterden oluşuyor. Siparişin lojistik durumunu ödeme durumundan ayrı tutuyorum.
+Sipariş numaraları `NX-YYYYMMDD-XXXXXXXX` biçimindedir; son bölüm sekiz hexadecimal karakterden oluşur. Siparişin lojistik durumu ve ödeme durumu ayrı takip edilir.
 
 Ödeme ve fraud onayı tamamlanmadan online sipariş hazırlanıyor, kargoda veya teslim edildi durumuna geçirilemez. Normal ilerleme `Pending → Paid → Processing → Shipped → Delivered` şeklindedir. Kargolanmış sipariş önceki duruma döndürülemez; iptal bütün durumlardan kullanılabilen bir geçiş değildir.
 
@@ -52,7 +52,7 @@ Online siparişin iptali ödeme başarısızlığı veya doğrulanmış iade dur
 
 ## Çalıştırma
 
-Paneli bu klasörde aşağıdaki komutlarla çalıştırıyorum:
+Bu klasörde aşağıdaki komutları çalıştırın:
 
 ```bash
 npm ci
@@ -71,7 +71,7 @@ VITE_WEB_URL=http://localhost:5173
 
 ## Kontroller
 
-Test, lint, derleme ve bağımlılık denetimi için şu komutları kullanıyorum:
+Test, lint, derleme ve bağımlılık denetimi için:
 
 ```bash
 npm test

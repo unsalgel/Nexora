@@ -1,10 +1,10 @@
 # Nexora.Web — Müşteri Vitrini
 
-Nexora'nın müşteri vitrinini React ile geliştirdim. Ürün kataloğunu, sepeti, iyzico ödeme akışını ve kullanıcı hesabı ekranlarını bu uygulamada topladım. Backend kurulumunu [ana README](../../README.md) içinde anlattım.
+Nexora'nın müşteri vitrini; ürün kataloğu, sepet, iyzico ödeme akışı ve kullanıcı hesabı ekranlarını içerir. Başlamadan önce [ana README](../../README.md) üzerinden backend kurulumunu tamamlayın.
 
-## Kullandığım sürümler
+## Teknolojiler ve sürümler
 
-Bu uygulamada kullandığım sürümleri `package-lock.json` kayıtlarına göre aşağıda listeledim.
+Sürümler `package-lock.json` kayıtlarına dayanır.
 
 | Bileşen | Sürüm |
 |---|---|
@@ -20,7 +20,7 @@ Bu uygulamada kullandığım sürümleri `package-lock.json` kayıtlarına göre
 
 ## Mevcut özellikler
 
-Vitrinde şu özelliklere yer verdim:
+Vitrinde kullanılabilen özellikler:
 
 - Ürün listeleme ve detayları; kategori, marka ve fiyat filtreleri; ürün/varyant seçimi.
 - Sepet miktar yönetimi, sunucudan alınan fiyat teklifi, kargo ve kupon hesapları.
@@ -33,15 +33,15 @@ Vitrinde şu özelliklere yer verdim:
 
 `/checkout` ekranı teslimat adresini ve güncel sepet tutarını kullanarak iyzico oturumu başlatır. İstek anahtarı tekrar denemelerde aynı ödeme oturumunun kullanılmasını sağlar. Kullanıcı yalnız doğrulanan iyzico HTTPS adresine yönlendirilir.
 
-Kart numarası, son kullanma tarihi ve CVV'yi vitrinde toplamıyorum; kullanıcı bu bilgileri iyzico'nun sayfasında giriyor. Eski doğrudan kart formunu, Luhn/BIN kontrollerini, kart animasyonunu ve sahte ödeme yolunu kaldırdım.
+Kart numarası, son kullanma tarihi ve CVV iyzico'nun ödeme sayfasında girilir; bu bilgiler vitrinde toplanmaz.
 
 Sağlayıcı dönüşü `/payment-result` sayfasında gösterilir. Sayfa kullanıcı oturumu üzerinden `/payments/status/{orderNumber}` sorgusunu yapar. Sonuç kesinleşene veya sorgu hatası oluşana kadar beş saniye arayla yenilenir; elle yenileme de bulunur. Başarılı ekran yalnız sunucunun `Success` durumu için açılır. URL'deki sipariş numarası tek başına başarı olarak kabul edilmez.
 
-Ödeme durumlarını, callback'i ve backend ayarlarını [ödeme belgesinde](../../docs/iyzico-payments.md) anlattım.
+Ödeme durumları, callback ve backend ayarları için [ödeme belgesine](../../docs/iyzico-payments.md) bakın.
 
 ## Çalıştırma
 
-Vitrini bu klasörde aşağıdaki komutlarla çalıştırıyorum:
+Bu klasörde aşağıdaki komutları çalıştırın:
 
 ```bash
 npm ci
@@ -59,11 +59,11 @@ VITE_API_URL=http://localhost:5285/api/v1
 
 ## Oturum ve veri
 
-Access token'ı uygulama belleğinde tutuyor, tarayıcı oturumunu HttpOnly cookie üzerinden yeniliyorum. Sorgu önbelleğini kullanıcı ve oturum bağlamına göre ayırdım. Sepet ve ödeme işlemlerinde sunucudan gelen sonucu esas alıyorum.
+Access token uygulama belleğinde tutulur; oturum HttpOnly cookie üzerinden yenilenir. Sorgu önbelleği kullanıcı ve oturum bağlamına göre ayrılır. Sepet ve ödeme işlemlerinde sunucudan gelen sonuç esas alınır.
 
 ## Kontroller
 
-Test, lint, derleme ve bağımlılık denetimi için şu komutları kullanıyorum:
+Test, lint, derleme ve bağımlılık denetimi için:
 
 ```bash
 npm test

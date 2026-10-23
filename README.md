@@ -1,10 +1,10 @@
 # Nexora
 
-Nexora, geliştirdiğim MIT lisanslı bir e-ticaret hobi projesi. ASP.NET Core API'yi, müşteri vitrinini ve yönetim panelini aynı depoda tutuyorum. Ödeme entegrasyonunda iyzico Checkout Form kullanıyorum; eski sahte ödeme servisini ve doğrudan kart girişini kaldırdım.
+Nexora, geliştirdiğim MIT lisanslı bir e-ticaret hobi projesi. ASP.NET Core API, müşteri vitrini ve yönetim panelinden oluşur. Ödemeler iyzico Checkout Form üzerinden alınır. Bu rehber yerel kurulumu, yapılandırmayı ve uygulamaların kullanımını açıklar.
 
-## Kullandığım sürümler
+## Teknolojiler ve sürümler
 
-Projede kullandığım sürümleri aşağıda listeledim. Backend için proje dosyalarını, frontend için iki uygulamanın `package-lock.json` kayıtlarını esas aldım.
+Sürümler backend proje dosyaları ve frontend `package-lock.json` kayıtlarına dayanır.
 
 | Bileşen | Mevcut sürüm |
 |---|---|
@@ -24,7 +24,7 @@ Uygulama belgeleri: [müşteri vitrini](src/Nexora.Web/README.md), [yönetim pan
 
 ## Mimari ve kapsam
 
-Projeyi şu katmanlara ayırdım:
+Proje katmanları:
 
 - `Nexora.Domain`: entity'ler ve iş kuralı tipleri.
 - `Nexora.Application`: MediatR CQRS, FluentValidation, DTO ve altyapı portları.
@@ -33,27 +33,23 @@ Projeyi şu katmanlara ayırdım:
 - `Nexora.Api`: HTTP/SignalR, middleware ve DI composition root.
 - `Nexora.Web` / `Nexora.Admin`: React, TypeScript, Vite ve TanStack Query.
 
-Katalog ve varyantlardan sepet, sipariş, kupon, değerlendirme, adres, kullanıcı/rol ve site ayarlarına kadar alışverişin temel akışlarını bu yapıda topladım. Domain/Application bağımlılık yönünü NetArchTest ile kontrol ediyorum. İş kuralları için de regresyon testleri ve gerçek PostgreSQL/Redis entegrasyon testleri kullanıyorum.
+Müşteri vitrini katalog, varyant, sepet, kupon, ödeme, değerlendirme, adres ve hesap işlemlerini içerir. Yönetim panelinden ürünler, siparişler, kullanıcılar, roller ve site ayarları yönetilir. Sohbet asistanı herkese açık katalog bilgilerini kullanır; özel hesap verilerine erişmez.
 
-Kimlik doğrulamada JWT; yetkilendirme, oturum iptali, IP sınırları ve güvenlik başlıkları için sunucu tarafı kontroller kullanıyorum. Eşzamanlı işlemlerde EF `xmin` ve transaction kilitlerinden yararlanıyorum. Realtime olayları arayüz güncellemesi için kullanıyor, asıl veriyi HTTP sorgularından alıyorum. E-postaları iş verisiyle aynı commit'te outbox'a yazıp Hangfire üzerinden gönderiyorum.
-
-AI asistanına yalnız herkese açık katalog bağlamını veriyorum. API'de mesaj ve geçmiş boyutlarını sınırlıyorum; asistanın özel verilere veya yetkili araçlara erişimi yok. XML etiketlerini ve prompt talimatlarını yanıtları yönlendirmek için kullanıyorum, bunları tek başına bir güvenlik garantisi saymıyorum.
-
-Görsel yüklemelerinde JPG, PNG ve WebP dosyalarını decode edip yeniden encode ediyorum. Girdi ve çıktı için 5 MiB, boyut için 4096 piksel ve toplam 16 milyon piksel sınırı var; animasyon kabul edilmiyor. Dosyalara GUID adları veriyor, kullanılmayan görselleri referans ve dosya yolu kontrolüyle temizliyorum.
+Görsel yüklemelerinde JPG, PNG ve WebP desteklenir. Girdi ve çıktı için 5 MiB, boyut için 4096 piksel ve toplam 16 milyon piksel sınırı vardır; animasyon kabul edilmez.
 
 ## Yerel kurulum
 
 Gereksinimler: .NET 8 SDK veya `net8.0` hedefini destekleyen bir SDK, Node.js (CI: 24), npm ve altyapı için Docker Desktop. Paketler depodaki NuGet yapılandırması ve npm kilit dosyalarına göre yüklenir.
 
-Yerel kurulumda depo kökünde bir `.env` dosyası kullanıyorum. Dosya yoksa PowerShell ile oluşturabilirsin:
+Yerel kurulum için depo kökünde `.env` dosyası oluşturun. Mevcut dosyanız varsa içindeki değerleri düzenleyin:
 
 ```powershell
 if (-not (Test-Path .env)) { New-Item -ItemType File .env }
 ```
 
-Bu dosyada `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `REDIS_PASSWORD`, `PGADMIN_EMAIL`, `PGADMIN_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarını `AD=değer` biçiminde tutuyorum. Kendi kurulumunda JWT için en az 32 rastgele byte'tan üretilmiş bir anahtar kullan. Ödeme ayarları `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_BASE_URL` ve `IYZICO_CALLBACK_URL` alanlarından geliyor; ayrıntıları [ödeme belgesinde](docs/iyzico-payments.md) anlattım. Gerçek anahtarları frontend'e veya README'ye yazmıyorum.
+Bu dosyada `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `REDIS_PASSWORD`, `PGADMIN_EMAIL`, `PGADMIN_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_SEED_EMAIL` ve `ADMIN_SEED_PASSWORD` alanlarını `AD=değer` biçiminde tanımlayın. JWT için en az 32 rastgele byte'tan üretilmiş bir anahtar kullanın. Ödeme ayarları `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_BASE_URL` ve `IYZICO_CALLBACK_URL` alanlarıyla yapılandırılır; ayrıntılar [ödeme belgesinde](docs/iyzico-payments.md) bulunur. Gerçek anahtarları frontend'e veya README'ye yazmayın.
 
-Gerçek `.env` ve `.env.*` dosyalarını Git ve Docker build kapsamı dışında tutuyorum. `docker compose` `.env` dosyasını otomatik okur; **`dotnet run` otomatik okumaz**. Mevcut `.env` dosyan varsa yeniden oluşturmak yerine içindeki alanları düzenleyebilirsin.
+`.env` ve `.env.*` dosyaları Git ve Docker build kapsamı dışındadır. `docker compose` `.env` dosyasını otomatik okur; **`dotnet run` otomatik okumaz**.
 
 Redis'in yerel portu varsayılan olarak `6379`'dur. Port kullanılamıyorsa `.env` içine `REDIS_PORT=16379` gibi uygun bir port yazabilirsiniz; Compose ve yerel API başlatma betiği aynı değeri kullanır. Redis yine yalnız `127.0.0.1` üzerinde yayınlanır.
 
@@ -73,7 +69,7 @@ docker compose --profile app up --build -d
 
 API: `http://localhost:5285`; Swagger: `/swagger`; canlılık: `/health/live`; hazır olma: `/health/ready`. PostgreSQL `127.0.0.1:5432`, Redis `127.0.0.1:6379`, pgAdmin `127.0.0.1:5050`. Compose uygulama profili uploads, log ve DataProtection key volume'larını korur. Bu Compose örneği Development içindir.
 
-Müşteri vitrinini ve yönetim panelini ayrı terminallerde başlatıyorum:
+Müşteri vitrinini ve yönetim panelini depo kökünden açılan ayrı terminallerde başlatın:
 
 ```powershell
 cd src/Nexora.Web
@@ -94,7 +90,7 @@ SMTP host/user boşken Development'ta gönderim simüle edilir; kod/token/body l
 ## Ödeme akışı
 
 - Kullanıcı `/api/v1/payments/initialize` üzerinden ödeme oturumu başlatır. Tutar sunucuda hesaplanır; stok ve kupon hakkı işlem içinde ayrılır.
-- Kart bilgileri iyzico'nun barındırdığı HTTPS sayfasında girilir. Nexora'nın eski doğrudan kart formu ve `POST /orders` endpoint'i yoktur.
+- Kart bilgileri iyzico'nun barındırdığı HTTPS sayfasında girilir.
 - iyzico form POST isteğini `/api/v1/payments/callback` adresine gönderir. API sonucu sağlayıcıdan sorgular; sipariş eşleşmesi, tutar, para birimi ve fraud onayı kontrol edilir.
 - Callback, vitrindeki `/payment-result` sayfasına 303 ile yönlendirir. Ekran yalnız giriş yapmış kullanıcıya ait ödeme durumunu API'den okur; URL parametresi ödeme kanıtı değildir.
 - Tekrarlanan callback stok veya kuponu ikinci kez tüketmez. Hangfire işi sonuçlanmamış ödemeleri yeniden sorgular; belirsiz işlemlerin rezervasyonu korunur.
@@ -109,8 +105,8 @@ dotnet test Nexora.sln -c Release --collect:"XPlat Code Coverage"
 
 Frontend başına `npm test`, `npm run lint`, `npm run build` ve `npm audit --audit-level=high` komutları bulunur. CI bunları, backend testlerini, PostgreSQL/Redis entegrasyon kontrollerini, container HTTP smoke kontrollerini, NuGet audit, Gitleaks, dependency review ve CodeQL'i çalıştırır. Güncel sonuçlar GitHub Actions koşusunda ve test artifact'lerinde görülebilir.
 
-Test sayısı ve coverage oranı için güncel TRX/coverage çıktılarını esas alıyorum. InMemory testleri PostgreSQL constraint, SQL ve transaction davranışını doğrulamadığı için ayrı altyapı testleri de kullanıyorum. Bu testleri yerelde `NEXORA_TEST_POSTGRES` / `NEXORA_TEST_REDIS` ayarlarıyla, geliştirme verilerinden ayrı bir test veritabanında çalıştırabilirsin.
+Test sonuçları ve kapsam oranları TRX/coverage çıktılarında bulunur. PostgreSQL/Redis entegrasyon testleri için `NEXORA_TEST_POSTGRES` ve `NEXORA_TEST_REDIS` değerlerini geliştirme verilerinden ayrı test altyapısına yönlendirin.
 
 ## Güvenlik ve lisans
 
-Gerçek anahtarları ve parolaları yerel `.env`, .NET User Secrets veya sunucunun ortam değişkenlerinde tutuyorum; depoda paylaşmıyorum. Güvenlik bildirimleri için [SECURITY.md](SECURITY.md) dosyasına bakabilirsin. Projeyi [MIT lisansıyla](LICENSE) paylaşıyorum.
+Gerçek anahtarları ve parolaları yerel `.env`, .NET User Secrets veya sunucunun ortam değişkenlerinde saklayın; depoda paylaşmayın. Güvenlik bildirimleri için [SECURITY.md](SECURITY.md) dosyasını kullanın. Projeyi [MIT lisansıyla](LICENSE) paylaşıyorum.
