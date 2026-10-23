@@ -17,6 +17,7 @@ import { ShippingAddressSection } from '../components/checkout/ShippingAddressSe
 import { PaymentMethodSection } from '../components/checkout/PaymentMethodSection';
 import { OrderSummarySection } from '../components/checkout/OrderSummarySection';
 import { OrderSuccessView } from '../components/checkout/OrderSuccessView';
+import { CouponBox } from '../components/common/CouponBox';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, refreshCart, isMutating } = useCart();
@@ -342,7 +343,24 @@ export const CheckoutPage: React.FC = () => {
           )}
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-4">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs">
+            <CouponBox
+              appliedCoupon={appliedCoupon}
+              cartSubtotal={subtotal}
+              discountAmount={discountAmount}
+              onCouponApplied={(coupon) => {
+                setAppliedCoupon(coupon);
+                sessionStorage.setItem('appliedCoupon', JSON.stringify(coupon));
+              }}
+              onCouponRemoved={() => {
+                setAppliedCoupon(null);
+                sessionStorage.removeItem('appliedCoupon');
+              }}
+              disabled={isLoading}
+            />
+          </div>
+
           <OrderSummarySection
             cartItems={cartItems}
             subtotal={subtotal}
