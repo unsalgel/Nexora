@@ -80,12 +80,7 @@ export const CategoriesPage: React.FC = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ category, newStatus }: { category: CategoryDto; newStatus: boolean }) => {
       setTogglingCategoryId(category.id);
-      const res = await apiClient.put(`/categories/${category.id}`, {
-        name: category.name,
-        description: category.description || undefined,
-        isActive: newStatus,
-        parentCategoryId: category.parentCategoryId || null
-      });
+      const res = await apiClient.patch(`/categories/${category.id}/status`, { isActive: newStatus });
       return res.data;
     },
     onMutate: async ({ category, newStatus }) => {

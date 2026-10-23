@@ -174,6 +174,7 @@ export const ProductsPage: React.FC = () => {
           brandId,
           isActive,
           mainImageUrl: imageUrl || null,
+          removeMainImage: !imageUrl,
           version
         });
         return res.data;

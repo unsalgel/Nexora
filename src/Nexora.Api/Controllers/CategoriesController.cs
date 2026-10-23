@@ -55,6 +55,15 @@ public sealed class CategoriesController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Result<string>>> UpdateStatus(Guid id,
+        Nexora.Application.Features.Categories.Commands.UpdateCategoryStatus.UpdateCategoryStatusCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Sender.Send(command with { Id = id }, cancellationToken));
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Result<string>>> DeleteCategory(

@@ -24,6 +24,74 @@ namespace Nexora.UnitTests.Integration;
 public sealed class CommercePostgresTests
 {
     [PostgresFact]
+    public async Task CatalogDeletionAndActivation_CannotBothCommit()
+    {
+        await using var database = new PostgresTestDatabase(); await database.InitializeAsync();
+        foreach (var deleteBrand in new[] { true, false })
+        {
+            await using var seed = database.CreateContext();
+            var data = await CommerceRegressionTests.SeedCartAsync(seed);
+            data.Product.Brand.Name = "Brand " + Guid.NewGuid();
+            data.Product.Category.Name = "Category " + Guid.NewGuid();
+            data.Product.IsActive = false; await seed.SaveChangesAsync();
+            async Task<bool> Activate()
+            {
+                await using var db = database.CreateContext();
+                try
+                {
+                    await new Nexora.Application.Features.Products.Commands.UpdateProductStatus.UpdateProductStatusCommandHandler(db)
+                        .Handle(new(data.Product.Id, true), default);
+                    return true;
+                }
+                catch (NotFoundException) { return false; }
+            }
+            async Task<bool> Delete()
+            {
+                await using var db = database.CreateContext();
+                try
+                {
+                    if (deleteBrand)
+                        await new Nexora.Application.Features.Brands.Commands.DeleteBrand.DeleteBrandCommandHandler(db).Handle(new(data.Product.BrandId), default);
+                    else
+                        await new Nexora.Application.Features.Categories.Commands.DeleteCategory.DeleteCategoryCommandHandler(db).Handle(new(data.Product.CategoryId), default);
+                    return true;
+                }
+                catch (ConflictException) { return false; }
+            }
+            var outcomes = await Task.WhenAll(Delete(), Activate());
+            outcomes.Count(success => success).Should().Be(1);
+            await using var check = database.CreateContext();
+            (await check.Products.AnyAsync(p => p.Id == data.Product.Id && p.IsActive && (p.Brand.IsDeleted || p.Category.IsDeleted)))
+                .Should().BeFalse();
+        }
+    }
+
+    [PostgresFact]
+    public async Task ConcurrentSameKeyCheckouts_ReturnSameOrder_AndUniqueIndexRejectsDuplicates()
+    {
+        await using var database = new PostgresTestDatabase(); await database.InitializeAsync();
+        await using var seed = database.CreateContext();
+        var data = await CommerceRegressionTests.SeedCartAsync(seed, 10);
+        var payment = new Mock<IPaymentService>();
+        var command = CommerceRegressionTests.OrderCommand(data.User.Id, expected: 129.90m) with { IdempotencyKey = "parallel-key" };
+        async Task<OrderDto> Checkout()
+        {
+            await using var context = database.CreateContext();
+            return (await CommerceRegressionTests.CreateHandler(context, payment).Handle(command, default)).Data!;
+        }
+        var results = await Task.WhenAll(Checkout(), Checkout());
+        results[0].Should().BeEquivalentTo(results[1]);
+        payment.Verify(p => p.ProcessPaymentAsync(It.IsAny<decimal>(), It.IsAny<PaymentRequestDto>(), It.IsAny<CancellationToken>()), Times.Once);
+        await using var check = database.CreateContext();
+        (await check.Orders.CountAsync()).Should().Be(1);
+        (await check.Products.SingleAsync()).StockQuantity.Should().Be(9);
+        check.Orders.Add(new Order { UserId = data.User.Id, OrderNumber = "duplicate", ShippingAddress = "Test address",
+            IdempotencyKey = command.IdempotencyKey, RequestHash = "hash" });
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => check.SaveChangesAsync());
+        ((PostgresException)error.InnerException!).SqlState.Should().Be(PostgresErrorCodes.UniqueViolation);
+    }
+
+    [PostgresFact]
     public async Task ConcurrentCartAdds_OneRowWithCombinedQuantity()
     {
         await using var database = new PostgresTestDatabase(); await database.InitializeAsync();

@@ -17,6 +17,8 @@ public sealed class Order : BaseEntity
     public decimal? ShippingFee { get; set; }
     public string? CouponCode { get; set; }
     public uint Version { get; set; }
+    public string? IdempotencyKey { get; set; }
+    public string? RequestHash { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;

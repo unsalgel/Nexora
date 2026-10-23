@@ -41,7 +41,8 @@ const textContent = node => {
 for (const page of ['CartPage', 'CheckoutPage']) {
   test(`${page} uses one current quote for parent/variant rows, subtotal, shipping and total`, () => {
     const component = load(`../src/pages/${page}.tsx`, {
-      react: { __esModule: true, default: {}, useState: value => [value, () => {}], useMemo: callback => callback(), useEffect: () => {} },
+      react: { __esModule: true, default: {}, useState: value => [value, () => {}], useMemo: callback => callback(), useEffect: () => {}, useRef: value => ({ current: value }) },
+      '../features/checkout/orderAttempt': load('../src/features/checkout/orderAttempt.ts'),
       'react-router-dom': { Link: 'a', useNavigate: () => () => {} },
       '../hooks/useCartQuote': { useCartQuote: () => ({ data: quote, isFetching: false, isError: false }) },
       '../lib/cartQuote': cartQuote,

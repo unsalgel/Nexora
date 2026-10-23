@@ -34,23 +34,30 @@ export const BrandsPage: React.FC = () => {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const formGeneration = React.useRef(0);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const generation = formGeneration.current;
     setIsUploadingLogo(true);
-    const result = await uploadImage(file);
-    setIsUploadingLogo(false);
-
-    if (result.isSuccess && result.url) {
-      setLogoUrl(result.url);
-      showToast('success', 'Marka logosu başarıyla yüklendi.');
-    } else {
-      showToast('error', result.errorMessage || 'Logo yüklenemedi.');
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      const result = await uploadImage(file);
+      if (generation !== formGeneration.current) return;
+      if (result.isSuccess && result.url) {
+        setLogoUrl(result.url);
+        showToast('success', 'Marka logosu başarıyla yüklendi.');
+      } else {
+        showToast('error', result.errorMessage || 'Logo yüklenemedi.');
+      }
+    } catch {
+      if (generation === formGeneration.current) showToast('error', 'Logo yüklenemedi.');
+    } finally {
+      if (generation === formGeneration.current) {
+        setIsUploadingLogo(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -108,11 +115,7 @@ export const BrandsPage: React.FC = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ brand, newStatus }: { brand: BrandDto; newStatus: boolean }) => {
       setTogglingBrandId(brand.id);
-      const res = await apiClient.put(`/brands/${brand.id}`, {
-        name: brand.name,
-        logoUrl: brand.logoUrl || undefined,
-        isActive: newStatus
-      });
+      const res = await apiClient.patch(`/brands/${brand.id}/status`, { isActive: newStatus });
       return res.data;
     },
     onMutate: async ({ brand, newStatus }) => {
@@ -168,6 +171,8 @@ export const BrandsPage: React.FC = () => {
   });
 
   const openCreateModal = () => {
+    formGeneration.current++;
+    setIsUploadingLogo(false);
     setEditingBrand(null);
     setName('');
     setLogoUrl('');
@@ -177,6 +182,8 @@ export const BrandsPage: React.FC = () => {
   };
 
   const openEditModal = (brand: BrandDto) => {
+    formGeneration.current++;
+    setIsUploadingLogo(false);
     setEditingBrand(brand);
     setName(brand.name);
     setLogoUrl(brand.logoUrl || '');
@@ -186,6 +193,8 @@ export const BrandsPage: React.FC = () => {
   };
 
   const closeModal = () => {
+    formGeneration.current++;
+    setIsUploadingLogo(false);
     setIsModalOpen(false);
     setEditingBrand(null);
     setFormError(null);
@@ -330,7 +339,7 @@ export const BrandsPage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <Dialog label="Marka düzenle" onClose={() => setIsModalOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <Dialog label="Marka düzenle" onClose={closeModal} className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -357,7 +366,7 @@ export const BrandsPage: React.FC = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                saveMutation.mutate();
+                if (!isUploadingLogo && !saveMutation.isPending) saveMutation.mutate();
               }}
               className="space-y-4"
             >
@@ -472,7 +481,7 @@ export const BrandsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={saveMutation.isPending}
+                  disabled={saveMutation.isPending || isUploadingLogo}
                   className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   {saveMutation.isPending ? 'Kaydediliyor...' : editingBrand ? 'Güncelle' : 'Kaydet'}

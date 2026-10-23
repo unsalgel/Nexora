@@ -19,23 +19,14 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
     public async Task<Result<Guid>> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.BeginTransactionAsync("media-reference", cancellationToken);
+        await transaction.AcquireLockAsync(CatalogRelations.LockKey, cancellationToken);
         var skuExists = await _context.Products
             .AnyAsync(p => p.SKU == request.SKU, cancellationToken);
 
         if (skuExists)
             throw new ConflictException("Bu SKU koduna sahip bir ürün zaten mevcut.");
 
-        var categoryExists = await _context.Categories
-            .AnyAsync(c => c.Id == request.CategoryId && !c.IsDeleted, cancellationToken);
-
-        if (!categoryExists)
-            throw new NotFoundException("Seçilen kategori bulunamadı.");
-
-        var brandExists = await _context.Brands
-            .AnyAsync(b => b.Id == request.BrandId && !b.IsDeleted, cancellationToken);
-
-        if (!brandExists)
-            throw new NotFoundException("Seçilen marka bulunamadı.");
+        await CatalogRelations.EnsureExistAsync(_context, request.CategoryId, request.BrandId, cancellationToken);
 
         var product = new Product
         {

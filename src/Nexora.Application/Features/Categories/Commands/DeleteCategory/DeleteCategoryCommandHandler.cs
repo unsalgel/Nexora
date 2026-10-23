@@ -1,3 +1,4 @@
+using Nexora.Application.Features.Products;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
     public async Task<Result<string>> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.BeginTransactionAsync("category-tree", cancellationToken);
+        await transaction.AcquireLockAsync(CatalogRelations.LockKey, cancellationToken);
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => c.Id == request.Id && !c.IsDeleted, cancellationToken)
             ?? throw new NotFoundException("Silinecek kategori bulunamadı.");
