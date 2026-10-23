@@ -2,26 +2,27 @@ import { useCartQuote } from '../hooks/useCartQuote';
 import { getQuotedCartItems } from '../lib/cartQuote';
 import { SafeImage } from '../components/common/SafeImage';
 import { EmptyState } from '../components/common/EmptyState';
+import { CouponBox } from '../components/common/CouponBox';
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, Ticket, ShoppingBag, ArrowLeft, Check, X, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
-import { apiClient } from '../lib/apiClient';
-import type { ApiResponse } from '../lib/apiClient';
 import type { CouponValidationResultDto } from '../types/coupon';
-import type { AxiosError } from 'axios';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { cart, isLoading, isError, isMutating, refreshCart, updateQuantity, removeFromCart } = useCart();
-  const { showToast } = useToast();
   const { settings } = useSettings();
 
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(null);
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResultDto | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('appliedCoupon');
+      return saved ? JSON.parse(saved) as CouponValidationResultDto : null;
+    } catch {
+      return null;
+    }
+  });
   const quoteQuery = useCartQuote(appliedCoupon?.couponCode);
 
   const cartItems = useMemo(() => getQuotedCartItems(cart?.items || [], quoteQuery.data), [cart?.items, quoteQuery.data]);
@@ -31,38 +32,14 @@ export const CartPage: React.FC = () => {
   const discountAmount = quoteQuery.data?.discountAmount ?? 0;
   const payableTotal = quoteQuery.data?.totalAmount ?? 0;
 
-  const handleApplyCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponCode.trim()) {
-      showToast('Lütfen bir kupon kodu giriniz.', 'warning');
-      return;
-    }
-
-    try {
-      setIsApplyingCoupon(true);
-      const response = await apiClient.post<ApiResponse<CouponValidationResultDto>>('/coupons/validate', {
-        code: couponCode.trim(),
-        cartTotalAmount: subtotal
-      });
-
-      if (response.data?.isSuccess && response.data.data) {
-        setAppliedCoupon(response.data.data);
-        showToast(response.data.message || 'Kupon başarıyla uygulandı!', 'success');
-      }
-    } catch (err: unknown) {
-      setAppliedCoupon(null);
-      const axiosError = err as AxiosError<ApiResponse<unknown>>;
-      const errorMessage = axiosError.response?.data?.message || 'Kupon doğrulanırken bir hata oluştu.';
-      showToast(errorMessage, 'error');
-    } finally {
-      setIsApplyingCoupon(false);
-    }
+  const handleCouponApplied = (coupon: CouponValidationResultDto) => {
+    setAppliedCoupon(coupon);
+    sessionStorage.setItem('appliedCoupon', JSON.stringify(coupon));
   };
 
-  const handleRemoveCoupon = () => {
+  const handleCouponRemoved = () => {
     setAppliedCoupon(null);
-    setCouponCode('');
-    showToast('Kupon sepetten kaldırıldı.', 'info');
+    sessionStorage.removeItem('appliedCoupon');
   };
 
   if (isError) return <p role="alert" className="p-8 text-rose-600">Sepet yüklenemedi. <button onClick={() => void refreshCart()}>Tekrar dene</button></p>;
@@ -161,58 +138,15 @@ export const CartPage: React.FC = () => {
 
         <div className="lg:col-span-4 space-y-4">
           
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-orange-500" />
-              <span>İndirim Kuponu</span>
-            </h3>
-
-            {appliedCoupon ? (
-              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200/80 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
-                    <Check className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-800 uppercase">{appliedCoupon.couponCode}</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Uygulandı</span>
-                    </div>
-                    <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                      -{discountAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL İndirim
-                    </p>
-                  </div>
-                </div>
-
-                <button aria-label="Kuponu Kaldır"
-                  type="button"
-                  onClick={handleRemoveCoupon}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                  title="Kuponu Kaldır"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <input
-                  type="text"
-                  aria-label="İndirim kuponu kodu" placeholder="Kupon Kodu (Örn: NEXORA100)"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  disabled={isApplyingCoupon}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-orange-500 uppercase disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={isApplyingCoupon || !couponCode.trim()}
-                  className="px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
-                >
-                  {isApplyingCoupon && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Uygula</span>
-                </button>
-              </form>
-            )}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm">
+            <CouponBox
+              appliedCoupon={appliedCoupon}
+              cartSubtotal={subtotal}
+              discountAmount={discountAmount}
+              onCouponApplied={handleCouponApplied}
+              onCouponRemoved={handleCouponRemoved}
+              disabled={isMutating}
+            />
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4">
