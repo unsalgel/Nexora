@@ -28,6 +28,18 @@ public static class DependencyInjection
             }
         });
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.Configure<Nexora.Infrastructure.Payments.IyzicoSettings>(options =>
+        {
+            configuration.GetSection(Nexora.Infrastructure.Payments.IyzicoSettings.SectionName).Bind(options);
+            var envApiKey = configuration["IYZICO_API_KEY"] ?? Environment.GetEnvironmentVariable("IYZICO_API_KEY");
+            if (!string.IsNullOrWhiteSpace(envApiKey)) options.ApiKey = envApiKey;
+
+            var envSecretKey = configuration["IYZICO_SECRET_KEY"] ?? Environment.GetEnvironmentVariable("IYZICO_SECRET_KEY");
+            if (!string.IsNullOrWhiteSpace(envSecretKey)) options.SecretKey = envSecretKey;
+
+            var envBaseUrl = configuration["IYZICO_BASE_URL"] ?? Environment.GetEnvironmentVariable("IYZICO_BASE_URL");
+            if (!string.IsNullOrWhiteSpace(envBaseUrl)) options.BaseUrl = envBaseUrl;
+        });
         services.AddDataProtection().SetApplicationName("Nexora").PersistKeysToFileSystem(new DirectoryInfo(
             configuration["DataProtection:KeysPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "keys")));
         services.AddScoped<SmtpEmailService>();
@@ -36,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IPaymentService, FakePaymentService>();
+        services.AddScoped<IPaymentGateway, Nexora.Infrastructure.Payments.Adapters.IyzicoPaymentAdapter>();
 
         // Native config binding korunur; açık environment override bağlantıdaki varsayılandan önceliklidir.
         var redisConnectionString = configuration["REDIS_URL"] ?? configuration.GetConnectionString("Redis")
