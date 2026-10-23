@@ -1,50 +1,42 @@
-# İyzico ödeme akışı ve dağıtım
+# İyzico ödeme ayarları
 
-Checkout Form, iyzico'nun barındırdığı HTTPS ödeme sayfasında açılır. Nexora sayfasına sağlayıcı scripti enjekte edilmez; mevcut CSP korunur. Bu sürüm tek çekim ödeme başlatır.
+Kurulum ve uygulamaları çalıştırma adımları [ana README](../README.md) içindedir. Bu belge ödeme ayarlarını ve panelde karşılaşılabilecek durumları açıklar.
 
-## Yapılandırma
+## Ayarlar
 
-- `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`: ilgili sandbox/canlı hesabın gizli anahtarları.
-- `IYZICO_BASE_URL`: `https://sandbox-api.iyzipay.com` veya `https://api.iyzipay.com`.
-- `IYZICO_CALLBACK_URL`: dışarıdan erişilebilir `https://<api-host>/api/v1/payments/callback`. Eski `/api/payments/iyzico-callback` adresi kullanılmaz. `.env` içindeki eski değeri de güncelleyin.
-- `Frontend__BaseUrl`: mağazanın güvenilir HTTPS adresi. Dönüş yolu `/payment-result` olarak sunucuda belirlenir; istemci dönüş URL'si seçemez.
+Aşağıdaki değerler projenin ana klasöründeki `.env` dosyasına yazılır:
 
-Development ortamında localhost HTTP callback kullanılabilir; iyzico sandbox uçtan uca testi için dışarıdan erişilebilir HTTPS adresi gerekir. Üretimde eksik anahtar, uygunsuz API adresi ve geçersiz callback ayarı başlangıç doğrulamasında reddedilir. Smoke compose dosyasındaki anahtarlar yalnız test yer tutucularıdır.
+| Alan | Açıklama |
+|---|---|
+| `IYZICO_API_KEY` | İyzico hesabının API anahtarı |
+| `IYZICO_SECRET_KEY` | Aynı hesabın güvenlik anahtarı |
+| `IYZICO_BASE_URL` | Sandbox için `https://sandbox-api.iyzipay.com`, canlı ortam için `https://api.iyzipay.com` |
+| `IYZICO_CALLBACK_URL` | API'nin dışarıdan erişilebilen HTTPS adresi; sonu `/api/v1/payments/callback` olmalı |
+| `Frontend__BaseUrl` | Kullanıcının ödeme sonrası döneceği alışveriş sitesinin adresi |
 
-## Veritabanı
+API adresi ve anahtarlar aynı ortama ait olmalıdır. Sandbox anahtarlarını sandbox adresiyle kullanın. Yerel geliştirmede localhost HTTP callback kabul edilir; iyzico üzerinden ödeme denemek için API'ye dışarıdan HTTPS ile ulaşılabilmesi gerekir.
 
-API sürümüyle birlikte `20261023180557_HardenIyzicoPaymentLifecycle` migration'ı uygulanmalıdır. Canlı veritabanına bu çalışma sırasında migration uygulanmadı.
+## Ödeme nasıl ilerler?
 
-Migration ödeme token'ını eski `IdempotencyKey` alanından ayrı `PaymentToken` alanına taşır, ödeme kimliğini ve sonraki sorgu zamanını saklar. Mevcut ödenmiş siparişlerin düşülmüş stoğu işaretlenir. Eski Pending iyzico siparişleri için stok rezervasyonu uydurulmaz; tahsilat bulunursa manuel incelemeye alınır. Token ve ödeme kimliği için benzersiz indeksler bulunur.
+Kullanıcı teslimat adresini seçip ödemeye geçtiğinde tutar sunucuda hesaplanır, stok ve kupon hakkı ayrılır. Kullanıcı iyzico'nun ödeme sayfasına yönlendirilir. Kart bilgileri orada girilir; ödeme tek çekim olarak başlatılır.
 
-Dağıtım sırasında eski API/worker sürümleri durdurulmalıdır: eski callback kodu rezervasyonu bilmeden tekrar stok düşebilir. Aktif rezervasyonlar varken eski sürüme dönüş veya migration geri alma yapılmamalıdır.
+İyzico sonucu API'ye iletir. API, ödemeyi iyzico üzerinden doğrular ve kullanıcıyı alışveriş sitesindeki `/payment-result` sayfasına yönlendirir. Bu sayfa giriş yapan kullanıcının ödeme sonucunu gösterir.
 
-## İşleyiş
+Tarayıcı kapansa veya sonuç hemen gelmese de bekleyen ödemeler arka planda kontrol edilir. Sonuç kesinleşene kadar ayrılan stok ve kupon hakkı tutulur.
 
-1. `/api/v1/payments/initialize` kimlik doğrulaması ve istek anahtarı gerektirir. Kullanıcı, sepet, ürün/varyant uygunluğu ve fiyatlar sunucuda doğrulanır. Kullanıcı sepeti, ilgili ürünler ve kupon deterministik kilitlerle korunur.
-2. Stok ve kupon hakkı aynı transaction'da ayrılır. Ödeme URL'si ancak veritabanı commit'i başarılı olduktan sonra istemciye verilir. Aynı istek anahtarı yeni rezervasyon oluşturmaz.
-3. iyzico `application/x-www-form-urlencoded` biçiminde `token` gönderir. Callback token'ı yalnız kendi siparişiyle eşler ve sağlayıcıdan sonucu sorgular. Tutar, para birimi, ödeme kimliği, sipariş kimliği ve fraud onayı doğrulanmadan sipariş Paid olmaz.
-4. Başarıda stok ikinci kez düşülmez. Kupon rezervasyonu kullanıma çevrilir; yalnız başlangıçtaki sepet satırlarından satın alınan miktar çıkarılır. Bildirim ve e-posta outbox kaydı aynı transaction'dadır.
-5. Callback `303` ile mağazaya döner. URL'deki sipariş numarası ödeme kanıtı değildir; sonuç ekranı giriş yapmış kullanıcıya ait `/payments/status/{orderNumber}` kaydını sorgular.
-6. Hangfire `payment-reconciliation` işi her dakika vadesi gelen en fazla 100 kaydı sorgular. Belirsiz sonuçlar beş dakika sonra yeniden kontrol edilir. Callback kaybolsa veya tarayıcı kapansa da takip kalıcıdır.
+## Ödeme durumları
 
-## Belirsiz sonuçlar ve iptal
+| Durum | Anlamı |
+|---|---|
+| `Pending` | Ödeme bekleniyor. |
+| `Unknown` | İyzico'dan kesin sonuç alınamadı; kontrol devam ediyor. |
+| `UnderReview` | Tahsilat var, iyzico'nun güvenlik incelemesi bekleniyor. Sipariş sevk edilemez. |
+| `RequiresAttention` | Ödeme bilgilerinde uyumsuzluk var veya sonuç 24 saattir kesinleşmedi. İyzico panelinden kontrol edilmeli. |
+| `Success` | Ödeme doğrulandı. |
+| `Failed` | Ödeme başarısız olarak doğrulandı; ayrılan stok ve kupon hakkı serbest bırakılır. |
 
-- `Pending`: ödeme bekleniyor, stok ve kupon hakkı ayrılmış durumda.
-- `Unknown`: ağ/sağlayıcı yanıtı sonucu kesinleştirmedi. Banka reddi olarak işaretlenmez.
-- `UnderReview`: tahsilat var, fraud onayı bekleniyor; sevkiyat yapılamaz.
-- `RequiresAttention`: tutar/kimlik/fraud/rezervasyon uyumsuzluğu veya 24 saati aşan belirsizlik. İş yeniden sorgulamaya devam eder; logda sipariş numarasıyla uyarı ve kullanıcıya bir kez bildirim oluşturulur.
-- `Success`: kesin onay. Tekrarlanan callback sevkiyat durumunu, stoğu veya kuponu değiştirmez.
-- `Failed`: sağlayıcının ilgili sipariş için kesin başarısız sonucu. Ayrılan stok ve kupon hakkı bir kez serbest bırakılır.
+`RequiresAttention` durumundaki siparişin tahsilat ve iade bilgilerini iyzico panelindeki kayıtla karşılaştırın. Yalnızca süre geçtiği için ödeme başarısız sayılmaz.
 
-Yaşı dolduğu için bir online ödeme kendiliğinden başarısız sayılmaz. Sonuç belirsizken rezervasyon tutulur; sağlayıcı incelemesi tamamlanana kadar serbest bırakılmaz. `RequiresAttention` kayıtları operasyon ekibince iyzico panelindeki tahsilat/iade kaydıyla karşılaştırılmalıdır. Doğrulanmış tahsilat, iade edilmiş gibi işaretlenmemelidir.
+## İptal ve iade
 
-Online siparişin kullanıcı/admin iptali, ödeme sonucu kesinleşmeden veya tahsilat iade edilmeden engellenir. Bu değişiklik otomatik iade API'si eklemez. Eski doğrudan kart test akışı tamamen kaldırıldı: servis, servis sözleşmesi, kart DTO’su, sipariş oluşturma komutu ve `POST /orders` endpoint’i artık yoktur. Web kart bilgisi toplamaz; tüm ortamlarda yalnız iyzico ödeme sayfasını kullanır. Container smoke Production ve Development ortamlarında eski endpoint’in 405 döndüğünü doğrular.
-
-## Doğrulama
-
-Son kaldırma değişikliğiyle 280 backend testi (0 atlanan) ve 30 Web testi geçti. Backend/Web derlemeleri ve Production/Development HTTP smoke kontrolleri başarılıdır.
-
-Backend testleri PostgreSQL/Redis üzerinde stok, kupon, ödeme tekrarı ve migration davranışlarını doğrular. Eski doğrudan kart testleri kaldırılmış; ortak ticaret regresyonları iyzico ödeme başlatma akışına taşınmıştır. Web testleri ve container smoke, eski ödeme yolunun hiçbir ortamda bulunmadığını kontrol eder.
-
-Gerçek iyzico sandbox tahsilatı bu doğrulama kapsamında çalıştırılmadı.
+Ödeme sonucu belli olmadan sipariş iptal edilemez. Ödemesi alınan siparişte iptal için iadenin doğrulanması gerekir. Nexora panelinden otomatik iyzico iadesi yapılamaz.
