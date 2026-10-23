@@ -35,7 +35,7 @@ Tarayıcı kapansa veya sonuç hemen gelmese de bekleyen ödemeler arka planda k
 | `Success` | Ödeme doğrulandı. |
 | `Failed` | Ödeme başarısız olarak doğrulandı; ayrılan stok ve kupon hakkı serbest bırakılır. |
 
-`RequiresAttention` durumundaki siparişin tahsilat ve iade bilgilerini iyzico panelindeki kayıtla karşılaştırın. Yalnızca süre geçtiği için ödeme başarısız sayılmaz.
+Ödeme bilgileri uyuşmayan veya sonucu 24 saat içinde netleşmeyen siparişlerin ödeme durumu `RequiresAttention` olur. Bu, ödemenin kontrol beklediği anlamına gelir. Bu durumda iyzico panelinden para çekilip çekilmediğine ve iade yapılıp yapılmadığına bakın. Sonucun gecikmesi, ödemenin başarısız olduğu anlamına gelmez.
 
 ## İptal ve iade
 

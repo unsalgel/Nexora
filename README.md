@@ -202,9 +202,9 @@ Yerel ayarlar `.env` dosyasında tutulur. Bu dosya GitHub'a gönderilmez. API an
 
 ## MIT lisansı
 
-Aşağıda lisansın Türkçe çevirisi yer alıyor. İngilizce asıl metin [LICENSE](LICENSE) dosyasındadır.
+Lisans metni aşağıda ve [LICENSE](LICENSE) dosyasında yer alır.
 
-Telif hakkı (c) 2026 Ünsal Gel - Nexora E-Commerce Platform
+Telif hakkı (c) 2026 Ünsal Gel - Nexora E-Ticaret Platformu
 
 Bu yazılımın ve beraberindeki dokümantasyon dosyalarının ("Yazılım") bir kopyasını edinen herkese; Yazılımı kullanma, kopyalama, değiştirme, birleştirme, yayımlama, dağıtma, alt lisanslama ve/veya kopyalarını satma hakları da dahil olmak üzere, Yazılım üzerinde herhangi bir kısıtlama olmadan işlem yapma ve Yazılımın sağlandığı kişilere de bu hakları tanıma izni, aşağıdaki koşula bağlı olarak ücretsiz verilir:
 
