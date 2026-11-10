@@ -1,9 +1,5 @@
 const SAFE_ORDER_NUMBER_PATTERN = /^NX-\d{8}-[A-F0-9]{8}$/;
 
-/**
- * Sanitizes and validates an order number extracted from URL query parameters.
- * Rejects any non-standard or malformed string to prevent parameter tampering or reflected injection.
- */
 export function sanitizeOrderNumber(value: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();

@@ -33,6 +33,25 @@ public sealed class IyzicoSettings
         (uri.Scheme == Uri.UriSchemeHttps && (development || !uri.IsLoopback) ||
          development && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback);
 
+    public static string BuildPaymentResultUrl(string? frontendBaseUrl, bool development, string? orderNumber)
+    {
+        var baseUrl = string.IsNullOrWhiteSpace(frontendBaseUrl) ? "http://localhost:5173" : frontendBaseUrl;
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+            !string.IsNullOrEmpty(uri.UserInfo) ||
+            !(uri.Scheme == Uri.UriSchemeHttps || development && uri.IsLoopback && uri.Scheme == Uri.UriSchemeHttp))
+        {
+            throw new InvalidOperationException("Frontend:BaseUrl güvenilir bir HTTPS adresi olmalıdır.");
+        }
+
+        var destination = new Uri(uri, "/payment-result").AbsoluteUri;
+        if (!string.IsNullOrWhiteSpace(orderNumber))
+        {
+            destination += "?order=" + Uri.EscapeDataString(orderNumber);
+        }
+
+        return destination;
+    }
+
     /// <summary>
     /// Hassas anahtarların Serilog veya bellek dökümlerine (dump) sızmasını kesin olarak engeller.
     /// </summary>

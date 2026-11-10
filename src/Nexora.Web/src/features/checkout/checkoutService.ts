@@ -7,6 +7,11 @@ export interface InitializeIyzicoPaymentParams {
   shippingAddress: string;
   expectedTotalAmount?: number;
   couponCode?: string | null;
+  contactName?: string;
+  phoneNumber?: string;
+  city?: string;
+  district?: string;
+  postalCode?: string;
 }
 
 export interface SaveAddressParams {
@@ -49,6 +54,11 @@ export const checkoutService = {
       idempotencyKey: params.idempotencyKey,
       expectedTotalAmount: params.expectedTotalAmount,
       couponCode: params.couponCode || null,
+      contactName: params.contactName,
+      phoneNumber: params.phoneNumber,
+      city: params.city,
+      district: params.district,
+      postalCode: params.postalCode,
     });
 
     if (res.data?.isSuccess && res.data.data) {

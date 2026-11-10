@@ -23,7 +23,6 @@ public sealed class CompletePaymentCommandHandler(
         if (!orderId.HasValue)
             return Result<PaymentVerificationResult>.Failure("İlişkili sipariş kaydı bulunamadı.");
 
-        // All cancellation/status handlers use this same lock. Resolve a token only to its own order.
         await using var transaction = await context.BeginTransactionAsync($"order:{orderId}", cancellationToken);
         var order = await context.Orders.Include(o => o.User)
             .Include(o => o.Items).ThenInclude(i => i.Product)
@@ -36,7 +35,6 @@ public sealed class CompletePaymentCommandHandler(
         var verified = await paymentGateway.VerifyPaymentAsync(new(request.Token), cancellationToken);
         order.NextPaymentCheckAtUtc = DateTime.UtcNow.AddMinutes(5);
 
-        // Even a definite failure must match the stored basket before releasing inventory.
         if (verified.OrderNumber != order.OrderNumber)
         {
             MarkUncertain(order, PaymentStatus.Unknown);
@@ -70,12 +68,10 @@ public sealed class CompletePaymentCommandHandler(
             order.FraudStatus = verified.FraudStatus;
             if (verified.FraudStatus != 1)
             {
-                // A fraud rejection after a charge is not proof that money was returned.
                 MarkUncertain(order, verified.FraudStatus == 0 ? PaymentStatus.UnderReview : PaymentStatus.RequiresAttention);
             }
             else if (order.Status != OrderStatus.Pending || !order.StockReserved)
             {
-                // Includes pre-migration sessions without a reservation and late cancelled payments.
                 MarkUncertain(order, PaymentStatus.RequiresAttention);
             }
             else
@@ -91,7 +87,6 @@ public sealed class CompletePaymentCommandHandler(
                     order.ReservedCouponId = null;
                 }
 
-                // Consume only original rows/quantities. New rows survive a delayed callback.
                 var cart = await context.Carts.Include(c => c.Items)
                     .SingleOrDefaultAsync(c => c.UserId == order.UserId, cancellationToken);
                 if (cart is not null)
@@ -114,7 +109,6 @@ public sealed class CompletePaymentCommandHandler(
                     Message = $"{order.OrderNumber} numaralı siparişiniz başarıyla alındı.",
                     Type = NotificationType.OrderCreated
                 });
-                // IEmailService persists to the outbox in the same transaction.
                 if (order.User is not null && !string.IsNullOrWhiteSpace(order.User.Email))
                     await emailService.SendOrderConfirmationEmailAsync(order.ToDto(), order.User.Email,
                         $"{order.User.FirstName} {order.User.LastName}".Trim(), cancellationToken);
@@ -139,7 +133,9 @@ public sealed class CompletePaymentCommandHandler(
     {
         order.PaymentStatus = DateTime.UtcNow - order.CreatedAtUtc > TimeSpan.FromHours(24)
             ? PaymentStatus.RequiresAttention : status;
-        if (order.PaymentStatus != PaymentStatus.RequiresAttention || order.PaymentReviewNotified) return;
+        if (order.PaymentStatus != PaymentStatus.RequiresAttention) return;
+        order.NextPaymentCheckAtUtc = null;
+        if (order.PaymentReviewNotified) return;
         order.PaymentReviewNotified = true;
         context.Notifications.Add(new Notification
         {

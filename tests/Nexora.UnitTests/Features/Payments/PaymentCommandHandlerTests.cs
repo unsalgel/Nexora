@@ -285,5 +285,74 @@ public sealed class PaymentCommandHandlerTests : IDisposable
         (await handler.Handle(new(order.UserId, order.OrderNumber), default)).Data!.PaymentStatus.Should().Be("Pending");
     }
 
+    [Fact]
+    public async Task Initialize_ForwardsBuyerAddressCategory_AndKeepsBasketSumExactUnderHighDiscount()
+    {
+        var data = await CommerceRegressionTests.SeedCartAsync(db, 10);
+        data.Product.Category.Name = "Elektronik";
+        data.Product.Price = 10m;
+        var secondProduct = new Product
+        {
+            Name = "İkinci Ürün", SKU = Guid.NewGuid().ToString("N"), Price = 10m, StockQuantity = 10, Version = 1,
+            Category = data.Product.Category, Brand = data.Product.Brand
+        };
+        var thirdProduct = new Product
+        {
+            Name = "Üçüncü Ürün", SKU = Guid.NewGuid().ToString("N"), Price = 10m, StockQuantity = 10, Version = 1,
+            Category = data.Product.Category, Brand = data.Product.Brand
+        };
+        db.Products.AddRange(secondProduct, thirdProduct);
+        data.Cart.Items.Add(new CartItem { Product = secondProduct, Quantity = 1 });
+        data.Cart.Items.Add(new CartItem { Product = thirdProduct, Quantity = 1 });
+        db.Coupons.Add(new Coupon
+        {
+            Code = "MEGA", DiscountType = DiscountType.FixedAmount, DiscountValue = 29.99m,
+            TotalUsageLimit = 5, ExpirationDateUtc = DateTime.UtcNow.AddDays(1)
+        });
+        await db.SaveChangesAsync();
+
+        PaymentInitializationRequest? capturedRequest = null;
+        gateway.Setup(g => g.InitializePaymentAsync(It.IsAny<PaymentInitializationRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<PaymentInitializationRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new PaymentInitializationResult(true, Guid.NewGuid().ToString(), null, "https://sandbox-cpp.iyzipay.com/checkout", null));
+
+        var command = new InitializePaymentCommand(
+            ShippingAddress: "Moda Cad. No:10 Kadıköy/İstanbul",
+            CouponCode: "MEGA",
+            IdempotencyKey: Guid.NewGuid().ToString(),
+            ContactName: "Ahmet Yılmaz",
+            PhoneNumber: "05321112233",
+            City: "İstanbul",
+            District: "Kadıköy",
+            PostalCode: "34710") { UserId = data.User.Id };
+
+        var result = await new InitializePaymentCommandHandler(db, gateway.Object).Handle(command, default);
+        result.IsSuccess.Should().BeTrue();
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Buyer.PhoneNumber.Should().Be("05321112233");
+        capturedRequest.Buyer.City.Should().Be("İstanbul");
+        capturedRequest.Buyer.ZipCode.Should().Be("34710");
+        capturedRequest.ShippingAddress.ContactName.Should().Be("Ahmet Yılmaz");
+        capturedRequest.ShippingAddress.City.Should().Be("İstanbul");
+        capturedRequest.BasketItems.Should().OnlyContain(i => i.Price >= 0.01m);
+        capturedRequest.BasketItems.Sum(i => i.Price).Should().Be(capturedRequest.TotalAmount);
+        capturedRequest.BasketItems.Where(i => i.Category != "Kargo").Should().OnlyContain(i => i.Category == "Elektronik");
+    }
+
+    [Fact]
+    public async Task Initialize_ExceedingMaxActiveSessionsPerUser_ThrowsConflictException()
+    {
+        var data = await CommerceRegressionTests.SeedCartAsync(db, 10);
+        var handler = new InitializePaymentCommandHandler(db, gateway.Object);
+        for (var i = 0; i < 3; i++)
+        {
+            var res = await handler.Handle(new("Adres", IdempotencyKey: $"key-{i}") { UserId = data.User.Id }, default);
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        var act = () => handler.Handle(new("Adres", IdempotencyKey: "key-4") { UserId = data.User.Id }, default);
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
     public void Dispose() => TestDbContextFactory.Destroy(db);
 }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Nexora.Infrastructure.Payments;
 
 namespace Nexora.Api.Controllers;
 
@@ -25,4 +26,17 @@ public abstract class ApiControllerBase : ControllerBase
     }
 
     protected bool IsAdmin => User.IsInRole("Admin");
+
+    protected IActionResult RedirectToPaymentResult(string? orderNumber)
+    {
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var environment = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var destination = IyzicoSettings.BuildPaymentResultUrl(
+            configuration["Frontend:BaseUrl"],
+            environment.IsDevelopment(),
+            orderNumber);
+
+        Response.Headers.Location = destination;
+        return StatusCode(StatusCodes.Status303SeeOther);
+    }
 }

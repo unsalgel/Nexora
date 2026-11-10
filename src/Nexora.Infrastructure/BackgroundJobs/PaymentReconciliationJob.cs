@@ -16,7 +16,10 @@ public sealed class PaymentReconciliationJob(IServiceScopeFactory scopes, ILogge
         var context = readScope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         var due = await context.Orders.AsNoTracking()
             .Where(o => o.PaymentToken != null &&
-                o.PaymentStatus != PaymentStatus.Success && o.PaymentStatus != PaymentStatus.Failed && o.PaymentStatus != PaymentStatus.Refunded &&
+                o.PaymentStatus != PaymentStatus.Success &&
+                o.PaymentStatus != PaymentStatus.Failed &&
+                o.PaymentStatus != PaymentStatus.Refunded &&
+                o.PaymentStatus != PaymentStatus.RequiresAttention &&
                 (o.NextPaymentCheckAtUtc == null || o.NextPaymentCheckAtUtc <= DateTime.UtcNow))
             .OrderBy(o => o.NextPaymentCheckAtUtc).Take(100)
             .Select(o => new { o.OrderNumber, o.PaymentToken }).ToListAsync(cancellationToken);
@@ -25,7 +28,6 @@ public sealed class PaymentReconciliationJob(IServiceScopeFactory scopes, ILogge
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                // A fresh context also discards tracked state after a failed transaction.
                 using var scope = scopes.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<ISender>()
                     .Send(new CompletePaymentCommand(payment.PaymentToken!), cancellationToken);
