@@ -22,8 +22,6 @@ import {
   Menu, 
   X, 
   Layers, 
-  PhoneCall, 
-  Sparkles,
   ChevronRight,
   ChevronLeft
 } from 'lucide-react';
@@ -109,27 +107,10 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs font-sans">
       {settings.isAnnouncementActive && (
-        <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5 px-4 hidden md:block">
-          <div className="max-w-7xl mx-auto flex justify-between items-center font-medium">
-            <div className="flex items-center gap-6">
-              <span className="flex items-center gap-1.5 text-orange-400 font-semibold">
-                <Sparkles className="w-3 h-3" /> {settings.announcementText}
-              </span>
-              <span className="text-slate-500">|</span>
-              <Link to="/products" className="hover:text-white transition-colors flex items-center gap-1 text-slate-300">
-                <span className="text-amber-400">🔥</span> Bugüne Özel Fırsat Ürünleri
-              </Link>
-            </div>
-            <div className="flex items-center gap-4 text-slate-400">
-              <span className="flex items-center gap-1">
-                <PhoneCall className="w-3 h-3 text-orange-400" /> Müşteri Hizmetleri: {settings.contactPhone}
-              </span>
-              <Link to="/orders" className="hover:text-white transition-colors">Sipariş Takibi</Link>
-            </div>
-          </div>
+        <div className="hidden border-b border-slate-100 bg-slate-50 px-4 py-2 text-center text-xs text-slate-600 md:block">
+          {settings.freeShippingThreshold.toLocaleString('tr-TR')} TL ve üzeri alışverişlerde ücretsiz kargo
         </div>
       )}
-
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-2 sm:gap-6">
           <Link to="/" className="flex items-center shrink-0 group py-1">

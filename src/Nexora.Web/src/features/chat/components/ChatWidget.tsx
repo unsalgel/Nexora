@@ -11,10 +11,10 @@ interface FormatterOptions {
   addingProductId?: string | null;
 }
 const QUICK_SUGGESTIONS = [
-  { label: '🔥 Popüler Ürünler', prompt: 'Mağazanızdaki en popüler ve çok satan ürünleri listeler misin?' },
-  { label: '⌚ Akıllı Saatler', prompt: 'Akıllı saat modelleriniz nelerdir?' },
-  { label: '🚚 Kargo Süresi', prompt: 'Siparişler ne zaman kargoya verilir ve kargo ücreti ne kadar?' },
-  { label: '🔄 İade Koşulları', prompt: 'İade ve değişim süreciniz nasıl işliyor?' },
+  { label: 'Ürünleri İncele', prompt: 'Mağazanızdaki ürünleri listeler misin?' },
+  { label: 'Akıllı Saatler', prompt: 'Akıllı saat modelleriniz nelerdir?' },
+  { label: 'Kargo Bilgileri', prompt: 'Siparişler ne zaman kargoya verilir ve kargo ücreti ne kadar?' },
+  { label: 'İade Koşulları', prompt: 'İade ve değişim süreciniz nasıl işliyor?' },
 ];const renderFormattedContent = (content: string, options: FormatterOptions) => {
   const tokenRegex = /(\*\*.*?\*\*|\[.*?\]\(.*?\)|\[PRODUCT_CARD\|.*?\|.*?\|.*?\|.*?\])/g;
   const parts = content.split(tokenRegex);
@@ -187,7 +187,6 @@ if (typeof window !== 'undefined') {
 
 export const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [showWelcomeBubble, setShowWelcomeBubble] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const { messages, sendMessage, isLoading, clearChat } = useChat({ onMessageReceived: playNotificationSound });
@@ -202,35 +201,10 @@ export const ChatWidget: React.FC = () => {
   }, [messages, isOpen]);
   useEffect(() => {
     if (isOpen) {
-      setShowWelcomeBubble(false);
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
-  useEffect(() => {
-    const hasDismissed = sessionStorage.getItem('nexora_chat_bubble_dismissed');
-    if (hasDismissed) return;
-
-    const timer = setTimeout(() => {
-      setShowWelcomeBubble(true);
-      playNotificationSound();
-    }, 2200);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleDismissBubble = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowWelcomeBubble(false);
-    sessionStorage.setItem('nexora_chat_bubble_dismissed', 'true');
-  };
-
-  const handleOpenFromBubble = () => {
-    setShowWelcomeBubble(false);
-    sessionStorage.setItem('nexora_chat_bubble_dismissed', 'true');
-    setIsOpen(true);
-  };
-
-    const scrollChips = (direction: 'left' | 'right') => {
+  const scrollChips = (direction: 'left' | 'right') => {
     if (chipsScrollRef.current) {
       chipsScrollRef.current.scrollBy({
         left: direction === 'left' ? -130 : 130,
@@ -257,11 +231,9 @@ export const ChatWidget: React.FC = () => {
 
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
-      {/* Sohbet Penceresi */}
       {isOpen && (
         <div className="w-[calc(100vw-2rem)] sm:w-96 max-w-sm h-[530px] max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-100 overflow-hidden mb-3 transition-all duration-300">
-          {/* Başlık Çubuğu */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-5 py-4 flex items-center justify-between shadow-sm">
+          <div className="bg-slate-800 text-white px-5 py-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="relative">
                 <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
@@ -269,33 +241,29 @@ export const ChatWidget: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-orange-500 rounded-full"></span>
               </div>
               <div>
                 <h3 className="font-bold text-sm tracking-wide">Nexora Asistan</h3>
-                <p className="text-xs text-orange-100 font-medium">Yapay Zeka Destek</p>
+                <p className="text-xs text-slate-300 font-medium">Yapay zekâ destekli alışveriş yardımı</p>
               </div>
             </div>
 
             <div className="flex items-center space-x-1">
-              {/* Temizle Butonu */}
               <button
                 type="button"
                 onClick={clearChat}
                 title="Sohbeti Temizle"
-                className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-orange-100 hover:text-white"
+                className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-slate-300 hover:text-white"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-
-              {/* Kapat Butonu */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Kapat"
-                className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-orange-100 hover:text-white"
+                className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-slate-300 hover:text-white"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -303,8 +271,6 @@ export const ChatWidget: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Mesaj Listesi */}
           <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/50">
             {messages.map((msg, idx) => (
               <div
@@ -330,8 +296,6 @@ export const ChatWidget: React.FC = () => {
                 </div>
               </div>
             ))}
-
-            {/* Yazıyor Animasyonu */}
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex items-center space-x-1.5">
@@ -343,10 +307,7 @@ export const ChatWidget: React.FC = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Hızlı Öneri Hapları (Chips) */}
           <div className="relative bg-white border-t border-gray-100 px-2 py-2 flex items-center group">
-            {/* Sol Kaydırma Oku */}
             <button
               type="button"
               onClick={() => scrollChips('left')}
@@ -357,8 +318,6 @@ export const ChatWidget: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-
-            {/* Kaydırılabilir Liste (Fare tekerleği ile de kayar) */}
             <div
               ref={chipsScrollRef}
               onWheel={(e) => {
@@ -380,8 +339,6 @@ export const ChatWidget: React.FC = () => {
                 </button>
               ))}
             </div>
-
-            {/* Sağ Kaydırma Oku */}
             <button
               type="button"
               onClick={() => scrollChips('right')}
@@ -393,8 +350,6 @@ export const ChatWidget: React.FC = () => {
               </svg>
             </button>
           </div>
-
-          {/* Mesaj Gönderme Formu */}
           <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-gray-100 flex items-center space-x-2">
             <input
               ref={inputRef}
@@ -417,60 +372,13 @@ export const ChatWidget: React.FC = () => {
           </form>
         </div>
       )}
-
-      {/* Karşılama Baloncuğu (Sayfaya girildiğinde beliren akıllı ipucu) */}
-      {!isOpen && showWelcomeBubble && (
-        <div
-          onClick={handleOpenFromBubble}
-          className="mb-3 mr-1 bg-white text-slate-800 rounded-2xl p-3.5 shadow-2xl border border-orange-200/80 max-w-[270px] sm:max-w-xs cursor-pointer animate-in fade-in slide-in-from-bottom-3 duration-300 relative group/bubble hover:border-orange-400 transition-all"
-        >
-          <div className="flex items-start gap-2.5">
-            <div className="relative shrink-0 mt-0.5">
-              <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-sm">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
-
-            <div className="flex-1 pr-3">
-              <div className="flex items-center gap-1 mb-0.5">
-                <h4 className="text-xs font-bold text-slate-900">Nexora Asistan</h4>
-                <span className="text-[9px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.2 rounded-full">AI</span>
-              </div>
-              <p className="text-[12px] text-slate-600 leading-snug">
-                Merhaba! Aradığınız bir ürün var mı? Size nasıl yardımcı olabilirim? 👋
-              </p>
-            </div>
-
-            {/* Kapat Butonu */}
-            <button
-              type="button"
-              onClick={handleDismissBubble}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"
-              title="Kapat"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Konuşma Balonu Oku (Aşağı işaret eden üçgen) */}
-          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white border-b border-r border-orange-200/80 transform rotate-45"></div>
-        </div>
-      )}
-
-      {/* Yüzen Buton (Floating Button) */}
       <button
         type="button"
         onClick={() => {
-          setShowWelcomeBubble(false);
           setIsOpen((prev) => !prev);
         }}
-        className="group bg-gradient-to-r from-orange-500 to-orange-600 text-white p-3.5 sm:p-4 rounded-full shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-orange-500/20 relative"
-        aria-label="Yapay Zeka Asistanı"
+        className="ml-auto flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition-colors hover:border-orange-500 hover:text-orange-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+        aria-label={isOpen ? "Yardımı kapat" : "Yardımı aç"} aria-expanded={isOpen}
       >
         {isOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -481,7 +389,7 @@ export const ChatWidget: React.FC = () => {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
-            <span className="hidden sm:inline-block font-semibold text-sm pr-1">Asistan</span>
+            <span className="font-medium text-sm">Yardım</span>
           </div>
         )}
       </button>
