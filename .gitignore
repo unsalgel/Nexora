@@ -46,3 +46,6 @@ appsettings.Development.json
 # Test and Review Artifacts
 [Tt]est[Rr]esults/
 .review-tmp/
+
+# Uploads
+src/Nexora.Api/wwwroot/uploads/

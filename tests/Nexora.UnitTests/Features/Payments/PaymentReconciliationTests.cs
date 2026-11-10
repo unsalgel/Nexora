@@ -54,6 +54,42 @@ public sealed class PaymentReconciliationTests
     }
 
     [Fact]
+    public async Task JobStopsPolling_WhenOrderEntersRequiresAttention()
+    {
+        var options = new DbContextOptionsBuilder<NexoraDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        var gateway = PaymentCommandHandlerTests.CreateGateway();
+        await using (var seed = new NexoraDbContext(options))
+        {
+            var data = await CommerceRegressionTests.SeedCartAsync(seed);
+            await new InitializePaymentCommandHandler(seed, gateway.Object).Handle(new("Adres") { UserId = data.User.Id }, default);
+            var order = await seed.Orders.SingleAsync();
+            order.CreatedAtUtc = DateTime.UtcNow.AddHours(-25);
+            order.NextPaymentCheckAtUtc = DateTime.UtcNow.AddMinutes(-1);
+            await seed.SaveChangesAsync();
+            gateway.Setup(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PaymentVerificationResult(false, null, order.OrderNumber, 0, "Belirsiz", IsDefinitiveFailure: false));
+        }
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped<IApplicationDbContext>(_ => new NexoraDbContext(options));
+        services.AddSingleton(gateway.Object);
+        services.AddSingleton(Mock.Of<IEmailService>());
+        services.AddMediatR(c => c.RegisterServicesFromAssemblyContaining<CompletePaymentCommandHandler>());
+        using var provider = services.BuildServiceProvider();
+        var job = new PaymentReconciliationJob(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<PaymentReconciliationJob>.Instance);
+
+        await job.RunAsync();
+        await job.RunAsync();
+
+        await using var check = new NexoraDbContext(options);
+        var updatedOrder = await check.Orders.SingleAsync();
+        updatedOrder.PaymentStatus.Should().Be(PaymentStatus.RequiresAttention);
+        updatedOrder.NextPaymentCheckAtUtc.Should().BeNull();
+        gateway.Verify(g => g.VerifyPaymentAsync(It.IsAny<PaymentVerificationRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public void CallbackEnvironmentVariableOverridesNestedConfiguration()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

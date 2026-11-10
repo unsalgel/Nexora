@@ -52,7 +52,6 @@ export const CheckoutPage: React.FC = () => {
         setAppliedCoupon(JSON.parse(savedCoupon) as CouponValidationResultDto);
       }
     } catch {
-      // Ignore coupon parsing errors
     }
   }, []);
 
@@ -102,12 +101,28 @@ export const CheckoutPage: React.FC = () => {
 
   const handleIyzicoPayment = async (fullShippingAddress: string) => {
     try {
+      const contactName = address.fullName.trim();
+      const phoneNumber = address.phone.trim();
+      const city = address.city.trim();
+      const district = address.district.trim();
+
       const data = await checkoutService.initializePayment({
         idempotencyKey: orderAttempt.current(JSON.stringify({
-          method: 'iyzico', shippingAddress: fullShippingAddress, couponCode: appliedCoupon?.couponCode || null,
-          expectedTotalAmount: quoteQuery.data?.totalAmount, items: cart?.items.map(item => [item.id, item.quantity]).sort(),
+          method: 'iyzico',
+          shippingAddress: fullShippingAddress,
+          contactName,
+          phoneNumber,
+          city,
+          district,
+          couponCode: appliedCoupon?.couponCode || null,
+          expectedTotalAmount: quoteQuery.data?.totalAmount,
+          items: cart?.items.map(item => [item.id, item.quantity]).sort(),
         })),
         shippingAddress: fullShippingAddress,
+        contactName,
+        phoneNumber,
+        city,
+        district,
         expectedTotalAmount: quoteQuery.data?.totalAmount,
         couponCode: appliedCoupon?.couponCode || null,
       });
@@ -118,16 +133,15 @@ export const CheckoutPage: React.FC = () => {
         try {
           await checkoutService.saveAddress({
             title: addressTitle.trim() || 'Evim',
-            fullName: address.fullName.trim(),
-            phoneNumber: address.phone.trim(),
-            city: address.city,
-            district: address.district,
+            fullName: contactName,
+            phoneNumber,
+            city,
+            district,
             detailedAddress: address.fullAddress.trim(),
             postalCode: '',
             isDefault: savedAddresses.length === 0,
           });
         } catch {
-          // Address save non-critical failure
         }
       }
 

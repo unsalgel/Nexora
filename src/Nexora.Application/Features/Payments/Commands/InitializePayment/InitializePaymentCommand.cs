@@ -9,7 +9,12 @@ public sealed record InitializePaymentCommand(
     string? BillingAddress = null,
     string? CouponCode = null,
     decimal? ExpectedTotalAmount = null,
-    string? IdempotencyKey = null) : IRequest<Result<PaymentInitializationResult>>
+    string? IdempotencyKey = null,
+    string? ContactName = null,
+    string? PhoneNumber = null,
+    string? City = null,
+    string? District = null,
+    string? PostalCode = null) : IRequest<Result<PaymentInitializationResult>>
 {
     public Guid UserId { get; init; }
     public string? IpAddress { get; init; }

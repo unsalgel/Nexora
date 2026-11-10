@@ -24,12 +24,22 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
         _paymentGateway = paymentGateway;
     }
 
+    private const int MaxActivePaymentSessionsPerUser = 3;
+
     public async Task<Result<PaymentInitializationResult>> Handle(InitializePaymentCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await _context.BeginTransactionAsync($"usercart:{request.UserId}", cancellationToken);
         var requestHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
         {
-            request.ShippingAddress, request.BillingAddress, request.CouponCode, request.ExpectedTotalAmount
+            request.ShippingAddress,
+            request.BillingAddress,
+            request.CouponCode,
+            request.ExpectedTotalAmount,
+            request.ContactName,
+            request.PhoneNumber,
+            request.City,
+            request.District,
+            request.PostalCode
         }))));
         var idempotencyKey = request.IdempotencyKey?.Trim();
         if (!string.IsNullOrEmpty(idempotencyKey))
@@ -47,7 +57,12 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
             }
         }
 
-        // Lock shared inventory before reading it; the URL is exposed only after the reservation commits.
+        var activeSessionCount = await _context.Orders.AsNoTracking()
+            .CountAsync(o => o.UserId == request.UserId && o.PaymentToken != null &&
+                (o.PaymentStatus == PaymentStatus.Pending || o.PaymentStatus == PaymentStatus.Unknown), cancellationToken);
+        if (activeSessionCount >= MaxActivePaymentSessionsPerUser)
+            throw new ConflictException("Devam eden çok sayıda bekleyen ödeme oturumunuz bulunmaktadır. Lütfen mevcut ödemenizi tamamlayınız.");
+
         var productIds = await _context.CartItems.AsNoTracking().Where(i => i.Cart.UserId == request.UserId)
             .Select(i => i.ProductId).Distinct().ToListAsync(cancellationToken);
         foreach (var productId in productIds.Order())
@@ -73,6 +88,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
             throw new BusinessValidationException("Sepetinizde ürün bulunmamaktadır.");
 
         var orderItems = new List<OrderItem>();
+        var orderItemCategories = new List<string>();
         decimal rawTotal = 0;
         var requestedQuantities = cart.Items.GroupBy(i => (i.ProductId, i.ProductVariantId))
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
@@ -86,6 +102,11 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
                 item.ProductVariant.ProductId != item.ProductId || item.ProductVariant.Price <= 0 ||
                 !item.ProductVariant.IsActive || item.ProductVariant.IsDeleted))
                 throw new ConflictException("Sepette satışa uygun olmayan ürün varyantı var.");
+
+            var categoryName = !string.IsNullOrWhiteSpace(item.Product.Category?.Name)
+                ? item.Product.Category.Name
+                : "Genel";
+
             if (item.ProductVariantId.HasValue && item.ProductVariant is not null)
             {
                 if (item.ProductVariant.StockQuantity < requestedQuantities[(item.ProductId, item.ProductVariantId)])
@@ -105,6 +126,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
                     Quantity = quantity,
                     TotalPrice = itemTotal
                 });
+                orderItemCategories.Add(categoryName);
             }
             else
             {
@@ -123,6 +145,7 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
                     Quantity = quantity,
                     TotalPrice = itemTotal
                 });
+                orderItemCategories.Add(categoryName);
             }
         }
 
@@ -137,64 +160,120 @@ public sealed class InitializePaymentCommandHandler : IRequestHandler<Initialize
         var orderNumber = $"NX-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
 
         var basketItems = new List<PaymentBasketItemDto>();
-        decimal runningTotal = 0;
+        var totalRequiredLines = orderItems.Count + (pricing.Quote.ShippingFee > 0 ? 1 : 0);
 
-        for (int i = 0; i < orderItems.Count; i++)
+        if (grandTotal < totalRequiredLines * 0.01m)
         {
-            var item = orderItems[i];
-            var itemRatio = rawTotal > 0 ? (item.TotalPrice / rawTotal) : 0;
-            var discountedItemTotal = Math.Round(pricing.Quote.Subtotal * itemRatio - (pricing.Quote.DiscountAmount * itemRatio), 2);
-            if (discountedItemTotal < 0.01m) discountedItemTotal = 0.01m;
+            basketItems.Add(new PaymentBasketItemDto(
+                Id: orderItems[0].ProductId?.ToString() ?? Guid.NewGuid().ToString(),
+                Name: "Sipariş Toplamı",
+                Category: orderItemCategories[0],
+                Price: grandTotal));
+        }
+        else
+        {
+            var shippingTarget = pricing.Quote.ShippingFee > 0
+                ? Math.Min(pricing.Quote.ShippingFee, grandTotal - (orderItems.Count * 0.01m))
+                : 0m;
+            var netProductsTarget = grandTotal - shippingTarget;
+            decimal runningProductsTotal = 0;
 
-            if (i == orderItems.Count - 1 && pricing.Quote.ShippingFee == 0)
+            for (int i = 0; i < orderItems.Count; i++)
             {
-                discountedItemTotal = grandTotal - runningTotal;
+                var item = orderItems[i];
+                decimal discountedItemTotal;
+
+                if (i == orderItems.Count - 1)
+                {
+                    discountedItemTotal = netProductsTarget - runningProductsTotal;
+                }
+                else
+                {
+                    var remainingItemsCount = orderItems.Count - 1 - i;
+                    var maxAllowedForCurrent = (netProductsTarget - runningProductsTotal) - (remainingItemsCount * 0.01m);
+                    var itemRatio = rawTotal > 0 ? (item.TotalPrice / rawTotal) : (1m / orderItems.Count);
+                    var rawShare = Math.Round(netProductsTarget * itemRatio, 2, MidpointRounding.AwayFromZero);
+                    discountedItemTotal = Math.Clamp(rawShare, 0.01m, Math.Max(0.01m, maxAllowedForCurrent));
+                }
+
+                runningProductsTotal += discountedItemTotal;
+
+                basketItems.Add(new PaymentBasketItemDto(
+                    Id: item.ProductId?.ToString() ?? Guid.NewGuid().ToString(),
+                    Name: item.ProductName,
+                    Category: orderItemCategories[i],
+                    Price: discountedItemTotal));
             }
-            runningTotal += discountedItemTotal;
 
-            basketItems.Add(new PaymentBasketItemDto(
-                Id: item.ProductId?.ToString() ?? Guid.NewGuid().ToString(),
-                Name: item.ProductName,
-                Category: "Genel",
-                Price: discountedItemTotal));
+            if (shippingTarget > 0)
+            {
+                basketItems.Add(new PaymentBasketItemDto(
+                    Id: Guid.NewGuid().ToString(),
+                    Name: "Kargo ve Teslimat",
+                    Category: "Kargo",
+                    Price: shippingTarget));
+            }
         }
 
-        if (pricing.Quote.ShippingFee > 0)
-        {
-            var shippingItemPrice = grandTotal - runningTotal;
-            basketItems.Add(new PaymentBasketItemDto(
-                Id: Guid.NewGuid().ToString(),
-                Name: "Kargo ve Teslimat",
-                Category: "Kargo",
-                Price: shippingItemPrice));
-        }
+        var savedAddress = (string.IsNullOrWhiteSpace(request.PhoneNumber) || string.IsNullOrWhiteSpace(request.City))
+            ? await _context.UserAddresses.AsNoTracking()
+                .Where(a => a.UserId == request.UserId && !a.IsDeleted)
+                .OrderByDescending(a => a.IsDefault)
+                .ThenByDescending(a => a.CreatedAtUtc)
+                .Select(a => new { a.FullName, a.PhoneNumber, a.City, a.PostalCode })
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
+        var resolvedContactName = !string.IsNullOrWhiteSpace(request.ContactName)
+            ? request.ContactName.Trim()
+            : !string.IsNullOrWhiteSpace(savedAddress?.FullName)
+                ? savedAddress.FullName.Trim()
+                : $"{user.FirstName} {user.LastName}".Trim();
+
+        var resolvedPhone = !string.IsNullOrWhiteSpace(request.PhoneNumber)
+            ? request.PhoneNumber.Trim()
+            : !string.IsNullOrWhiteSpace(savedAddress?.PhoneNumber)
+                ? savedAddress.PhoneNumber.Trim()
+                : "+905555555555";
+
+        var resolvedCity = !string.IsNullOrWhiteSpace(request.City)
+            ? request.City.Trim()
+            : !string.IsNullOrWhiteSpace(savedAddress?.City)
+                ? savedAddress.City.Trim()
+                : "Istanbul";
+
+        var resolvedZipCode = !string.IsNullOrWhiteSpace(request.PostalCode)
+            ? request.PostalCode.Trim()
+            : !string.IsNullOrWhiteSpace(savedAddress?.PostalCode)
+                ? savedAddress.PostalCode.Trim()
+                : "34000";
 
         var buyer = new PaymentBuyerDto(
             Id: user.Id.ToString(),
             Name: user.FirstName,
             Surname: user.LastName,
             Email: user.Email,
-            PhoneNumber: "+905555555555",
+            PhoneNumber: resolvedPhone,
             IdentityNumber: "11111111111",
             RegistrationAddress: request.ShippingAddress,
-            City: "Istanbul",
+            City: resolvedCity,
             Country: "Turkey",
-            ZipCode: "34000",
+            ZipCode: resolvedZipCode,
             IpAddress: request.IpAddress ?? "127.0.0.1");
 
         var address = new PaymentAddressDto(
-            ContactName: $"{user.FirstName} {user.LastName}",
-            City: "Istanbul",
+            ContactName: resolvedContactName,
+            City: resolvedCity,
             Country: "Turkey",
             AddressLine: request.ShippingAddress,
-            ZipCode: "34000");
+            ZipCode: resolvedZipCode);
 
         var billingAddress = string.IsNullOrWhiteSpace(request.BillingAddress) ? address : new PaymentAddressDto(
-            ContactName: $"{user.FirstName} {user.LastName}",
-            City: "Istanbul",
+            ContactName: resolvedContactName,
+            City: resolvedCity,
             Country: "Turkey",
             AddressLine: request.BillingAddress,
-            ZipCode: "34000");
+            ZipCode: resolvedZipCode);
 
         var initRequest = new PaymentInitializationRequest(
             OrderNumber: orderNumber,

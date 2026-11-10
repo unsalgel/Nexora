@@ -209,6 +209,20 @@ builder.Services.AddRateLimiter(options =>
                 });
         }
 
+        if (path.Contains("/payments/initialize", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/payments/callback", StringComparison.OrdinalIgnoreCase))
+        {
+            var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
+            return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                $"payment_{clientIp}",
+                _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 15,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+        }
+
         return System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("unlimited");
     });
 });
