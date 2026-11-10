@@ -78,7 +78,7 @@ export const HomePage: React.FC = () => {
           <div className="flex flex-1 flex-col p-3 sm:p-4">
             <p className="mb-1 text-xs font-medium text-slate-500">{product.brandName}</p>
             <h3 className="min-h-10 text-sm font-medium leading-5 text-slate-800">
-              <Link to={`/products/${product.id}`} className="line-clamp-2 hover:text-orange-600 focus-visible:outline-2 focus-visible:outline-orange-600">{product.name}</Link>
+              <Link to={`/products/${product.id}`} className="line-clamp-2 hover:text-orange-600 focus-visible:outline-2 focus-visible:outline-orange-600">{product.brandName && product.name.toLocaleLowerCase('tr-TR').startsWith(product.brandName.toLocaleLowerCase('tr-TR') + ' ') ? product.name.slice(product.brandName.length).trimStart() : product.name}</Link>
             </h3>
             <div className="mt-2 min-h-5 text-xs text-slate-500">
               {product.reviewCount > 0 ? (
